@@ -1,0 +1,28 @@
+{
+  "compilerOptions": {
+    "module": "commonjs",
+    "declaration": true,
+    "removeComments": true,
+    "emitDecoratorMetadata": true,
+    "experimentalDecorators": true,
+    "allowSyntheticDefaultImports": true,
+    "target": "es2019",
+    "lib": [
+      "es2019",
+      "dom"
+    ],
+    "sourceMap": true,
+    "rootDir": "./src",
+    "outDir": "./build",
+    "baseUrl": "./",
+    "skipLibCheck": true,
+    "resolveJsonModule": true,
+    "esModuleInterop": true,
+    "strict": true
+  },
+  "exclude": [
+    "node_modules",
+    "build",
+    "test"
+  ]
+}
