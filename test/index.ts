@@ -93,9 +93,9 @@ Promise.resolve().then(async () => {
   const tx103 = await sendTx(tx, seed);
 
   console.log('Tx 103: ', tx103);
-  console.log('Waiting 15 seconds...');
+  console.log('Waiting 30 seconds...');
 
-  await sleep(15);
+  await sleep(30);
 
   // @ts-ignore
   const contractId = tx103.id;

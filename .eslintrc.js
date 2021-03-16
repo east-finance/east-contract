@@ -19,5 +19,5 @@ module.exports = {
         "semi": ["error", "always"],
         "quotes": ["error", "single"]
     },
-    "ignorePatterns": ['test']
+    "ignorePatterns": ['test', 'src/compiled-protos']
 };

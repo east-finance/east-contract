@@ -31,4 +31,28 @@ export type DataEntryValueKeysResponse = OneOfType<{
 export type DataEntryResponse = {
   key: string,
   value: 'int_value' | 'bool_value' | 'binary_value' | 'string_value',
-} & DataEntryValueKeysResponse
+} & DataEntryValueKeysResponse;
+
+export type Transaction = {
+  id: string,
+  type: number,
+  sender: string,
+  sender_public_key: string,
+  contract_id: string,
+  fee: number,
+  version: number,
+  proofs: Buffer,
+  timestamp: number,
+  fee_asset_id: {
+    value: string,
+  },
+  params: DataEntryResponse[],
+}
+export type ContractTransactionResponse = {
+  transaction: Transaction,
+  auth_token: string,
+}
+
+export enum ContractKeys {
+  CreatorPublicKey = 'CREATOR_PUBLIC_KEY'
+}

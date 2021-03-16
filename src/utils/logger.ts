@@ -14,10 +14,7 @@
 // };
 
 import nodeFetch from 'node-fetch';
-// const { HOST_NETWORK } = process.env
-const HOST_NETWORK = '192.168.1.71'
-
-console.log('HOST_NETWORK', HOST_NETWORK)
+const { HOST_NETWORK } = process.env;
 
 class Logger {
   name: string;

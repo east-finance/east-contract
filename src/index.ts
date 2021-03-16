@@ -1,7 +1,7 @@
 import { config } from 'dotenv';
 config();
 
-import { RPCService } from './RPCService';
+import { RPCService } from './services/RPCService';
 import { createLogger } from './utils/logger';
 
 const logger = createLogger('Main Service');
