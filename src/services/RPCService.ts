@@ -36,8 +36,6 @@ const definitions = loadSync(
 const proto = loadPackageDefinition(definitions).wavesenterprise as GrpcObject;
 const ContractService = proto.ContractService as ServiceClientConstructor;
 
-const IncrementContractKey = 'key_increment';
-
 export class RPCService {
   client: any;
   private stateService: StateService;
@@ -57,9 +55,6 @@ export class RPCService {
 
   async handleDockerCreate(tx: Transaction): Promise<void> {
     await this.stateService.commitSuccess(tx.id, [{
-      key: IncrementContractKey,
-      string_value: '0'
-    }, {
       key: StateKeys.adminPublicKey,
       string_value: tx.sender_public_key
     }, {
@@ -108,7 +103,13 @@ export class RPCService {
 
   async transfer(from: string, to: string, amount: number): Promise<DataEntryRequest[]> {
     let fromBalance = await this.stateService.getBalance(from);
+
+    if(fromBalance < amount) {
+      throw Error(`Insufficient funds to transfer from "${from}": balance "${fromBalance}", amount "${amount}"`);
+    }
+
     let toBalance = await this.stateService.getBalance(to);
+
     fromBalance -= amount;
     toBalance += amount;
     return [{
@@ -148,12 +149,6 @@ export class RPCService {
       }
     }
 
-    // const value: string = await this.stateService.getContractKeyValue(auth, tx.contract_id, IncrementContractKey);
-    // const results = [{
-    //   key: IncrementContractKey,
-    //   type: 'string',
-    //   string_value: (parseInt(value) + 1).toString()
-    // }];
     await this.stateService.commitSuccess(tx.id, results);
   }
 
