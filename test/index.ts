@@ -46,6 +46,7 @@ const sendTx = async (tx: any, seed: any) => {
     });
     const resultData = await result.json();
     console.log('result', resultData);
+    // console.log(`Tx ${tx.id} (${tx.type}) successfully sent`);
     return resultData
   } catch (err) {
     console.log('Broadcast error:', err);
@@ -94,7 +95,6 @@ Promise.resolve().then(async () => {
 
   console.log('Tx 103: ', tx103);
   console.log('Waiting 30 seconds...');
-
   await sleep(30);
 
   // @ts-ignore
@@ -107,13 +107,52 @@ Promise.resolve().then(async () => {
     params: [],
   };
 
-  const dockerCallTx = Waves.API.Transactions.CallContract.V2(callTx);
+  const dockerCallTx = Waves.API.Transactions.CallContract.V2({
+    ...callTx,
+    params: [{
+      type: 'string',
+      key: 'mint',
+      value: JSON.stringify({
+        address: seed.address,
+        amount: 666
+      })
+    }]
+  });
 
   await sendTx(dockerCallTx, seed);
+
   console.log('Waiting 10 seconds...');
   await sleep(10);
-  await sendTx(Waves.API.Transactions.CallContract.V2({...callTx, timestamp: Date.now()}), seed);
+
+  const seed2 = Waves.Seed.fromExistingPhrase('examples seed phrase another one');
+
+  await sendTx(Waves.API.Transactions.CallContract.V2({
+    ...callTx,
+    timestamp: Date.now(),
+    params: [{
+      type: 'string',
+      key: 'transfer',
+      value: JSON.stringify({
+        from: seed.address,
+        to: seed2.address,
+        amount: 100
+      })
+    }]
+  }), seed);
+
   console.log('Waiting 10 seconds...');
   await sleep(10);
-  await sendTx(Waves.API.Transactions.CallContract.V2({...callTx, timestamp: Date.now()}), seed);
+
+  await sendTx(Waves.API.Transactions.CallContract.V2({
+    ...callTx,
+    timestamp: Date.now(),
+    params: [{
+      type: 'string',
+      key: 'burn',
+      value: JSON.stringify({
+        address: seed2.address,
+        amount: 50
+      })
+    }]
+  }), seed);
 });

@@ -1,10 +1,5 @@
 declare module 'node-fetch';
 
-export enum TxType {
-  DockerCreate  = 103,
-  DockerCall = 104
-}
-
 type ValueOf<Obj> = Obj[keyof Obj]
 type OneOnly<Obj, Key extends keyof Obj> = { [key in Exclude<keyof Obj, Key>]+?: never } & Pick<Obj, Key>
 type OneOfByKey<Obj> = { [key in keyof Obj]: OneOnly<Obj, key> }
@@ -53,6 +48,20 @@ export type ContractTransactionResponse = {
   auth_token: string,
 }
 
-export enum ContractKeys {
-  CreatorPublicKey = 'CREATOR_PUBLIC_KEY'
+export enum TxType {
+  DockerCreate  = 103,
+  DockerCall = 104
+}
+
+export enum Operations {
+  mint = 'mint',
+  transfer = 'transfer',
+  burn = 'burn'
+}
+
+export enum StateKeys {
+  adminPublicKey = 'admin_pub_key',
+  totalSupply = 'total_supply',
+  balance = 'balance'
+
 }

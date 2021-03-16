@@ -4,9 +4,10 @@ import { ServiceClientConstructor } from '@grpc/grpc-js/build/src/make-client';
 import { loadSync } from '@grpc/proto-loader';
 import { createLogger } from '../utils/logger';
 import {
-  ContractKeys,
   ContractTransactionResponse,
   DataEntryRequest,
+  Operations,
+  StateKeys,
   Transaction,
   TxType
 } from '../interfaces';
@@ -54,65 +55,106 @@ export class RPCService {
     this.stateService = new StateService(this.client);
   }
 
-  commitSuccess = (auth: Metadata, txId: string, results: DataEntryRequest[]): Promise<void> => {
-    return new Promise<void>((resolve, reject) => {
-      this.client.commitExecutionSuccess({
-        tx_id: txId,
-        results,
-      }, auth, function (error: Error) {
-        if (error) {
-          reject(error);
-        } else {
-          resolve();
-        }
-      });
-    });
-  };
-
-  commitError(auth: Metadata, txId: string, message: string): Promise<void> {
-    return new Promise<void>((resolve, reject) => {
-      this.client.commitExecutionError({
-        tx_id: txId,
-        message,
-      }, auth, function (error: Error) {
-        if (error) {
-          reject(error);
-        } else {
-          resolve();
-        }
-      });
-    });
-  }
-
-  async handleDockerCreate(auth: Metadata, tx: Transaction): Promise<void> {
-    await this.commitSuccess(auth, tx.id, [{
+  async handleDockerCreate(tx: Transaction): Promise<void> {
+    await this.stateService.commitSuccess(tx.id, [{
       key: IncrementContractKey,
       string_value: '0'
     }, {
-      key: ContractKeys.CreatorPublicKey,
+      key: StateKeys.adminPublicKey,
       string_value: tx.sender_public_key
+    }, {
+      key: StateKeys.totalSupply,
+      string_value: '0'
     }]);
   }
 
-  async checkPermissions(auth: Metadata, tx: Transaction): Promise<void> {
-    const creatorPublicKey = await this.stateService.getContractKeyValue(auth, tx.contract_id, ContractKeys.CreatorPublicKey);
-    if (!creatorPublicKey) {
-      throw Error('Creator public key is missing in state');
+  async checkPermissions(tx: Transaction): Promise<void> {
+    const adminPublicKey = await this.stateService.getContractKeyValue(StateKeys.adminPublicKey);
+    if (!adminPublicKey) {
+      throw Error('Admin public key is missing in state');
     }
-    if (creatorPublicKey !== tx.sender_public_key) {
-      throw Error(`Creator public key ${creatorPublicKey} doesn't match tx sender public key ${tx.sender_public_key}`);
+    if (adminPublicKey !== tx.sender_public_key) {
+      throw Error(`Creator public key ${adminPublicKey} doesn't match tx sender public key ${tx.sender_public_key}`);
     }
   }
 
-  async handleDockerCall(auth: Metadata, tx: Transaction): Promise<void> {
-    await this.checkPermissions(auth, tx);
-    const value: string = await this.stateService.getContractKeyValue(auth, tx.contract_id, IncrementContractKey);
-    const results = [{
-      key: IncrementContractKey,
-      type: 'string',
-      string_value: (parseInt(value) + 1).toString()
+  async mint(address: string, amount: number): Promise<DataEntryRequest[]> {
+    let totalSupply = await this.stateService.getTotalSupply();
+    let balance = await this.stateService.getBalance(address);
+    balance += amount;
+    totalSupply += amount;
+    return [{
+      key: StateKeys.totalSupply,
+      string_value: '' + totalSupply
+    }, {
+      key: `${StateKeys.balance}_${address}`,
+      string_value: '' + balance
     }];
-    await this.commitSuccess(auth, tx.id, results);
+  }
+
+  async burn(address: string, amount: number): Promise<DataEntryRequest[]> {
+    let totalSupply = await this.stateService.getTotalSupply();
+    let balance = await this.stateService.getBalance(address);
+    balance -= amount;
+    totalSupply -= amount;
+    return [{
+      key: StateKeys.totalSupply,
+      string_value: '' + Math.max(totalSupply, 0)
+    }, {
+      key: `${StateKeys.balance}_${address}`,
+      string_value: '' + Math.max(balance, 0)
+    }];
+  }
+
+  async transfer(from: string, to: string, amount: number): Promise<DataEntryRequest[]> {
+    let fromBalance = await this.stateService.getBalance(from);
+    let toBalance = await this.stateService.getBalance(to);
+    fromBalance -= amount;
+    toBalance += amount;
+    return [{
+      key: `${StateKeys.balance}_${from}`,
+      string_value: '' + fromBalance
+    }, {
+      key: `${StateKeys.balance}_${to}`,
+      string_value: '' + toBalance
+    }];
+  }
+
+  async handleDockerCall(tx: Transaction): Promise<void> {
+    const { params } = tx;
+    let results: DataEntryRequest[] = [];
+
+    logger.info(`PARAMS: ${JSON.stringify(params)}`);
+
+    // TODO: iterate params
+    const param = params[0];
+    if (param) {
+      const value = JSON.parse(param.string_value || '{}');
+      switch(param.key) {
+        case Operations.mint: {
+          results = await this.mint(value.address, Number(value.amount));
+        }
+        break;
+        case Operations.transfer: {
+          results = await this.transfer(value.from, value.to, value.amount);
+        }
+        break;
+        case Operations.burn: {
+          results = await this.burn(value.address, Number(value.amount));
+        }
+        break;
+        default:
+          throw Error(`Unknown DockerCall operation key: "${param.key}"`);
+      }
+    }
+
+    // const value: string = await this.stateService.getContractKeyValue(auth, tx.contract_id, IncrementContractKey);
+    // const results = [{
+    //   key: IncrementContractKey,
+    //   type: 'string',
+    //   string_value: (parseInt(value) + 1).toString()
+    // }];
+    await this.stateService.commitSuccess(tx.id, results);
   }
 
   onDataReceived = async (response: ContractTransactionResponse): Promise<void> => {
@@ -121,22 +163,25 @@ export class RPCService {
     const auth = new Metadata();
     auth.set('authorization', auth_token);
 
+    this.stateService.setAuthData(auth, tx.contract_id);
+
     logger.info(`Transaction ${tx.type} income: ${tx.id}, data: ${JSON.stringify(tx)}`);
     const start = Date.now();
 
     try {
       switch(tx.type) {
         case TxType.DockerCreate:
-          await this.handleDockerCreate(auth, tx);
+          await this.handleDockerCreate(tx);
           break;
         case TxType.DockerCall:
-          await this.handleDockerCall(auth, tx);
+          await this.checkPermissions(tx);
+          await this.handleDockerCall(tx);
           break;
       }
-      logger.info(`Contract ${tx.id} with tx type ${tx.type} mined, time: ${Date.now() -  start}ms`);
+      logger.info(`Tx "${tx.id}" (type ${tx.type}) successfully mined, elapsed time: ${Date.now() -  start}ms`);
     } catch(e) {
-      logger.info(`Tx error: ${e.message}`);
-      await this.commitError(auth, tx.id, e.message);
+      logger.info(`Tx "${tx.id}" (type ${tx.type}) error: ${e.message}`);
+      await this.stateService.commitError(tx.id, e.message);
     }
   }
 
