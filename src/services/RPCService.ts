@@ -37,6 +37,7 @@ const proto = loadPackageDefinition(definitions).wavesenterprise as GrpcObject;
 const ContractService = proto.ContractService as ServiceClientConstructor;
 
 export class RPCService {
+  // eslint-disable-next-line
   client: any;
   private stateService: StateService;
 
@@ -133,15 +134,16 @@ export class RPCService {
       const value = JSON.parse(param.string_value || '{}');
       switch(param.key) {
         case Operations.mint: {
+          await this.checkPermissions(tx);
           results = await this.mint(value.address, Number(value.amount));
         }
         break;
         case Operations.transfer: {
-          results = await this.transfer(value.from, value.to, value.amount);
+          results = await this.transfer(tx.sender, value.to, value.amount);
         }
         break;
         case Operations.burn: {
-          results = await this.burn(value.address, Number(value.amount));
+          results = await this.burn(tx.sender, Number(value.amount));
         }
         break;
         default:
@@ -169,7 +171,6 @@ export class RPCService {
           await this.handleDockerCreate(tx);
           break;
         case TxType.DockerCall:
-          await this.checkPermissions(tx);
           await this.handleDockerCall(tx);
           break;
       }

@@ -133,7 +133,6 @@ Promise.resolve().then(async () => {
       type: 'string',
       key: 'transfer',
       value: JSON.stringify({
-        from: seed.address,
         to: seed2.address,
         amount: 100
       })
@@ -150,9 +149,8 @@ Promise.resolve().then(async () => {
       type: 'string',
       key: 'burn',
       value: JSON.stringify({
-        address: seed2.address,
         amount: 50
       })
     }]
-  }), seed);
+  }), seed2);
 });
