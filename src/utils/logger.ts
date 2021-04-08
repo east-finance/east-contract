@@ -23,17 +23,19 @@ class Logger {
     this.name = name;
   }
   info(message: string) {
-    console.log(`${HOST_NETWORK} ${this.name}: ${message}`);
-    nodeFetch(`http://${HOST_NETWORK}:5050`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({
-        name: this.name,
-        message
-      })
-    });
+    console.log(`${this.name}: ${message}`);
+    if (HOST_NETWORK) {
+      nodeFetch(`http://${HOST_NETWORK}:5050`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          name: this.name,
+          message
+        })
+      });
+    }
   }
 
   error(message: string) {
