@@ -1,5 +1,5 @@
 import { Metadata } from '@grpc/grpc-js';
-import { DataEntryRequest, DataEntryResponse, StateKeys } from '../interfaces';
+import { DataEntryRequest, DataEntryResponse, StateKeys, Vault } from '../interfaces';
 
 export class StateService {
   private auth = new Metadata();
@@ -77,5 +77,10 @@ export class StateService {
     } catch(e) {
       return 0;
     }
+  }
+
+  async getVault (vault: string): Promise<Vault> {
+    const value = await this.getContractKeyValue(`${StateKeys.vault}_${vault}`);
+    return JSON.parse(value as string);
   }
 }

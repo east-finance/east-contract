@@ -48,6 +48,30 @@ export type ContractTransactionResponse = {
   auth_token: string,
 }
 
+export interface BurnParam {
+  vault: string,
+}
+
+export interface TransferParam {
+  to: string,
+  eastAmount: number
+}
+
+export interface Vault {
+  address: string,
+  eastAmount: number,
+  westAmount: number,
+  usdpAmount: number,
+}
+
+export type RecalculateExecuteParam = {
+  eastAmount?: number,
+  westAmount?: number,
+  usdpAmount?: number,
+  vault: string
+}
+
+
 export enum TxType {
   DockerCreate  = 103,
   DockerCall = 104
@@ -56,12 +80,14 @@ export enum TxType {
 export enum Operations {
   mint = 'mint',
   transfer = 'transfer',
-  burn = 'burn'
+  burn = 'burn',
+  recalculate_init = 'recalculate_init',
+  recalculate_execute = 'recalculate_execute',
 }
 
 export enum StateKeys {
   adminPublicKey = 'admin_pub_key',
   totalSupply = 'total_supply',
-  balance = 'balance'
-
+  balance = 'balance',
+  vault = 'vault'
 }

@@ -54,7 +54,7 @@ const sendTx = async (tx: any, seed: any) => {
 }
 
 Promise.resolve().then(async () => {
-  const imageName = 'east-contract:1.0';
+  const imageName = 'east-contract:1.3';
   console.log(`Building docker image ${imageName}, HOST_NETWORK=${hostIp}`);
   await execute(`docker build --build-arg HOST_NETWORK=${hostIp} -t ${imageName} .`);
   console.log('Build image done');
@@ -80,7 +80,7 @@ Promise.resolve().then(async () => {
     fetchInstance: fetch
   });
 
-  const seed = Waves.Seed.fromExistingPhrase(seedPhrase);
+  const ownerSeed = Waves.Seed.fromExistingPhrase(seedPhrase);
 
   const txBody = {
     image: imageName,
@@ -91,7 +91,7 @@ Promise.resolve().then(async () => {
   };
 
   const tx = Waves.API.Transactions.CreateContract.V2(txBody);
-  const tx103 = await sendTx(tx, seed);
+  const tx103 = await sendTx(tx, ownerSeed);
 
   console.log('Tx 103: ', tx103);
   console.log('Waiting 30 seconds...');
@@ -99,6 +99,7 @@ Promise.resolve().then(async () => {
 
   // @ts-ignore
   const contractId = tx103.id;
+  const userSeed = Waves.Seed.fromExistingPhrase('examples seed phrase another one');
 
   const callTx = {
     contractId,
@@ -113,18 +114,21 @@ Promise.resolve().then(async () => {
       type: 'string',
       key: 'mint',
       value: JSON.stringify({
-        address: seed.address,
-        amount: 666
+        address: userSeed.address,
+        eastAmount: 400,
+        westAmount: 500,
+        usdpAmount: 200
       })
     }]
   });
 
-  await sendTx(dockerCallTx, seed);
+  await sendTx(dockerCallTx, ownerSeed);
 
   console.log('Waiting 10 seconds...');
   await sleep(10);
 
-  const seed2 = Waves.Seed.fromExistingPhrase('examples seed phrase another one');
+  const VaultId = await dockerCallTx.getId()
+  const transferSeed = Waves.Seed.fromExistingPhrase('examples seed phrase another two');
 
   await sendTx(Waves.API.Transactions.CallContract.V2({
     ...callTx,
@@ -133,11 +137,47 @@ Promise.resolve().then(async () => {
       type: 'string',
       key: 'transfer',
       value: JSON.stringify({
-        to: seed2.address,
-        amount: 100
+        to: transferSeed.address,
+        eastAmount: 100
       })
     }]
-  }), seed);
+  }), userSeed);
+
+  console.log('Waiting 10 seconds...');
+  await sleep(10);
+
+  await sendTx(Waves.API.Transactions.CallContract.V2({
+    ...callTx,
+    timestamp: Date.now(),
+    params: [{
+      type: 'string',
+      key: 'mint',
+      value: JSON.stringify({
+        address: userSeed.address,
+        eastAmount: 440,
+        westAmount: 540,
+        usdpAmount: 250
+      })
+    }]
+  }), ownerSeed);
+
+  console.log('Waiting 10 seconds...');
+  await sleep(10);
+
+  await sendTx(Waves.API.Transactions.CallContract.V2({
+    ...callTx,
+    timestamp: Date.now(),
+    params: [{
+      type: 'string',
+      key: 'recalculate_execute',
+      value: JSON.stringify({
+        eastAmount: 430,
+        westAmount: 530,
+        usdpAmount: 230,
+        vault: VaultId
+      })
+    }]
+  }), ownerSeed);
 
   console.log('Waiting 10 seconds...');
   await sleep(10);
@@ -149,8 +189,8 @@ Promise.resolve().then(async () => {
       type: 'string',
       key: 'burn',
       value: JSON.stringify({
-        amount: 50
+        vault: VaultId
       })
     }]
-  }), seed2);
+  }), userSeed);
 });

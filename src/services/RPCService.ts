@@ -9,7 +9,11 @@ import {
   Operations,
   StateKeys,
   Transaction,
-  TxType
+  TxType,
+  BurnParam,
+  TransferParam,
+  Vault,
+  RecalculateExecuteParam
 } from '../interfaces';
 import { CONNECTION_ID, CONNECTION_TOKEN, NODE, NODE_PORT, HOST_NETWORK } from '../config';
 import { wavesenterprise } from '../compiled-protos';
@@ -64,7 +68,7 @@ export class RPCService {
     }]);
   }
 
-  async checkPermissions(tx: Transaction): Promise<void> {
+  async checkAdminPermissions(tx: Transaction): Promise<void> {
     const adminPublicKey = await this.stateService.getContractKeyValue(StateKeys.adminPublicKey);
     if (!adminPublicKey) {
       throw Error('Admin public key is missing in state');
@@ -74,41 +78,76 @@ export class RPCService {
     }
   }
 
-  async mint(address: string, amount: number): Promise<DataEntryRequest[]> {
+  async mint(tx: Transaction, value: Vault): Promise<DataEntryRequest[]> {
+    // check 
+    await this.checkAdminPermissions(tx);
+
+    const { address } = value
+    const amount = Number(value.eastAmount)
     let totalSupply = await this.stateService.getTotalSupply();
     let balance = await this.stateService.getBalance(address);
     balance += amount;
     totalSupply += amount;
-    return [{
-      key: StateKeys.totalSupply,
-      string_value: '' + totalSupply
-    }, {
-      key: `${StateKeys.balance}_${address}`,
-      string_value: '' + balance
-    }];
+    return [
+      {
+        key: StateKeys.totalSupply,
+        string_value: '' + totalSupply
+      },
+      {
+        key: `${StateKeys.balance}_${address}`,
+        string_value: '' + balance
+      },
+      {
+        key: `${StateKeys.vault}_${tx.id}`,
+        string_value: JSON.stringify(value)
+      }
+    ];
   }
 
-  async burn(address: string, amount: number): Promise<DataEntryRequest[]> {
+  async burn(tx: Transaction, value: BurnParam): Promise<DataEntryRequest[]> {
+    const { vault: vaultId } = value
+    const { eastAmount, address } = await this.stateService.getVault(vaultId);
+
+    // check
+    if (tx.sender !== address) {
+      throw Error(`Only ${address} can burn vault ${vaultId}`);
+    }
+
     let totalSupply = await this.stateService.getTotalSupply();
     let balance = await this.stateService.getBalance(address);
-    balance -= amount;
-    totalSupply -= amount;
-    return [{
-      key: StateKeys.totalSupply,
-      string_value: '' + Math.max(totalSupply, 0)
-    }, {
-      key: `${StateKeys.balance}_${address}`,
-      string_value: '' + Math.max(balance, 0)
-    }];
+
+    // check
+    if (balance < eastAmount) {
+      throw Error(`Not enought EAST amount(${eastAmount}) on ${address} to burn vault: ${vaultId}`);
+    }
+
+    balance -= eastAmount;
+    totalSupply -= eastAmount;
+
+    return [
+      {
+        key: StateKeys.totalSupply,
+        string_value: '' + Math.max(totalSupply, 0)
+      }, 
+      {
+        key: `${StateKeys.balance}_${address}`,
+        string_value: '' + Math.max(balance, 0)
+      },
+      {
+        key: `${StateKeys.vault}_${vaultId}`,
+        string_value: ''
+      }
+    ];
   }
 
-  async transfer(from: string, to: string, amount: number): Promise<DataEntryRequest[]> {
-    let fromBalance = await this.stateService.getBalance(from);
+  async transfer(tx: Transaction, value: TransferParam): Promise<DataEntryRequest[]> {
+    const { to, eastAmount: amount } = value
+    const from = tx.sender
 
+    let fromBalance = await this.stateService.getBalance(from);
     if(fromBalance < amount) {
       throw Error(`Insufficient funds to transfer from "${from}": balance "${fromBalance}", amount "${amount}"`);
     }
-
     let toBalance = await this.stateService.getBalance(to);
 
     fromBalance -= amount;
@@ -122,6 +161,41 @@ export class RPCService {
     }];
   }
 
+  async recalculateExecute(tx: Transaction, { vault: vaultId, ...newVault}: RecalculateExecuteParam): Promise<DataEntryRequest[]> {
+    // check
+    await this.checkAdminPermissions(tx);
+    const oldVault = await this.stateService.getVault(vaultId);
+    let results: any[] = []
+
+    if (newVault.eastAmount) {
+      let totalSupply = await this.stateService.getTotalSupply();
+      let balance = await this.stateService.getBalance(oldVault.address);
+      const diff = newVault.eastAmount - oldVault.eastAmount;
+
+      balance += diff;
+      totalSupply += diff;
+      results = [
+        {
+          key: StateKeys.totalSupply,
+          string_value: '' + Math.max(totalSupply, 0)
+        }, 
+        {
+          key: `${StateKeys.balance}_${oldVault.address}`,
+          string_value: '' + Math.max(balance, 0)
+        },
+      ]
+    }
+
+    results.push({
+      key: `${StateKeys.vault}_${vaultId}`,
+      string_value: JSON.stringify({
+        ...oldVault,
+        ...newVault
+      })
+    })
+    return results
+  }
+
   async handleDockerCall(tx: Transaction): Promise<void> {
     const { params } = tx;
     let results: DataEntryRequest[] = [];
@@ -133,19 +207,21 @@ export class RPCService {
     if (param) {
       const value = JSON.parse(param.string_value || '{}');
       switch(param.key) {
-        case Operations.mint: {
-          await this.checkPermissions(tx);
-          results = await this.mint(value.address, Number(value.amount));
-        }
-        break;
-        case Operations.transfer: {
-          results = await this.transfer(tx.sender, value.to, value.amount);
-        }
-        break;
-        case Operations.burn: {
-          results = await this.burn(tx.sender, Number(value.amount));
-        }
-        break;
+        case Operations.mint:
+          results = await this.mint(tx, value);
+          break;
+        case Operations.burn:
+          results = await this.burn(tx, value);
+          break;
+        case Operations.transfer:
+          results = await this.transfer(tx, value);
+          break;
+        case Operations.recalculate_init:
+          results = [];
+          break;
+        case Operations.recalculate_execute:
+          results = await this.recalculateExecute(tx, value);
+          break;
         default:
           throw Error(`Unknown DockerCall operation key: "${param.key}"`);
       }
