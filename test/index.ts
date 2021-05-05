@@ -87,7 +87,18 @@ Promise.resolve().then(async () => {
     imageHash,
     contractName: 'GRPC contract',
     timestamp: Date.now(),
-    params: [],
+    params: [
+      {
+        type: 'string',
+        key: 'config',
+        value: JSON.stringify({
+          oracleContractId: 'some oracle',
+          oracleTimestampMaxDiff: 1000 * 10,
+          usdpPart:  0.5,
+          westCollateral: 2.5
+        })
+      }
+    ],
   };
 
   const tx = Waves.API.Transactions.CreateContract.V2(txBody);
@@ -115,9 +126,9 @@ Promise.resolve().then(async () => {
       key: 'mint',
       value: JSON.stringify({
         address: userSeed.address,
-        eastAmount: 400,
-        westAmount: 500,
-        usdpAmount: 200
+        eastAmount: 28.74057037491401,
+        westAmount: 35.714285714285715,
+        usdpAmount: 5.33659480472093
       })
     }]
   });
@@ -126,7 +137,7 @@ Promise.resolve().then(async () => {
 
   console.log('Waiting 10 seconds...');
   await sleep(10);
-
+  /*
   const VaultId = await dockerCallTx.getId()
   const transferSeed = Waves.Seed.fromExistingPhrase('examples seed phrase another two');
 
@@ -171,9 +182,9 @@ Promise.resolve().then(async () => {
       type: 'string',
       key: 'recalculate_execute',
       value: JSON.stringify({
-        eastAmount: 430,
-        westAmount: 530,
-        usdpAmount: 230,
+        eastAmount: 38.74057037491401,
+        westAmount: 55.714285714285715,
+        usdpAmount: 10.33659480472093,
         vault: VaultId
       })
     }]
@@ -193,4 +204,5 @@ Promise.resolve().then(async () => {
       })
     }]
   }), userSeed);
+  */
 });

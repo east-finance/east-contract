@@ -13,7 +13,7 @@
     "logger": "node test/logger.js",
     "lint": "eslint '*/**/*.{ts}' --quiet --fix"
   },
-  "author": "Artem Kolodko",
+  "author": "Aleksandr Kuvakin",
   "license": "ISC",
   "devDependencies": {
     "@types/google-protobuf": "^3.7.4",
@@ -21,7 +21,7 @@
     "@types/node-fetch": "^2.5.8",
     "@typescript-eslint/eslint-plugin": "^4.16.1",
     "@typescript-eslint/parser": "^4.16.1",
-    "@wavesenterprise/js-sdk": "^3.1.6-RC1",
+    "@wavesenterprise/js-sdk": "^3.3.5",
     "body-parser": "^1.19.0",
     "eslint": "^7.21.0",
     "eslint-config-prettier": "^8.1.0",

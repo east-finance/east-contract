@@ -48,8 +48,17 @@ export type ContractTransactionResponse = {
   auth_token: string,
 }
 
+export interface Oracle {
+  value: number,
+  timestamp: string
+}
+
 export interface BurnParam {
-  vault: string,
+  vaultId: string,
+}
+
+export interface LiquidateParam {
+  vaultId: string,
 }
 
 export interface TransferParam {
@@ -62,13 +71,22 @@ export interface Vault {
   eastAmount: number,
   westAmount: number,
   usdpAmount: number,
+  westRateTimestamp: number,
+  usdpRateTimestamp: number,
+  liquidated?: boolean
 }
 
-export type RecalculateExecuteParam = {
-  eastAmount?: number,
-  westAmount?: number,
-  usdpAmount?: number,
-  vault: string
+export interface MintParam {
+  transferId: string,
+}
+
+export interface SupplyParam {
+  transferId: string,
+  vaultId: string
+}
+
+export type RecalculateParam = {
+  vaultId: string
 }
 
 
@@ -79,15 +97,37 @@ export enum TxType {
 
 export enum Operations {
   mint = 'mint',
+  recalculate = 'recalculate',
+  supply = 'supply',
   transfer = 'transfer',
+  burn_init = 'burn_init',
   burn = 'burn',
-  recalculate_init = 'recalculate_init',
-  recalculate_execute = 'recalculate_execute',
+  liquidate = 'liquidate',
 }
 
 export enum StateKeys {
   adminPublicKey = 'admin_pub_key',
   totalSupply = 'total_supply',
   balance = 'balance',
-  vault = 'vault'
+  vault = 'vault',
+  config = 'config',
+  exchange = 'exchange'
+}
+
+export interface ConfigParam {
+  oracleContractId: string,
+  oracleTimestampMaxDiff: number,
+  usdpPart: number,
+  westCollateral: number,
+  liquidationCollateral: number,
+  minHoldTime: number
+}
+
+export type TransferTx = {
+  id: string,
+  contract_id: string,
+  sender_public_key: string,
+  timestamp: string,
+  amount: number,
+  recipient: string
 }

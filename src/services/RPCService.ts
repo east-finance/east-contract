@@ -13,21 +13,27 @@ import {
   BurnParam,
   TransferParam,
   Vault,
-  RecalculateExecuteParam
+  TransferTx,
+  RecalculateParam,
+  MintParam,
+  LiquidateParam,
+  Oracle,
+  SupplyParam
 } from '../interfaces';
 import { CONNECTION_ID, CONNECTION_TOKEN, NODE, NODE_PORT, HOST_NETWORK } from '../config';
 import { wavesenterprise } from '../compiled-protos';
 import { StateService } from './StateService';
+import { libs, utils } from '@wavesenterprise/js-sdk'
 
 import IContractTransactionResponse = wavesenterprise.IContractTransactionResponse
 
 const logger = createLogger('GRPC service');
 
-const DATA_ENTRY_PROTO = path.resolve(__dirname, '../protos', 'data_entry.proto');
 const CONTRACT_PROTO = path.resolve(__dirname, '../protos', 'contract.proto');
+const TRANSACTIONS_PROTO = path.resolve(__dirname, '../protos', 'transactions.proto')
 
 const definitions = loadSync(
-  [DATA_ENTRY_PROTO, CONTRACT_PROTO],
+  [TRANSACTIONS_PROTO, CONTRACT_PROTO],
   {
     keepCase: true,
     longs: String,
@@ -39,10 +45,17 @@ const definitions = loadSync(
 
 const proto = loadPackageDefinition(definitions).wavesenterprise as GrpcObject;
 const ContractService = proto.ContractService as ServiceClientConstructor;
+const TransactionService = proto.TransactionService as ServiceClientConstructor;
+
+// CONSTS
+const WEST_DECIMALS = 8
+const WEST_ORACLE_STREAM = '000010_latest'
+const USDP_ORACLE_STREAM = '000003_latest'
 
 export class RPCService {
   // eslint-disable-next-line
   client: any;
+  txClient: any;
   private stateService: StateService;
 
   constructor() {
@@ -55,7 +68,9 @@ export class RPCService {
       HOST_NETWORK: ${HOST_NETWORK}
     `);
     this.client = new ContractService(`${NODE}:${NODE_PORT}`, credentials.createInsecure());
-    this.stateService = new StateService(this.client);
+    this.txClient = new TransactionService(`${NODE}:${NODE_PORT}`, credentials.createInsecure());
+
+    this.stateService = new StateService(this.client, this.txClient);
   }
 
   async handleDockerCreate(tx: Transaction): Promise<void> {
@@ -71,23 +86,143 @@ export class RPCService {
   async checkAdminPermissions(tx: Transaction): Promise<void> {
     const adminPublicKey = await this.stateService.getContractKeyValue(StateKeys.adminPublicKey);
     if (!adminPublicKey) {
-      throw Error('Admin public key is missing in state');
+      throw new Error('Admin public key is missing in state');
     }
     if (adminPublicKey !== tx.sender_public_key) {
-      throw Error(`Creator public key ${adminPublicKey} doesn't match tx sender public key ${tx.sender_public_key}`);
+      throw new Error(`Creator public key ${adminPublicKey} doesn't match tx sender public key ${tx.sender_public_key}`);
     }
   }
 
-  async mint(tx: Transaction, value: Vault): Promise<DataEntryRequest[]> {
-    // check 
-    await this.checkAdminPermissions(tx);
+  async getLastOracles(oracleTimestampMaxDiff: number, oracleContractId: string) : Promise<{ westRate: Oracle, usdpRate: Oracle }> {
+    const westRate = JSON.parse(await this.stateService.getContractKeyValue(WEST_ORACLE_STREAM, oracleContractId))
+    const usdpRate = JSON.parse(await this.stateService.getContractKeyValue(USDP_ORACLE_STREAM, oracleContractId))
 
-    const { address } = value
-    const amount = Number(value.eastAmount)
+    const westTimeDiff = Date.now() - westRate.timestamp
+    const usdpTimeDiff = Date.now() - usdpRate.timestamp
+
+    if (westTimeDiff > oracleTimestampMaxDiff || usdpTimeDiff > oracleTimestampMaxDiff) {
+      throw new Error(`Too big difference in milliseconds between oracle_data.timestamp and current timestamp: 
+        west: ${westTimeDiff}, usdp: ${usdpTimeDiff}`)
+    }
+    return { westRate, usdpRate }
+  }
+
+  async calculateVault(inputWestAmount: number): Promise<{
+    eastAmount: number,
+    usdpAmount: number,
+    westAmount: number,
+    westRateTimestamp: number,
+    usdpRateTimestamp: number
+  }> {
+    const {
+      oracleContractId,
+      oracleTimestampMaxDiff,
+      usdpPart,
+      westCollateral
+    } = await this.stateService.getConfig()
+
+    const { westRate, usdpRate } = await this.getLastOracles(oracleTimestampMaxDiff, oracleContractId);
+
+    const usdpPartInPosition = usdpPart / ((1 - usdpPart) * westCollateral + usdpPart)
+    const transferAmount = parseFloat(inputWestAmount + '') / Math.pow(10, WEST_DECIMALS)
+    const westToUsdpAmount = usdpPartInPosition * transferAmount
+    const eastAmount = (westToUsdpAmount / westRate.value) / usdpPart
+    const usdpAmount = westToUsdpAmount / westRate.value * usdpRate.value
+
+    return {
+      eastAmount,
+      usdpAmount,
+      westAmount: transferAmount - westToUsdpAmount,
+      westRateTimestamp: Number(westRate.timestamp),
+      usdpRateTimestamp: Number(usdpRate.timestamp)
+    }
+  }
+
+  async recalculateVault(oldVault: Vault): Promise<{
+    eastAmount: number,
+    usdpAmount: number,
+    westAmount: number,
+    westRateTimestamp: number,
+    usdpRateTimestamp: number
+  } | false> {
+    const {
+      oracleContractId,
+      oracleTimestampMaxDiff,
+      usdpPart,
+      westCollateral
+    } = await this.stateService.getConfig();
+    const { westRate, usdpRate } = await this.getLastOracles(oracleTimestampMaxDiff, oracleContractId);
+    const {
+      eastAmount: oldEastAmount,
+      usdpAmount: oldUsdpAmount,
+      westAmount: oldWestAmount
+    } = oldVault;
+
+    const usdTotal = oldUsdpAmount * usdpRate.value + oldWestAmount * westRate.value
+    const usdpPartInPosition = usdpPart / ((1 - usdpPart) * westCollateral + usdpPart)
+    const usdToUsdpAmount = usdpPartInPosition * usdTotal
+    const usdpAmount = usdToUsdpAmount * usdpRate.value
+    const eastAmount = usdpAmount / usdpPart
+    const westAmount = (usdTotal - usdToUsdpAmount) * westRate.value
+
+    if (eastAmount > oldEastAmount) {
+      return {
+        eastAmount,
+        usdpAmount,
+        westAmount,
+        westRateTimestamp: Number(westRate.timestamp),
+        usdpRateTimestamp: Number(usdpRate.timestamp)
+      }
+    } else {
+      return false;
+    }
+  }
+
+  getAddressFromPublickKey(pubKey: string): string {
+    return utils.crypto.buildRawAddress(libs.base58.decode(pubKey))
+  }
+
+  // returns amount
+  async checkTransfer(tx: Transaction, transferId: string): Promise<number> {
+    const { 
+      sender_public_key: senderPubKey,
+      amount: transferAmount,
+      recipient
+    } = await this.stateService.getTransactionInfoOrFail<TransferTx>(transferId);
+
+    const adminPublicKey = await this.stateService.getContractKeyValue(StateKeys.adminPublicKey);
+    if (!adminPublicKey) {
+      throw new Error('Admin public key is missing in state');
+    }
+    const adminAddress = this.getAddressFromPublickKey(adminPublicKey as string)
+
+    if (adminAddress !== recipient) {
+      throw new Error('Transfer recipient are not admin');
+    }
+
+    if (tx.sender_public_key !== senderPubKey) {
+      throw new Error(`Sender public key are not equal for transfer and docker call.`);
+    }
+    
+    const isTransferUsed = await this.stateService.isTransferUsed(transferId)
+    if (isTransferUsed) {
+      throw new Error(`Transfer ${transferId} is already used for accounting`);
+    }
+
+    return transferAmount
+  }
+
+  async mint(tx: Transaction, { transferId }: MintParam): Promise<DataEntryRequest[]> {
+    const transferAmount = await this.checkTransfer(tx, transferId)
+    const address = tx.sender;
+    
+    const vault = await this.calculateVault(transferAmount) as Vault
+    vault.address = address
+
     let totalSupply = await this.stateService.getTotalSupply();
     let balance = await this.stateService.getBalance(address);
-    balance += amount;
-    totalSupply += amount;
+    balance += vault.eastAmount;
+    totalSupply += vault.eastAmount;
     return [
       {
         key: StateKeys.totalSupply,
@@ -99,26 +234,83 @@ export class RPCService {
       },
       {
         key: `${StateKeys.vault}_${tx.id}`,
-        string_value: JSON.stringify(value)
+        string_value: JSON.stringify(vault)
+      },
+      {
+        key: `${StateKeys.exchange}_${transferId}`,
+        bool_value: true
       }
     ];
   }
 
-  async burn(tx: Transaction, value: BurnParam): Promise<DataEntryRequest[]> {
-    const { vault: vaultId } = value
-    const { eastAmount, address } = await this.stateService.getVault(vaultId);
+  async recalculate(tx: Transaction, { vaultId }: RecalculateParam): Promise<DataEntryRequest[]> {
+    const oldVault = await this.stateService.getVault(vaultId);
+    const address = tx.sender;
 
+    if (oldVault.address !== tx.sender) {
+      throw new Error(`Only vault owner cat recaculate vault`);
+    }
+    const newVault = await this.recalculateVault(oldVault)
+
+    if (!newVault) {
+      throw new Error(`Cannot increase east amount`);
+    }
+
+    let totalSupply = await this.stateService.getTotalSupply();
+    let balance = await this.stateService.getBalance(oldVault.address);
+    const diff = newVault.eastAmount - oldVault.eastAmount;
+
+    balance += diff;
+    totalSupply += diff;
+
+    return [
+      {
+        key: StateKeys.totalSupply,
+        string_value: '' + totalSupply
+      },
+      {
+        key: `${StateKeys.balance}_${address}`,
+        string_value: '' + balance
+      },
+      {
+        key: `${StateKeys.vault}_${vaultId}`,
+        string_value: JSON.stringify({
+          ...newVault,
+          address
+        })
+      }
+    ];
+  }
+
+  async burnInit(tx: Transaction, { vaultId }: BurnParam): Promise<DataEntryRequest[]> {
+    const { address } = await this.stateService.getVault(vaultId);
+    const { minHoldTime } = await this.stateService.getConfig();
+
+    // check minimum hold time
+    const { timestamp } = await this.stateService.getTransactionInfoOrFail<TransferTx>(vaultId);
+    const holdTime = Date.now() - (new Date(timestamp).getTime());
+    if (holdTime < minHoldTime) {
+      throw new Error(`Only ${address} can burn vault ${vaultId}`);
+    }
     // check
     if (tx.sender !== address) {
-      throw Error(`Only ${address} can burn vault ${vaultId}`);
+      throw new Error(`Only ${address} can burn vault ${vaultId}`);
     }
+    return []
+  }
+
+  async burn(tx: Transaction, { vaultId }: BurnParam): Promise<DataEntryRequest[]> {
+    // only contract creator allowed
+    await this.checkAdminPermissions(tx);
+
+    const { eastAmount, address } = await this.stateService.getVault(vaultId);
 
     let totalSupply = await this.stateService.getTotalSupply();
     let balance = await this.stateService.getBalance(address);
 
-    // check
+    // check balance
     if (balance < eastAmount) {
-      throw Error(`Not enought EAST amount(${eastAmount}) on ${address} to burn vault: ${vaultId}`);
+      throw new Error(`Not enought EAST amount(${eastAmount}) on ${address} to burn vault: ${vaultId}`);
     }
 
     balance -= eastAmount;
@@ -146,7 +338,7 @@ export class RPCService {
 
     let fromBalance = await this.stateService.getBalance(from);
     if(fromBalance < amount) {
-      throw Error(`Insufficient funds to transfer from "${from}": balance "${fromBalance}", amount "${amount}"`);
+      throw new Error(`Insufficient funds to transfer from "${from}": balance "${fromBalance}", amount "${amount}"`);
     }
     let toBalance = await this.stateService.getBalance(to);
 
@@ -161,69 +353,85 @@ export class RPCService {
     }];
   }
 
-  async recalculateExecute(tx: Transaction, { vault: vaultId, ...newVault}: RecalculateExecuteParam): Promise<DataEntryRequest[]> {
-    // check
+  async liquidate(tx: Transaction, { vaultId }: LiquidateParam): Promise<DataEntryRequest[]> {
+    // only contract creator allowed
     await this.checkAdminPermissions(tx);
-    const oldVault = await this.stateService.getVault(vaultId);
-    let results: any[] = []
+    const { eastAmount, westAmount, address } = await this.stateService.getVault(vaultId);
+    const { oracleContractId, usdpPart, liquidationCollateral } = await this.stateService.getConfig();
+    const westRate = JSON.parse(await this.stateService.getContractKeyValue(WEST_ORACLE_STREAM, oracleContractId));
+    
+    const westPart = 1 - usdpPart;
+    const currentWestCollateral = (westAmount * westRate.value) / (westPart * eastAmount);
 
-    if (newVault.eastAmount) {
-      let totalSupply = await this.stateService.getTotalSupply();
-      let balance = await this.stateService.getBalance(oldVault.address);
-      const diff = newVault.eastAmount - oldVault.eastAmount;
-
-      balance += diff;
-      totalSupply += diff;
-      results = [
-        {
-          key: StateKeys.totalSupply,
-          string_value: '' + Math.max(totalSupply, 0)
-        }, 
-        {
-          key: `${StateKeys.balance}_${oldVault.address}`,
-          string_value: '' + Math.max(balance, 0)
-        },
-      ]
+    if (currentWestCollateral > liquidationCollateral) {
+      throw new Error(`Cannot liquidate vault ${vaultId}, currentWestCollateral: ${currentWestCollateral}, liquidationCollateral: ${liquidationCollateral}`);
     }
 
-    results.push({
-      key: `${StateKeys.vault}_${vaultId}`,
-      string_value: JSON.stringify({
-        ...oldVault,
-        ...newVault
-      })
-    })
-    return results
+    const liquidatedVault = {
+      eastAmount,
+      usdpAmount: eastAmount,
+      address,
+      liquidated: true,
+      westRateTimestamp: Number(westRate.timestamp)
+    }
+
+    return [
+      {
+        key: `${StateKeys.vault}_${vaultId}`,
+        string_value: JSON.stringify(liquidatedVault)
+      }
+    ];
+  }
+
+  async supply(tx: Transaction, { transferId, vaultId }: SupplyParam): Promise<DataEntryRequest[]> {
+    const vault = await this.stateService.getVault(vaultId);
+    const transferAmount = await this.checkTransfer(tx, transferId);
+    vault.westAmount = vault.westAmount + transferAmount;
+
+    return [
+      {
+        key: `${StateKeys.vault}_${vaultId}`,
+        string_value: JSON.stringify(vault)
+      },
+      {
+        key: `${StateKeys.exchange}_${transferId}`,
+        bool_value: true
+      }
+    ];
   }
 
   async handleDockerCall(tx: Transaction): Promise<void> {
     const { params } = tx;
     let results: DataEntryRequest[] = [];
 
-    logger.info(`PARAMS: ${JSON.stringify(params)}`);
-
     // TODO: iterate params
-    const param = params[0];
+    const param = params[0] || {};
     if (param) {
       const value = JSON.parse(param.string_value || '{}');
       switch(param.key) {
         case Operations.mint:
           results = await this.mint(tx, value);
           break;
-        case Operations.burn:
-          results = await this.burn(tx, value);
-          break;
         case Operations.transfer:
           results = await this.transfer(tx, value);
           break;
-        case Operations.recalculate_init:
-          results = [];
+        case Operations.recalculate:
+          results = await this.recalculate(tx, value);
           break;
-        case Operations.recalculate_execute:
-          results = await this.recalculateExecute(tx, value);
+        case Operations.burn_init:
+          results = await this.burnInit(tx, value);
+          break;
+        case Operations.burn:
+          results = await this.burn(tx, value);
+          break;
+        case Operations.supply:
+          results = await this.supply(tx, value);
+          break;
+        case Operations.liquidate:
+          results = await this.liquidate(tx, value);
           break;
         default:
-          throw Error(`Unknown DockerCall operation key: "${param.key}"`);
+          throw new Error(`Unknown DockerCall operation key: "${param.key}"`);
       }
     }
 

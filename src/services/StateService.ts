@@ -1,13 +1,20 @@
 import { Metadata } from '@grpc/grpc-js';
-import { DataEntryRequest, DataEntryResponse, StateKeys, Vault } from '../interfaces';
+import { ConfigParam, DataEntryRequest, DataEntryResponse, StateKeys, Vault } from '../interfaces';
+import { Base58 } from '../utils/base58'
+import { createLogger } from '../utils/logger';
+
+const logger = createLogger('State service');
+
 
 export class StateService {
   private auth = new Metadata();
   private contractId = '';
-  private client: any;
+  private contractClient: any;
+  private txClient: any;
 
-  constructor(client: any) {
-    this.client = client;
+  constructor(contractClient: any, txClient: any) {
+    this.contractClient = contractClient;
+    this.txClient = txClient;
   }
 
   setAuthData(auth: Metadata, contractId: string): void {
@@ -15,9 +22,44 @@ export class StateService {
     this.contractId = contractId;
   }
 
+  getTransactionInfoOrFail<T>(txId: string): Promise<T> {
+    return new Promise((resolve, reject) => {
+      this.txClient.transactionInfo({
+        tx_id: txId,
+      }, this.auth, function (error: Error, response: any) {
+        if (error) {
+          reject(error);
+        } else {
+          try {
+            const transactionFiled = response.transaction.transaction
+            const transactionFromRequest = response.transaction[transactionFiled]
+            if (!transactionFromRequest) {
+              throw new Error('Unknown transaction')
+            }
+            logger.info(`getTransactionInfoOrFail raw:`)
+            logger.info(JSON.stringify(transactionFiled))
+            logger.info(JSON.stringify(transactionFromRequest))
+
+            const transaction = {
+              ...transactionFromRequest,
+              id: Base58.encode(transactionFromRequest.id),
+              contract_id: transactionFromRequest.contract_id ? Base58.encode(transactionFromRequest.contract_id) : '',
+              sender_public_key: Base58.encode(transactionFromRequest.sender_public_key),
+              recipient: transactionFromRequest.recipient ? Base58.encode(transactionFromRequest.recipient) : '',
+            }
+            resolve(transaction)
+          } catch (err) {
+            reject(err)
+          }
+        }
+      })
+    })
+  }
+
+
   commitError(txId: string, message: string): Promise<void> {
     return new Promise<void>((resolve, reject) => {
-      this.client.commitExecutionError({
+      this.contractClient.commitExecutionError({
         tx_id: txId,
         message,
       }, this.auth, function (error: Error) {
@@ -32,7 +74,7 @@ export class StateService {
 
   commitSuccess = (txId: string, results: DataEntryRequest[]): Promise<void> => {
     return new Promise<void>((resolve, reject) => {
-      this.client.commitExecutionSuccess({
+      this.contractClient.commitExecutionSuccess({
         tx_id: txId,
         results,
       }, this.auth, function (error: Error) {
@@ -45,10 +87,10 @@ export class StateService {
     });
   };
 
-  getContractKey(key: string): Promise<{ entry: DataEntryResponse }> {
+  getContractKey(key: string, contractId = this.contractId): Promise<{ entry: DataEntryResponse }> {
     return new Promise((resolve, reject) => {
-      this.client.getContractKey({
-        contract_id: this.contractId,
+      this.contractClient.getContractKey({
+        contract_id: contractId,
         key,
       }, this.auth, function (error: Error, response: { entry: DataEntryResponse }) {
         if (error) {
@@ -60,8 +102,8 @@ export class StateService {
     });
   }
 
-  async getContractKeyValue<R extends string | boolean | Buffer>(key: string): Promise<R> {
-    const { entry } = await this.getContractKey(key);
+  async getContractKeyValue<R extends string | boolean | Buffer>(key: string, contractId?: string): Promise<R> {
+    const { entry } = await this.getContractKey(key, contractId);
     return entry[entry.value] as R;
   }
 
@@ -79,8 +121,47 @@ export class StateService {
     }
   }
 
-  async getVault (vault: string): Promise<Vault> {
-    const value = await this.getContractKeyValue(`${StateKeys.vault}_${vault}`);
-    return JSON.parse(value as string);
+  async isTransferUsed(transferId: string): Promise<boolean> {
+    try {
+      const value = await this.getContractKeyValue(`${StateKeys.exchange}_${transferId}`);
+      return !!value
+    } catch(e) {
+      return false
+    }
+  }
+
+  async getConfig(): Promise<ConfigParam> {
+    const value = await this.getContractKeyValue(StateKeys.config);
+    const {
+      oracleContractId,
+      oracleTimestampMaxDiff,
+      usdpPart,
+      westCollateral,
+      liquidationCollateral,
+      minHoldTime
+    } = JSON.parse(value as string)
+    if (!oracleContractId || !oracleTimestampMaxDiff || !usdpPart || !westCollateral || !liquidationCollateral) {
+      throw new Error('Wrong config contract param')
+    }
+    return {
+      oracleContractId,
+      oracleTimestampMaxDiff,
+      usdpPart,
+      westCollateral,
+      liquidationCollateral,
+      minHoldTime
+    }
+  }
+
+  async getVault (vaultId: string): Promise<Vault> {
+    const value = await this.getContractKeyValue(`${StateKeys.vault}_${vaultId}`);
+    const vault = JSON.parse(value as string) as Vault;
+    if (!vault) {
+      throw new Error(`vault ${vaultId} does not exist`);
+    }
+    if (vault.liquidated) {
+      throw new Error(`vault ${vaultId} liquidated`);
+    }
+    return vault;
   }
 }
