@@ -106,7 +106,6 @@ export enum Operations {
 }
 
 export enum StateKeys {
-  adminPublicKey = 'admin_pub_key',
   totalSupply = 'total_supply',
   balance = 'balance',
   vault = 'vault',
@@ -120,7 +119,9 @@ export interface ConfigParam {
   usdpPart: number,
   westCollateral: number,
   liquidationCollateral: number,
-  minHoldTime: number
+  minHoldTime: number,
+  adminAddress: string,
+  adminPublicKey: string
 }
 
 export type TransferTx = {

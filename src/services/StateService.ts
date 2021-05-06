@@ -138,7 +138,9 @@ export class StateService {
       usdpPart,
       westCollateral,
       liquidationCollateral,
-      minHoldTime
+      minHoldTime,
+      adminAddress,
+      adminPublicKey
     } = JSON.parse(value as string)
     if (!oracleContractId || !oracleTimestampMaxDiff || !usdpPart || !westCollateral || !liquidationCollateral) {
       throw new Error('Wrong config contract param')
@@ -149,7 +151,9 @@ export class StateService {
       usdpPart,
       westCollateral,
       liquidationCollateral,
-      minHoldTime
+      minHoldTime,
+      adminAddress,
+      adminPublicKey
     }
   }
 

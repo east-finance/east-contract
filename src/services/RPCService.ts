@@ -21,16 +21,15 @@ import {
   SupplyParam
 } from '../interfaces';
 import { CONNECTION_ID, CONNECTION_TOKEN, NODE, NODE_PORT, HOST_NETWORK } from '../config';
-import { wavesenterprise } from '../compiled-protos';
 import { StateService } from './StateService';
-import { libs, utils } from '@wavesenterprise/js-sdk'
 
-import IContractTransactionResponse = wavesenterprise.IContractTransactionResponse
 
 const logger = createLogger('GRPC service');
 
 const CONTRACT_PROTO = path.resolve(__dirname, '../protos', 'contract.proto');
 const TRANSACTIONS_PROTO = path.resolve(__dirname, '../protos', 'transactions.proto')
+const PROTO_DIR = path.join(__dirname, '../protos')
+
 
 const definitions = loadSync(
   [TRANSACTIONS_PROTO, CONTRACT_PROTO],
@@ -40,6 +39,7 @@ const definitions = loadSync(
     enums: String,
     defaults: true,
     oneofs: true,
+    includeDirs: [PROTO_DIR],
   },
 );
 
@@ -74,17 +74,24 @@ export class RPCService {
   }
 
   async handleDockerCreate(tx: Transaction): Promise<void> {
-    await this.stateService.commitSuccess(tx.id, [{
-      key: StateKeys.adminPublicKey,
-      string_value: tx.sender_public_key
-    }, {
-      key: StateKeys.totalSupply,
-      string_value: '0'
-    }]);
+    const paramConfig = tx.params[0];
+    const config = JSON.parse(paramConfig.string_value || '{}');
+    config.adminAddress = tx.sender;
+    config.adminPublicKey = tx.sender_public_key;
+    await this.stateService.commitSuccess(tx.id, [    
+      {
+        key: StateKeys.config,
+        string_value: JSON.stringify(config)
+      }, 
+      {
+        key: StateKeys.totalSupply,
+        string_value: '0'
+      }
+    ]);
   }
 
   async checkAdminPermissions(tx: Transaction): Promise<void> {
-    const adminPublicKey = await this.stateService.getContractKeyValue(StateKeys.adminPublicKey);
+    const { adminPublicKey } = await this.stateService.getConfig();
     if (!adminPublicKey) {
       throw new Error('Admin public key is missing in state');
     }
@@ -120,14 +127,15 @@ export class RPCService {
       usdpPart,
       westCollateral
     } = await this.stateService.getConfig()
-
+    
+    // mock
+    // const westRate = {value: 0.34, timestamp: Date.now()}, usdpRate = {value: 1, timestamp: Date.now()}
     const { westRate, usdpRate } = await this.getLastOracles(oracleTimestampMaxDiff, oracleContractId);
-
     const usdpPartInPosition = usdpPart / ((1 - usdpPart) * westCollateral + usdpPart)
     const transferAmount = parseFloat(inputWestAmount + '') / Math.pow(10, WEST_DECIMALS)
     const westToUsdpAmount = usdpPartInPosition * transferAmount
-    const eastAmount = (westToUsdpAmount / westRate.value) / usdpPart
-    const usdpAmount = westToUsdpAmount / westRate.value * usdpRate.value
+    const eastAmount = (westToUsdpAmount * westRate.value) / usdpPart
+    const usdpAmount = westToUsdpAmount * westRate.value / usdpRate.value
 
     return {
       eastAmount,
@@ -151,6 +159,9 @@ export class RPCService {
       usdpPart,
       westCollateral
     } = await this.stateService.getConfig();
+    
+    // mock
+    // const westRate = {value: 0.68, timestamp: Date.now()}, usdpRate = {value: 1, timestamp: Date.now()}
     const { westRate, usdpRate } = await this.getLastOracles(oracleTimestampMaxDiff, oracleContractId);
     const {
       eastAmount: oldEastAmount,
@@ -161,9 +172,9 @@ export class RPCService {
     const usdTotal = oldUsdpAmount * usdpRate.value + oldWestAmount * westRate.value
     const usdpPartInPosition = usdpPart / ((1 - usdpPart) * westCollateral + usdpPart)
     const usdToUsdpAmount = usdpPartInPosition * usdTotal
-    const usdpAmount = usdToUsdpAmount * usdpRate.value
+    const usdpAmount = usdToUsdpAmount / usdpRate.value
     const eastAmount = usdpAmount / usdpPart
-    const westAmount = (usdTotal - usdToUsdpAmount) * westRate.value
+    const westAmount = (usdTotal - usdToUsdpAmount) / westRate.value
 
     if (eastAmount > oldEastAmount) {
       return {
@@ -178,23 +189,18 @@ export class RPCService {
     }
   }
 
-  getAddressFromPublickKey(pubKey: string): string {
-    return utils.crypto.buildRawAddress(libs.base58.decode(pubKey))
-  }
-
   // returns amount
   async checkTransfer(tx: Transaction, transferId: string): Promise<number> {
-    const { 
+    const {
       sender_public_key: senderPubKey,
       amount: transferAmount,
       recipient
     } = await this.stateService.getTransactionInfoOrFail<TransferTx>(transferId);
 
-    const adminPublicKey = await this.stateService.getContractKeyValue(StateKeys.adminPublicKey);
-    if (!adminPublicKey) {
+    const { adminAddress } = await this.stateService.getConfig();
+    if (!adminAddress) {
       throw new Error('Admin public key is missing in state');
     }
-    const adminAddress = this.getAddressFromPublickKey(adminPublicKey as string)
 
     if (adminAddress !== recipient) {
       throw new Error('Transfer recipient are not admin');
@@ -357,9 +363,16 @@ export class RPCService {
     // only contract creator allowed
     await this.checkAdminPermissions(tx);
     const { eastAmount, westAmount, address } = await this.stateService.getVault(vaultId);
-    const { oracleContractId, usdpPart, liquidationCollateral } = await this.stateService.getConfig();
-    const westRate = JSON.parse(await this.stateService.getContractKeyValue(WEST_ORACLE_STREAM, oracleContractId));
+    const { 
+      // oracleContractId,
+      usdpPart,
+      liquidationCollateral 
+    } = await this.stateService.getConfig();
     
+    const westRate = JSON.parse(await this.stateService.getContractKeyValue(WEST_ORACLE_STREAM, oracleContractId));
+    // mock
+    // const westRate = { value: 0.1, timestamp: Date.now() }
+
     const westPart = 1 - usdpPart;
     const currentWestCollateral = (westAmount * westRate.value) / (westPart * eastAmount);
 
@@ -386,7 +399,7 @@ export class RPCService {
   async supply(tx: Transaction, { transferId, vaultId }: SupplyParam): Promise<DataEntryRequest[]> {
     const vault = await this.stateService.getVault(vaultId);
     const transferAmount = await this.checkTransfer(tx, transferId);
-    vault.westAmount = vault.westAmount + transferAmount;
+    vault.westAmount = vault.westAmount + (Number(transferAmount) / Math.pow(10, WEST_DECIMALS));
 
     return [
       {
@@ -469,7 +482,7 @@ export class RPCService {
     const connectionMeta = new Metadata();
     connectionMeta.set('authorization', CONNECTION_TOKEN);
 
-    const connection: ClientReadableStream<IContractTransactionResponse> = this.client.connect({
+    const connection: ClientReadableStream<any> = this.client.connect({
       connection_id: CONNECTION_ID,
     }, connectionMeta);
 
