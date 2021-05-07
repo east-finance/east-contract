@@ -364,7 +364,7 @@ export class RPCService {
     await this.checkAdminPermissions(tx);
     const { eastAmount, westAmount, address } = await this.stateService.getVault(vaultId);
     const { 
-      // oracleContractId,
+      oracleContractId,
       usdpPart,
       liquidationCollateral 
     } = await this.stateService.getConfig();
