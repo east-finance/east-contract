@@ -49,8 +49,8 @@ const TransactionService = proto.TransactionService as ServiceClientConstructor;
 
 // CONSTS
 const WEST_DECIMALS = 8
-const WEST_ORACLE_STREAM = '000010_latest'
-const USDP_ORACLE_STREAM = '000003_latest'
+const WEST_ORACLE_STREAM = '000003_latest'
+const USDP_ORACLE_STREAM = '000010_latest'
 
 export class RPCService {
   // eslint-disable-next-line
@@ -78,7 +78,7 @@ export class RPCService {
     const config = JSON.parse(paramConfig.string_value || '{}');
     config.adminAddress = tx.sender;
     config.adminPublicKey = tx.sender_public_key;
-    await this.stateService.commitSuccess(tx.id, [    
+    await this.stateService.commitSuccess(tx.id, [
       {
         key: StateKeys.config,
         string_value: JSON.stringify(config)
@@ -109,7 +109,7 @@ export class RPCService {
 
     if (westTimeDiff > oracleTimestampMaxDiff || usdpTimeDiff > oracleTimestampMaxDiff) {
       throw new Error(`Too big difference in milliseconds between oracle_data.timestamp and current timestamp: 
-        west: ${westTimeDiff}, usdp: ${usdpTimeDiff}`)
+        westRate: ${JSON.stringify(westRate)}, usdpRate: ${JSON.stringify(usdpRate)}, ${westTimeDiff}, ${usdpTimeDiff}, ${oracleTimestampMaxDiff}`)
     }
     return { westRate, usdpRate }
   }
