@@ -12,7 +12,8 @@
     usdpPart:  0.5,
     westCollateral: 2.5,
     liquidationCollateral: 1.3,
-    minHoldTime: 1000 * 60 * 60
+    minHoldTime: 1000 * 60 * 60,
+    USDapTokenId: 'USDap token id'
   })
 }
 ```
@@ -24,7 +25,7 @@
 - westCollateral - во сколько раз переобеспечена часть позиции WEST токенами
 - liquidationCollateral - границе обеспечения WEST токенами после которой возможна ликвидация позици (продажа WEST токенов и переход к 100% обеспечению USDP)
 - minHoldTime - минимальное время удержания позиции до возможности её закрытия пользователем
-
+- USDapTokenId - пользовательский токен, аналог USDap в блокчейне WE 
 
 ### Методы контракта:
 Метод = ключ параметра вызова контракта.  
@@ -131,6 +132,24 @@
 ```  
 <b>Результат выполнения: </b>
 - обновляет ключ `vault_${tx.id}` хранящего в себе информацию о vault пользователя
+
+#### update_config
+<b> Описание: </b>
+Метод для обновления конфига. Описания параметров в разделе "Создание контракта"  
+<b> Доступ к методу: </b>
+Владелец контракта (сервис автоматизации)  
+<b>Тело метода: </b>
+```js
+  oracleContractId: string,
+  oracleTimestampMaxDiff: number,
+  usdpPart: number,
+  westCollateral: number,
+  liquidationCollateral: number,
+  minHoldTime: number,
+  USDapTokenId: string,
+```  
+<b>Результат выполнения: </b>
+- обновляет ключ `config` хранящего в себе информацию о параметрах контракта
 
 
 ### Run tests

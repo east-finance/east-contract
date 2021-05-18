@@ -18,7 +18,8 @@ import {
   MintParam,
   LiquidateParam,
   Oracle,
-  SupplyParam
+  SupplyParam,
+  ConfigParam
 } from '../interfaces';
 import { CONNECTION_ID, CONNECTION_TOKEN, NODE, NODE_PORT, HOST_NETWORK } from '../config';
 import { StateService } from './StateService';
@@ -73,9 +74,29 @@ export class RPCService {
     this.stateService = new StateService(this.client, this.txClient);
   }
 
+  checkConfigFieldType(config: any, field: string, type: string) {
+    if (!config[field] && typeof config[field] !== type)  {
+      throw new Error(`Config error: ${field} expected to be a ${type}, received: ${config[field]}`);
+    }
+  }
+
+  checkConfig(config: ConfigParam)  {
+    if (!config) {
+      throw new Error(`Config error: confid undefined: ${config}`);
+    }
+    this.checkConfigFieldType(config, 'oracleContractId', 'string');
+    this.checkConfigFieldType(config, 'oracleTimestampMaxDiff', 'number');
+    this.checkConfigFieldType(config, 'usdpPart', 'number');
+    this.checkConfigFieldType(config, 'westCollateral', 'number');
+    this.checkConfigFieldType(config, 'liquidationCollateral', 'number');
+    this.checkConfigFieldType(config, 'minHoldTime', 'number');
+    this.checkConfigFieldType(config, 'USDapTokenId', 'string');
+  }
+
   async handleDockerCreate(tx: Transaction): Promise<void> {
     const paramConfig = tx.params[0];
     const config = JSON.parse(paramConfig.string_value || '{}');
+    this.checkConfig(config);
     config.adminAddress = tx.sender;
     config.adminPublicKey = tx.sender_public_key;
     await this.stateService.commitSuccess(tx.id, [
@@ -413,6 +434,23 @@ export class RPCService {
     ];
   }
 
+  async updateConfig(tx: Transaction, newConfig: Partial<ConfigParam>): Promise<DataEntryRequest[]> {
+    await this.checkAdminPermissions(tx);
+    const oldConfig = await this.stateService.getConfig();
+
+    const config = {
+      ...oldConfig,
+      ...newConfig
+    }
+    this.checkConfig(config);
+
+    return [
+      {
+        key: StateKeys.config,
+        string_value: JSON.stringify(config)
+      }
+    ];
+  }
   async handleDockerCall(tx: Transaction): Promise<void> {
     const { params } = tx;
     let results: DataEntryRequest[] = [];
@@ -422,6 +460,9 @@ export class RPCService {
     if (param) {
       const value = JSON.parse(param.string_value || '{}');
       switch(param.key) {
+        case Operations.update_config:
+          results = await this.updateConfig(tx, value);
+          break;
         case Operations.mint:
           results = await this.mint(tx, value);
           break;

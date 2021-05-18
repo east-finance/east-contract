@@ -103,6 +103,7 @@ export enum Operations {
   burn_init = 'burn_init',
   burn = 'burn',
   liquidate = 'liquidate',
+  update_config = 'update_config',
 }
 
 export enum StateKeys {
@@ -120,6 +121,7 @@ export interface ConfigParam {
   westCollateral: number,
   liquidationCollateral: number,
   minHoldTime: number,
+  USDapTokenId: string,
   adminAddress: string,
   adminPublicKey: string
 }
