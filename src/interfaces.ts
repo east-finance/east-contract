@@ -55,6 +55,8 @@ export interface Oracle {
 
 export interface BurnParam {
   vaultId: string,
+  westTransferId: string,
+  usdpTransferId: string
 }
 
 export interface LiquidateParam {
@@ -130,6 +132,7 @@ export type TransferTx = {
   id: string,
   contract_id: string,
   sender_public_key: string,
+  asset_id?: string,
   timestamp: string,
   amount: number,
   recipient: string

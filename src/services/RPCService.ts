@@ -48,10 +48,17 @@ const proto = loadPackageDefinition(definitions).wavesenterprise as GrpcObject;
 const ContractService = proto.ContractService as ServiceClientConstructor;
 const TransactionService = proto.TransactionService as ServiceClientConstructor;
 
+
 // CONSTS
 const WEST_DECIMALS = 8
 const WEST_ORACLE_STREAM = '000003_latest'
 const USDP_ORACLE_STREAM = '000010_latest'
+const MINIMUM_TRANSFER = 0.1
+
+
+function roundValue(num: number) {
+  return +num.toFixed(WEST_DECIMALS);
+}
 
 export class RPCService {
   // eslint-disable-next-line
@@ -159,9 +166,9 @@ export class RPCService {
     const usdpAmount = westToUsdpAmount * westRate.value / usdpRate.value
 
     return {
-      eastAmount,
-      usdpAmount,
-      westAmount: transferAmount - westToUsdpAmount,
+      eastAmount: roundValue(eastAmount),
+      usdpAmount: roundValue(usdpAmount),
+      westAmount: roundValue(transferAmount - westToUsdpAmount),
       westRateTimestamp: Number(westRate.timestamp),
       usdpRateTimestamp: Number(usdpRate.timestamp)
     }
@@ -194,14 +201,14 @@ export class RPCService {
     const usdpPartInPosition = usdpPart / ((1 - usdpPart) * westCollateral + usdpPart)
     const usdToUsdpAmount = usdpPartInPosition * usdTotal
     const usdpAmount = usdToUsdpAmount / usdpRate.value
-    const eastAmount = usdpAmount / usdpPart
+    const eastAmount = roundValue(usdpAmount / usdpPart)
     const westAmount = (usdTotal - usdToUsdpAmount) / westRate.value
 
     if (eastAmount > oldEastAmount) {
       return {
         eastAmount,
-        usdpAmount,
-        westAmount,
+        usdpAmount: roundValue(usdpAmount),
+        westAmount: roundValue(westAmount),
         westRateTimestamp: Number(westRate.timestamp),
         usdpRateTimestamp: Number(usdpRate.timestamp)
       }
@@ -215,8 +222,17 @@ export class RPCService {
     const {
       sender_public_key: senderPubKey,
       amount: transferAmount,
+      asset_id: assetId,
       recipient
     } = await this.stateService.getTransactionInfoOrFail<TransferTx>(transferId);
+
+    if (assetId) {
+      throw new Error(`Expected transfer asset to be WEST, now: ${assetId}`);
+    }
+
+    if (transferAmount < MINIMUM_TRANSFER * Math.pow(10, WEST_DECIMALS)) {
+      throw new Error(`Minimum transfer amount is: ${MINIMUM_TRANSFER * Math.pow(10, WEST_DECIMALS)}, got: ${transferAmount}`);
+    }
 
     const { adminAddress } = await this.stateService.getConfig();
     if (!adminAddress) {
@@ -230,7 +246,7 @@ export class RPCService {
     if (tx.sender_public_key !== senderPubKey) {
       throw new Error(`Sender public key are not equal for transfer and docker call.`);
     }
-    
+
     const isTransferUsed = await this.stateService.isTransferUsed(transferId)
     if (isTransferUsed) {
       throw new Error(`Transfer ${transferId} is already used for accounting`);
@@ -326,11 +342,62 @@ export class RPCService {
     return []
   }
 
-  async burn(tx: Transaction, { vaultId }: BurnParam): Promise<DataEntryRequest[]> {
+  async burn(tx: Transaction, { vaultId, usdpTransferId, westTransferId }: BurnParam): Promise<DataEntryRequest[]> {
     // only contract creator allowed
     await this.checkAdminPermissions(tx);
+    const { USDapTokenId } = await this.stateService.getConfig();
 
-    const { eastAmount, address } = await this.stateService.getVault(vaultId);
+    /**
+     * check transfers
+     */
+    const { eastAmount, usdpAmount, westAmount, address } = await this.stateService.getVault(vaultId);
+    const {
+      sender_public_key: westSenderPubKey,
+      amount: westTransferAmount,
+      recipient: westRecipient,
+      asset_id: westAssetId,
+    } = await this.stateService.getTransactionInfoOrFail<TransferTx>(westTransferId);
+
+    const {
+      sender_public_key: usdpSenderPubKey,
+      amount: usdpTransferAmount,
+      recipient: usdpRecipient,
+      asset_id: usdpAssetId,
+    } = await this.stateService.getTransactionInfoOrFail<TransferTx>(usdpTransferId);
+
+    // check recipients
+    if (address !== westRecipient) {
+      throw new Error(`Expected westRecipient to be equal to ${address}, got: ${westRecipient}`);
+    }
+    if (address !== usdpRecipient) {
+      throw new Error(`Expected usdpRecipient to be equal to ${address}, got: ${usdpRecipient}`);
+    }
+
+    // check sender_public_key
+    if (tx.sender_public_key !== westSenderPubKey) {
+      throw new Error(`Expected westSenderPubKey to be equal to ${tx.sender_public_key}, got: ${westSenderPubKey}`);
+    }
+    if (tx.sender_public_key !== usdpSenderPubKey) {
+      throw new Error(`Expected usdpSenderPubKey to be equal to ${tx.sender_public_key}, got: ${usdpSenderPubKey}`);
+    }
+
+    // check assets id
+    if (westAssetId) {
+      throw new Error(`Expected transfer asset to be WEST, now: ${westAssetId}`);
+    }
+    if (usdpAssetId !== USDapTokenId) {
+      throw new Error(`Expected transfer asset to be ${USDapTokenId}, got: ${usdpAssetId}`);
+    }
+
+    // check transfers amounts
+    if (roundValue(westTransferAmount) !== roundValue(westAmount)) {
+      throw new Error(`west transfer amount not equal to vault amount, 
+        westAmount: ${westAmount}, westTransferAmount: ${westTransferAmount}`)
+    }
+    if (roundValue(usdpTransferAmount) !== roundValue(usdpAmount)) {
+      throw new Error(`usdp transfer amount not equal to vault amount, 
+        usdpAmount: ${usdpAmount}, usdpTransferAmount: ${usdpTransferAmount}`)
+    }
 
     let totalSupply = await this.stateService.getTotalSupply();
     let balance = await this.stateService.getBalance(address);

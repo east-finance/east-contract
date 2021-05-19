@@ -46,6 +46,7 @@ export class StateService {
               contract_id: transactionFromRequest.contract_id ? Base58.encode(transactionFromRequest.contract_id) : '',
               sender_public_key: Base58.encode(transactionFromRequest.sender_public_key),
               recipient: transactionFromRequest.recipient ? Base58.encode(transactionFromRequest.recipient) : '',
+              asset_id: transactionFromRequest.asset_id ? Base58.encode(transactionFromRequest.asset_id) : '',
             }
             resolve(transaction)
           } catch (err) {
