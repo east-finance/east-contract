@@ -59,7 +59,13 @@ export interface BurnParam {
   usdpTransferId: string
 }
 
-export interface LiquidateParam {
+export interface ClaimOverpayParam {
+  vaultId: string,
+  transferId: string,
+  requestId: string
+}
+
+export interface VaultParam {
   vaultId: string,
 }
 
@@ -87,10 +93,6 @@ export interface SupplyParam {
   vaultId: string
 }
 
-export type RecalculateParam = {
-  vaultId: string
-}
-
 
 export enum TxType {
   DockerCreate  = 103,
@@ -106,6 +108,8 @@ export enum Operations {
   burn = 'burn',
   liquidate = 'liquidate',
   update_config = 'update_config',
+  claim_overpay_init = 'claim_overpay_init',
+  claim_overpay = 'claim_overpay'
 }
 
 export enum StateKeys {
@@ -124,6 +128,7 @@ export interface ConfigParam {
   liquidationCollateral: number,
   minHoldTime: number,
   USDapTokenId: string,
+  issueEnabled: boolean,
   adminAddress: string,
   adminPublicKey: string
 }
@@ -135,5 +140,6 @@ export type TransferTx = {
   asset_id?: string,
   timestamp: string,
   amount: number,
-  recipient: string
+  recipient: string,
+  attachment?: string
 }

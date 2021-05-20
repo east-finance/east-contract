@@ -1,5 +1,17 @@
 ## Описание [EAST смарт контракта](https://gitlab.wvservices.com/waves-enterprise/east-contract)
 
+### Краткое описание методов:
+- [mint](#mint) - выпуск EAST, открытие позиции
+- [transfer](#transfer) - перевод EAST
+- [burn_init](#burn_init) - запрос на закрытие позиции
+- [burn](#burn) - закрытие позиции
+- [recalculate](#recalculate) - довыпуск EAST
+- [supply](#supply) - дообеспечить позицию токенами WEST
+- [claim_overpay_init](#claim_overpay_init) - запрос на вывод токенов WEST из позиции (при переобеспечении)
+- [claim_overpay](#claim_overpay) - вывод токенов WEST из позиции
+- [liquidate](#liquidate) - ликвидация позиции
+- [update_config](#update_config) - обновление конфига контракта  
+
 ### Создание контракта:
 Контракт создаётся с параметром вида:
 ```js
@@ -13,7 +25,8 @@
     westCollateral: 2.5,
     liquidationCollateral: 1.3,
     minHoldTime: 1000 * 60 * 60,
-    USDapTokenId: 'USDap token id'
+    USDapTokenId: 'USDap token id',
+    issueEnabled: true
   })
 }
 ```
@@ -26,6 +39,7 @@
 - liquidationCollateral - границе обеспечения WEST токенами после которой возможна ликвидация позици (продажа WEST токенов и переход к 100% обеспечению USDP)
 - minHoldTime - минимальное время удержания позиции до возможности её закрытия пользователем
 - USDapTokenId - пользовательский токен, аналог USDap в блокчейне WE 
+- issueEnabled - если стоит false то методы mint и recalculate недоступны
 
 ### Методы контракта:
 Метод = ключ параметра вызова контракта.  
@@ -123,6 +137,36 @@
 <b>Результат выполнения: </b>
 - обновляет ключ `vault_${tx.id}` хранящего в себе информацию о vault пользователя
 
+#### claim_overpay_init
+<b> Описание: </b>
+Запрос пользователя на вывод лишних WEST токенов из vault (при росте курс WEST)  
+<b> Доступ к методу: </b>
+Владелец позиции(vault). Необходимо условие - transaction.sender = vault.address  
+<b>Тело метода: </b>
+```js
+  vaultId: string, // vault id
+```  
+<b>Результат выполнения: </b>
+без результата  
+
+#### claim_overpay
+<b> Описание: </b>
+Вывывает владелец контракта после вызова claim_overpay_init, переводит на адрес владельца WEST токены, контракт же списывает с vault пользователя переведённые токены, уменьшая значение westAmount на сумму перевода и комиссию транзакций равную 0.2 WEST.  
+<b> Доступ к методу: </b>
+Владелец контракта  
+<b>Триггеры: </b>
+Пользователь вызывает контракт с методом claim_overpay_init, после его выполения - в случае переобеспечения vault сервис автоматизации считает количество токенов которые необходимо вернуть пользователю и отправляет атомик транзакцию с трансфером WEST и данный вызов контракта. В случае если vault не переобеспечен, вызов claim_overpay_init игнорируется.  
+<b>Тело метода: </b>
+```js
+  vault: string, // vault id
+  transferId: string,
+  requestId: string // claim_overpay_init call id
+```  
+<b>Результат выполнения: </b>
+- добавляет ключ `exchange_${transferId}`  
+- обновляет ключ `vault_${vault.id}`  
+
+
 #### liquidate
 <b> Описание: </b>
 Если в случае падение курса WEST, обеспечение WEST падает менее значения liquidationCollateral из конфига контракта то сервис атоматизации вызывает данный метод, который проверяет по последним данным ораклов действительно ли обеспечение упало ниже liquidationCollateral и записывает в vault значения usdpAmount = eastAmount, westAmount = 0. После этого пользователь больше не может закрыть позицию. В случае если обеспечение WEST больше liquidationCollateral то вызов метода не производится.  
@@ -149,6 +193,7 @@
   liquidationCollateral: number,
   minHoldTime: number,
   USDapTokenId: string,
+  issueEnabled: boolean
 ```  
 <b>Результат выполнения: </b>
 - обновляет ключ `config` хранящего в себе информацию о параметрах контракта

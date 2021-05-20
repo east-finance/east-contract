@@ -47,6 +47,7 @@ export class StateService {
               sender_public_key: Base58.encode(transactionFromRequest.sender_public_key),
               recipient: transactionFromRequest.recipient ? Base58.encode(transactionFromRequest.recipient) : '',
               asset_id: transactionFromRequest.asset_id ? Base58.encode(transactionFromRequest.asset_id) : '',
+              attachment: transactionFromRequest.attachment ? Base58.encode(transactionFromRequest.attachment) : ''
             }
             resolve(transaction)
           } catch (err) {
@@ -141,7 +142,9 @@ export class StateService {
       liquidationCollateral,
       minHoldTime,
       adminAddress,
-      adminPublicKey
+      adminPublicKey,
+      issueEnabled,
+      USDapTokenId
     } = JSON.parse(value as string)
     if (!oracleContractId || !oracleTimestampMaxDiff || !usdpPart || !westCollateral || !liquidationCollateral) {
       throw new Error('Wrong config contract param')
@@ -154,7 +157,9 @@ export class StateService {
       liquidationCollateral,
       minHoldTime,
       adminAddress,
-      adminPublicKey
+      adminPublicKey,
+      issueEnabled,
+      USDapTokenId
     }
   }
 

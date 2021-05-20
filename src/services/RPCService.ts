@@ -14,12 +14,12 @@ import {
   TransferParam,
   Vault,
   TransferTx,
-  RecalculateParam,
+  VaultParam,
   MintParam,
-  LiquidateParam,
   Oracle,
   SupplyParam,
-  ConfigParam
+  ConfigParam,
+  ClaimOverpayParam
 } from '../interfaces';
 import { CONNECTION_ID, CONNECTION_TOKEN, NODE, NODE_PORT, HOST_NETWORK } from '../config';
 import { StateService } from './StateService';
@@ -54,6 +54,7 @@ const WEST_DECIMALS = 8
 const WEST_ORACLE_STREAM = '000003_latest'
 const USDP_ORACLE_STREAM = '000010_latest'
 const MINIMUM_TRANSFER = 0.1
+const CLAIN_OVERPAY_COMISSION = 0.2
 
 
 function roundValue(num: number) {
@@ -101,6 +102,9 @@ export class RPCService {
   }
 
   async handleDockerCreate(tx: Transaction): Promise<void> {
+    const defaultVals = {
+      issueEnabled: true
+    }
     const paramConfig = tx.params[0];
     const config = JSON.parse(paramConfig.string_value || '{}');
     this.checkConfig(config);
@@ -109,7 +113,10 @@ export class RPCService {
     await this.stateService.commitSuccess(tx.id, [
       {
         key: StateKeys.config,
-        string_value: JSON.stringify(config)
+        string_value: JSON.stringify({
+          ...defaultVals,
+          config
+        })
       }, 
       {
         key: StateKeys.totalSupply,
@@ -286,7 +293,7 @@ export class RPCService {
     ];
   }
 
-  async recalculate(tx: Transaction, { vaultId }: RecalculateParam): Promise<DataEntryRequest[]> {
+  async recalculate(tx: Transaction, { vaultId }: VaultParam): Promise<DataEntryRequest[]> {
     const oldVault = await this.stateService.getVault(vaultId);
     const address = tx.sender;
 
@@ -325,7 +332,7 @@ export class RPCService {
     ];
   }
 
-  async burnInit(tx: Transaction, { vaultId }: BurnParam): Promise<DataEntryRequest[]> {
+  async burnInit(tx: Transaction, { vaultId }: VaultParam): Promise<DataEntryRequest[]> {
     const { address } = await this.stateService.getVault(vaultId);
     const { minHoldTime } = await this.stateService.getConfig();
 
@@ -447,7 +454,7 @@ export class RPCService {
     }];
   }
 
-  async liquidate(tx: Transaction, { vaultId }: LiquidateParam): Promise<DataEntryRequest[]> {
+  async liquidate(tx: Transaction, { vaultId }: VaultParam): Promise<DataEntryRequest[]> {
     // only contract creator allowed
     await this.checkAdminPermissions(tx);
     const { eastAmount, westAmount, address } = await this.stateService.getVault(vaultId);
@@ -501,6 +508,66 @@ export class RPCService {
     ];
   }
 
+  async claimOverpayInit(tx: Transaction, { vaultId }: VaultParam): Promise<DataEntryRequest[]> {
+    const { address } = await this.stateService.getVault(vaultId);
+    // check
+    if (tx.sender !== address) {
+      throw new Error(`Only ${address} can claim overpay from vault ${vaultId}`);
+    }
+    return []
+  }
+
+  async claimOverpay(tx: Transaction, { vaultId, transferId, requestId }: ClaimOverpayParam) {
+    await this.checkAdminPermissions(tx);
+
+    const vault = await this.stateService.getVault(vaultId);
+    const {
+      sender_public_key: senderPubKey,
+      asset_id: assetId,
+      amount,
+      recipient,
+      attachment,
+    } = await this.stateService.getTransactionInfoOrFail<TransferTx>(transferId);
+
+    // checks
+    if (vault.address !== recipient) {
+      throw new Error(`Expected recipient to be equal to ${vault.address}, got: ${recipient}`);
+    }
+    if (tx.sender_public_key !== senderPubKey) {
+      throw new Error(`Expected senderPubKey to be equal to ${tx.sender_public_key}, got: ${senderPubKey}`);
+    }
+    if (assetId) {
+      throw new Error(`Expected transfer asset to be WEST, now: ${assetId}`);
+    }
+    if (requestId !== attachment) {
+      throw new Error(`Expected transfer requestId: ${requestId} to be equal attachment: ${attachment}`);
+    }
+
+    const isTransferUsed = await this.stateService.isTransferUsed(transferId)
+    if (isTransferUsed) {
+      throw new Error(`Transfer ${transferId} is already used for accounting`);
+    }
+
+    const amountParsed = amount / Math.pow(10, WEST_DECIMALS);
+    const newWestAmount = roundValue(vault.westAmount - amountParsed - CLAIN_OVERPAY_COMISSION);
+    if (newWestAmount <= 0) {
+      throw new Error(`newWestAmount less than 0, newWestAmount: ${newWestAmount}, amountParsed: ${amountParsed}`);
+    }
+
+    vault.westAmount = newWestAmount;
+
+    return [
+      {
+        key: `${StateKeys.vault}_${vaultId}`,
+        string_value: JSON.stringify(vault)
+      },
+      {
+        key: `${StateKeys.exchange}_${transferId}`,
+        bool_value: true
+      }
+    ];
+  }
+
   async updateConfig(tx: Transaction, newConfig: Partial<ConfigParam>): Promise<DataEntryRequest[]> {
     await this.checkAdminPermissions(tx);
     const oldConfig = await this.stateService.getConfig();
@@ -518,6 +585,14 @@ export class RPCService {
       }
     ];
   }
+
+  async checkIssueEnabled(): Promise<void> {
+    const { issueEnabled } = await this.stateService.getConfig();
+    if (!issueEnabled) {
+      throw new Error('EAST issue disabled, check config params');
+    }
+  }
+
   async handleDockerCall(tx: Transaction): Promise<void> {
     const { params } = tx;
     let results: DataEntryRequest[] = [];
@@ -531,12 +606,14 @@ export class RPCService {
           results = await this.updateConfig(tx, value);
           break;
         case Operations.mint:
+          await this.checkIssueEnabled();
           results = await this.mint(tx, value);
           break;
         case Operations.transfer:
           results = await this.transfer(tx, value);
           break;
         case Operations.recalculate:
+          await this.checkIssueEnabled();
           results = await this.recalculate(tx, value);
           break;
         case Operations.burn_init:
@@ -544,6 +621,12 @@ export class RPCService {
           break;
         case Operations.burn:
           results = await this.burn(tx, value);
+          break;
+        case Operations.claim_overpay_init:
+          results = await this.claimOverpayInit(tx, value);
+          break;
+        case Operations.claim_overpay:
+          results = await this.claimOverpay(tx, value);
           break;
         case Operations.supply:
           results = await this.supply(tx, value);
