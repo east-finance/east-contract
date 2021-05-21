@@ -79,8 +79,8 @@ export interface Vault {
   eastAmount: number,
   westAmount: number,
   usdpAmount: number,
-  westRateTimestamp: number,
-  usdpRateTimestamp: number,
+  westRate: Oracle,
+  usdpRate: Oracle,
   liquidated?: boolean
 }
 

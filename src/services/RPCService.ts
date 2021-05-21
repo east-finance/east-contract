@@ -153,8 +153,8 @@ export class RPCService {
     eastAmount: number,
     usdpAmount: number,
     westAmount: number,
-    westRateTimestamp: number,
-    usdpRateTimestamp: number
+    westRate: Oracle,
+    usdpRate: Oracle
   }> {
     const {
       oracleContractId,
@@ -176,8 +176,8 @@ export class RPCService {
       eastAmount: roundValue(eastAmount),
       usdpAmount: roundValue(usdpAmount),
       westAmount: roundValue(transferAmount - westToUsdpAmount),
-      westRateTimestamp: Number(westRate.timestamp),
-      usdpRateTimestamp: Number(usdpRate.timestamp)
+      westRate,
+      usdpRate
     }
   }
 
@@ -185,8 +185,8 @@ export class RPCService {
     eastAmount: number,
     usdpAmount: number,
     westAmount: number,
-    westRateTimestamp: number,
-    usdpRateTimestamp: number
+    westRate: Oracle,
+    usdpRate: Oracle
   } | false> {
     const {
       oracleContractId,
@@ -216,8 +216,8 @@ export class RPCService {
         eastAmount,
         usdpAmount: roundValue(usdpAmount),
         westAmount: roundValue(westAmount),
-        westRateTimestamp: Number(westRate.timestamp),
-        usdpRateTimestamp: Number(usdpRate.timestamp)
+        westRate,
+        usdpRate
       }
     } else {
       return false;
@@ -480,7 +480,7 @@ export class RPCService {
       usdpAmount: eastAmount,
       address,
       liquidated: true,
-      westRateTimestamp: Number(westRate.timestamp)
+      westRate
     }
 
     return [
