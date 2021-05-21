@@ -58,7 +58,14 @@ const CLAIN_OVERPAY_COMISSION = 0.2
 
 
 function roundValue(num: number) {
+  if (typeof num === 'string') {
+    num = parseFloat(num);
+  }
   return +num.toFixed(WEST_DECIMALS);
+}
+
+function parseValue(num: number) {
+  return parseFloat(num + '') / Math.pow(10, WEST_DECIMALS)
 }
 
 export class RPCService {
@@ -397,11 +404,11 @@ export class RPCService {
     }
 
     // check transfers amounts
-    if (roundValue(westTransferAmount) !== roundValue(westAmount)) {
+    if (roundValue(parseValue(westTransferAmount)) !== roundValue(westAmount)) {
       throw new Error(`west transfer amount not equal to vault amount, 
         westAmount: ${westAmount}, westTransferAmount: ${westTransferAmount}`)
     }
-    if (roundValue(usdpTransferAmount) !== roundValue(usdpAmount)) {
+    if (roundValue(parseValue(usdpTransferAmount)) !== roundValue(usdpAmount)) {
       throw new Error(`usdp transfer amount not equal to vault amount, 
         usdpAmount: ${usdpAmount}, usdpTransferAmount: ${usdpTransferAmount}`)
     }
