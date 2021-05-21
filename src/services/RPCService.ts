@@ -115,7 +115,7 @@ export class RPCService {
         key: StateKeys.config,
         string_value: JSON.stringify({
           ...defaultVals,
-          config
+          ...config
         })
       }, 
       {
