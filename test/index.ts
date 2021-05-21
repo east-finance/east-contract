@@ -82,7 +82,8 @@ Promise.resolve().then(async () => {
           usdpPart:  0.5,
           westCollateral: 2.5,
           liquidationCollateral: 1.3,
-          minHoldTime: 1000 * 60 * 60
+          minHoldTime: 1000 * 60 * 60,
+          USDapTokenId: '6Cc3dePRVFwn4VX6NZuwS2R9wDHU6z2eoKhZ7MdJ1fkR',
         })
       }
     ],
@@ -238,95 +239,6 @@ Promise.resolve().then(async () => {
   console.log('Waiting 15 seconds...');
   await sleep(15);
   
-  /**
-  * User1 - Mint 2
-  */
-  
-  const mint2Transfer = Waves.API.Transactions.Transfer.V3({
-    recipient: ownerSeed.address,
-    assetId: '',
-    amount: 150 * 100000000,
-    timestamp: Date.now(),
-    attachment: '',
-    fee: minimumFee[4],
-    senderPublicKey: user1Seed.keyPair.publicKey,
-    atomicBadge: {
-      trustedSender: user1Seed.address
-    }
-  });
-  
-  const mint2Call = Waves.API.Transactions.CallContract.V4({
-    contractId,
-    contractVersion: 1,
-    fee: minimumFee[104],
-    senderPublicKey: user1Seed.keyPair.publicKey,
-    timestamp: Date.now(),
-    params: [{
-      type: 'string',
-      key: 'mint',
-      value: JSON.stringify({
-        transferId: await mint2Transfer.getId()
-      })
-    }],
-    atomicBadge: {
-      trustedSender: user1Seed.address
-    }
-  });
-  
-  
-  const mint2Atomic = await Waves.API.Transactions.broadcastAtomic(
-    Waves.API.Transactions.Atomic.V1({transactions: [mint2Transfer, mint2Call]}),
-    user1Seed.keyPair
-  );
-  
-  const vault2Id = await mint2Call.getId()
-  
-  console.log(`Atomic mint 2 call: ${JSON.stringify(mint2Atomic)}`);
-  console.log('Waiting 15 seconds...');
-  await sleep(15);
-  
-  /**
-  * User1 - Burn init for second vault
-  */
-  
-  const burnInitCall = await Waves.API.Transactions.CallContract.V4({
-    contractId,
-    contractVersion: 1,
-    timestamp: Date.now(),
-    params: [{
-      type: 'string',
-      key: 'burn_init',
-      value: JSON.stringify({ vaultId: vault2Id })
-    }]
-  })
-  
-  await burnInitCall.broadcast(user1Seed.keyPair);
-  
-  console.log(`Burn init call: ${JSON.stringify(burnInitCall.getBody())}`);
-  console.log('Waiting 15 seconds...');
-  await sleep(15);
-
-  /**
-  * Owner - Burn second vault
-  * TODO: make atomic and send transfers back to user
-  */
-  
-   const burnCall = await Waves.API.Transactions.CallContract.V4({
-    contractId,
-    contractVersion: 1,
-    timestamp: Date.now(),
-    params: [{
-      type: 'string',
-      key: 'burn',
-      value: JSON.stringify({ vaultId: vault2Id })
-    }]
-  })
-  
-  await burnCall.broadcast(ownerSeed.keyPair);
-  
-  console.log(`Burn call: ${JSON.stringify(burnCall.getBody())}`);
-  console.log('Waiting 15 seconds...');
-  await sleep(15);
 
   /**
   * Owner - liquidate first vault

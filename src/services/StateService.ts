@@ -37,6 +37,7 @@ export class StateService {
               throw new Error('Unknown transaction')
             }
             logger.info(`getTransactionInfoOrFail raw:`)
+            logger.info(Base58.encode(transactionFromRequest.id))
             logger.info(JSON.stringify(transactionFiled))
             logger.info(JSON.stringify(transactionFromRequest))
 
@@ -46,7 +47,7 @@ export class StateService {
               contract_id: transactionFromRequest.contract_id ? Base58.encode(transactionFromRequest.contract_id) : '',
               sender_public_key: Base58.encode(transactionFromRequest.sender_public_key),
               recipient: transactionFromRequest.recipient ? Base58.encode(transactionFromRequest.recipient) : '',
-              asset_id: transactionFromRequest.asset_id ? Base58.encode(transactionFromRequest.asset_id) : '',
+              asset_id: transactionFromRequest.asset_id ? Base58.encode(transactionFromRequest.asset_id.value || transactionFromRequest.asset_id) : '',
               attachment: transactionFromRequest.attachment ? Base58.encode(transactionFromRequest.attachment) : ''
             }
             resolve(transaction)
