@@ -53,20 +53,20 @@ export interface Oracle {
   timestamp: string
 }
 
-export interface BurnParam {
-  vaultId: string,
+export interface CloseParam {
+  address: string,
   westTransferId: string,
   usdpTransferId: string
 }
 
 export interface ClaimOverpayParam {
-  vaultId: string,
+  address: string,
   transferId: string,
   requestId: string
 }
 
 export interface VaultParam {
-  vaultId: string,
+  address: string,
 }
 
 export interface TransferParam {
@@ -89,8 +89,7 @@ export interface MintParam {
 }
 
 export interface SupplyParam {
-  transferId: string,
-  vaultId: string
+  transferId: string
 }
 
 
@@ -101,11 +100,11 @@ export enum TxType {
 
 export enum Operations {
   mint = 'mint',
-  recalculate = 'recalculate',
+  reissue = 'reissue',
   supply = 'supply',
   transfer = 'transfer',
-  burn_init = 'burn_init',
-  burn = 'burn',
+  close_init = 'close_init',
+  close = 'close',
   liquidate = 'liquidate',
   update_config = 'update_config',
   claim_overpay_init = 'claim_overpay_init',
