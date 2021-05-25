@@ -50,7 +50,7 @@ export type ContractTransactionResponse = {
 
 export interface Oracle {
   value: number,
-  timestamp: string
+  timestamp: number
 }
 
 export interface CloseParam {
@@ -117,7 +117,8 @@ export enum StateKeys {
   vault = 'vault',
   config = 'config',
   exchange = 'exchange',
-  liquidatedVault = 'liquidated_vault'
+  liquidatedVault = 'liquidated_vault',
+  totalUsdap = 'total_usdap'
 }
 
 export interface ConfigParam {

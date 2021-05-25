@@ -115,6 +115,11 @@ export class StateService {
     return value ? Number(value) : 0;
   }
 
+  async getTotalUsdap (): Promise<number> {
+    const value = await this.getContractKeyValue(StateKeys.totalUsdap);
+    return value ? Number(value) : 0;
+  }
+
   async getBalance (address: string): Promise<number> {
     try {
       const value = await this.getContractKeyValue(`${StateKeys.balance}_${address}`);
@@ -177,14 +182,15 @@ export class StateService {
   }
 
   async isVaultExists (vaultId: string): Promise<boolean> {
-    const value = await this.getContractKeyValue(`${StateKeys.vault}_${vaultId}`);
-    const vault = JSON.parse(value as string) as Vault;
-    console.log('!!!!!!@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@')
-    console.log(value);
-    console.log(vault);
-    if (vault && vault.usdpAmount) {
-      return true;
+    try {
+      const value = await this.getContractKeyValue(`${StateKeys.vault}_${vaultId}`);
+      const vault = JSON.parse(value as string) as Vault;
+      if (vault && vault.usdpAmount) {
+        return true;
+      }
+      return false;
+    } catch (e) {
+      return false
     }
-    return false;
   }
 }

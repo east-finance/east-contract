@@ -129,6 +129,10 @@ export class RPCService {
       {
         key: StateKeys.totalSupply,
         string_value: '0'
+      }, 
+      {
+        key: StateKeys.totalUsdap,
+        string_value: '0'
       }
     ]);
   }
@@ -271,31 +275,37 @@ export class RPCService {
   }
 
   async mint(tx: Transaction, { transferId }: MintParam): Promise<DataEntryRequest[]> {
-    if (this.stateService.isVaultExists(tx.sender)) {
+    const vaultExists = await this.stateService.isVaultExists(tx.sender)
+    if (vaultExists) {
       throw new Error(`Vault for user ${tx.sender} alreasy exist, use methods supply and reissue`);
     }
 
     const transferAmount = await this.checkTransfer(tx, transferId)
-    const address = tx.sender
     
     const vault = await this.calculateVault(transferAmount) as Vault
     vault.updatedAt = Date.now();
 
     let totalSupply = await this.stateService.getTotalSupply();
-    let balance = await this.stateService.getBalance(address);
+    let totalUsdap = await this.stateService.getTotalUsdap();
+    let balance = await this.stateService.getBalance(tx.sender);
     balance += vault.eastAmount;
     totalSupply += vault.eastAmount;
+    totalUsdap += vault.usdpAmount;
     return [
       {
         key: StateKeys.totalSupply,
         string_value: '' + totalSupply
       },
       {
-        key: `${StateKeys.balance}_${address}`,
+        key: StateKeys.totalUsdap,
+        string_value: '' + totalUsdap
+      },
+      {
+        key: `${StateKeys.balance}_${tx.sender}`,
         string_value: '' + balance
       },
       {
-        key: `${StateKeys.vault}_${tx.id}`,
+        key: `${StateKeys.vault}_${tx.sender}`,
         string_value: JSON.stringify(vault)
       },
       {
@@ -307,7 +317,6 @@ export class RPCService {
 
   async reissue(tx: Transaction): Promise<DataEntryRequest[]> {
     const oldVault = await this.stateService.getVault(tx.sender);
-    const address = tx.sender;
 
     const newVault: Vault = await this.recalculateVault(oldVault) as Vault
 
@@ -316,12 +325,14 @@ export class RPCService {
     }
 
     let totalSupply = await this.stateService.getTotalSupply();
+    let totalUsdap = await this.stateService.getTotalUsdap();
     let balance = await this.stateService.getBalance(tx.sender);
     const diff = newVault.eastAmount - oldVault.eastAmount;
     newVault.updatedAt = Date.now();
 
     balance += diff;
     totalSupply += diff;
+    totalUsdap +=  newVault.usdpAmount - oldVault.usdpAmount;
 
     return [
       {
@@ -329,7 +340,11 @@ export class RPCService {
         string_value: '' + totalSupply
       },
       {
-        key: `${StateKeys.balance}_${address}`,
+        key: StateKeys.totalUsdap,
+        string_value: '' + totalUsdap
+      },
+      {
+        key: `${StateKeys.balance}_${tx.sender}`,
         string_value: '' + balance
       },
       {
@@ -408,6 +423,7 @@ export class RPCService {
     }
 
     let totalSupply = await this.stateService.getTotalSupply();
+    let totalUsdap = await this.stateService.getTotalUsdap();
     let balance = await this.stateService.getBalance(address);
 
     // check balance
@@ -417,11 +433,15 @@ export class RPCService {
 
     balance -= eastAmount;
     totalSupply -= eastAmount;
-
+    totalUsdap -= usdpAmount;
     return [
       {
         key: StateKeys.totalSupply,
         string_value: '' + Math.max(totalSupply, 0)
+      }, 
+      {
+        key: StateKeys.totalUsdap,
+        string_value: '' + totalUsdap
       }, 
       {
         key: `${StateKeys.balance}_${address}`,
@@ -458,7 +478,7 @@ export class RPCService {
   async liquidate(tx: Transaction, { address }: LiquidateParam): Promise<DataEntryRequest[]> {
     // only contract creator allowed
     await this.checkAdminPermissions(tx);
-    const { eastAmount, westAmount } = await this.stateService.getVault(address);
+    const { eastAmount, westAmount, usdpAmount } = await this.stateService.getVault(address);
     const { 
       oracleContractId,
       usdpPart,
@@ -484,7 +504,14 @@ export class RPCService {
       westRate
     }
 
+    let totalUsdap = await this.stateService.getTotalUsdap();
+    totalUsdap += liquidatedVault.usdpAmount - usdpAmount;
+
     return [
+      {
+        key: StateKeys.totalUsdap,
+        string_value: '' + totalUsdap
+      },
       {
         key: `${StateKeys.vault}_${address}`,
         string_value: ''

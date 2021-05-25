@@ -35,7 +35,7 @@ const sleep = (timeout: number): Promise<void>=> {
 
 
 Promise.resolve().then(async () => {
-  const imageName = 'east-contract:1.3';
+  const imageName = 'east-contract:1.4';
   console.log(`Building docker image ${imageName}, HOST_NETWORK=${hostIp}`);
   await execute(`docker build --build-arg HOST_NETWORK=${hostIp} -t ${imageName} .`);
   console.log('Build image done');
@@ -225,7 +225,7 @@ Promise.resolve().then(async () => {
     timestamp: Date.now(),
     params: [{
       type: 'string',
-      key: 'recalculate',
+      key: 'reissue',
       value: ''
     }]
   })
