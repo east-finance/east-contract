@@ -65,7 +65,7 @@ export interface ClaimOverpayParam {
   requestId: string
 }
 
-export interface VaultParam {
+export interface LiquidateParam {
   address: string,
 }
 
@@ -75,12 +75,12 @@ export interface TransferParam {
 }
 
 export interface Vault {
-  address: string,
   eastAmount: number,
   westAmount: number,
   usdpAmount: number,
   westRate: Oracle,
   usdpRate: Oracle,
+  updatedAt: number,
   liquidated?: boolean
 }
 
@@ -116,7 +116,8 @@ export enum StateKeys {
   balance = 'balance',
   vault = 'vault',
   config = 'config',
-  exchange = 'exchange'
+  exchange = 'exchange',
+  liquidatedVault = 'liquidated_vault'
 }
 
 export interface ConfigParam {

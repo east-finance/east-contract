@@ -10,11 +10,11 @@ import {
   StateKeys,
   Transaction,
   TxType,
-  BurnParam,
+  CloseParam,
   TransferParam,
   Vault,
   TransferTx,
-  VaultParam,
+  LiquidateParam,
   MintParam,
   Oracle,
   SupplyParam,
@@ -55,6 +55,7 @@ const WEST_ORACLE_STREAM = '000003_latest'
 const USDP_ORACLE_STREAM = '000010_latest'
 const MINIMUM_TRANSFER = 0.1
 const CLAIN_OVERPAY_COMISSION = 0.2
+const CLOSE_COMISSION = 0.3
 
 
 function roundValue(num: number) {
@@ -241,7 +242,7 @@ export class RPCService {
     } = await this.stateService.getTransactionInfoOrFail<TransferTx>(transferId);
 
     if (assetId) {
-      throw new Error(`Expected transfer asset to be WEST, now: ${assetId}`);
+      throw new Error(`Expected transfer asset to be WEST, got: ${assetId}`);
     }
 
     if (transferAmount < MINIMUM_TRANSFER * Math.pow(10, WEST_DECIMALS)) {
@@ -270,11 +271,15 @@ export class RPCService {
   }
 
   async mint(tx: Transaction, { transferId }: MintParam): Promise<DataEntryRequest[]> {
+    if (this.stateService.isVaultExists(tx.sender)) {
+      throw new Error(`Vault for user ${tx.sender} alreasy exist, use methods supply and reissue`);
+    }
+
     const transferAmount = await this.checkTransfer(tx, transferId)
-    const address = tx.sender;
+    const address = tx.sender
     
     const vault = await this.calculateVault(transferAmount) as Vault
-    vault.address = address
+    vault.updatedAt = Date.now();
 
     let totalSupply = await this.stateService.getTotalSupply();
     let balance = await this.stateService.getBalance(address);
@@ -300,22 +305,20 @@ export class RPCService {
     ];
   }
 
-  async recalculate(tx: Transaction, { vaultId }: VaultParam): Promise<DataEntryRequest[]> {
-    const oldVault = await this.stateService.getVault(vaultId);
+  async reissue(tx: Transaction): Promise<DataEntryRequest[]> {
+    const oldVault = await this.stateService.getVault(tx.sender);
     const address = tx.sender;
 
-    if (oldVault.address !== tx.sender) {
-      throw new Error(`Only vault owner cat recaculate vault`);
-    }
-    const newVault = await this.recalculateVault(oldVault)
+    const newVault: Vault = await this.recalculateVault(oldVault) as Vault
 
     if (!newVault) {
       throw new Error(`Cannot increase east amount`);
     }
 
     let totalSupply = await this.stateService.getTotalSupply();
-    let balance = await this.stateService.getBalance(oldVault.address);
+    let balance = await this.stateService.getBalance(tx.sender);
     const diff = newVault.eastAmount - oldVault.eastAmount;
+    newVault.updatedAt = Date.now();
 
     balance += diff;
     totalSupply += diff;
@@ -330,33 +333,24 @@ export class RPCService {
         string_value: '' + balance
       },
       {
-        key: `${StateKeys.vault}_${vaultId}`,
-        string_value: JSON.stringify({
-          ...newVault,
-          address
-        })
+        key: `${StateKeys.vault}_${tx.sender}`,
+        string_value: JSON.stringify(newVault)
       }
     ];
   }
 
-  async burnInit(tx: Transaction, { vaultId }: VaultParam): Promise<DataEntryRequest[]> {
-    const { address } = await this.stateService.getVault(vaultId);
+  async closeInit(tx: Transaction): Promise<DataEntryRequest[]> {
+    const { updatedAt } = await this.stateService.getVault(tx.sender);
     const { minHoldTime } = await this.stateService.getConfig();
 
-    // check minimum hold time
-    const { timestamp } = await this.stateService.getTransactionInfoOrFail<TransferTx>(vaultId);
-    const holdTime = Date.now() - (new Date(timestamp).getTime());
+    const holdTime = Date.now() - updatedAt;
     if (holdTime < minHoldTime) {
-      throw new Error(`Only ${address} can burn vault ${vaultId}`);
-    }
-    // check
-    if (tx.sender !== address) {
-      throw new Error(`Only ${address} can burn vault ${vaultId}`);
+      throw new Error(`minHoldTime more than holdTime: ${holdTime}`);
     }
     return []
   }
 
-  async burn(tx: Transaction, { vaultId, usdpTransferId, westTransferId }: BurnParam): Promise<DataEntryRequest[]> {
+  async close(tx: Transaction, { address, usdpTransferId, westTransferId }: CloseParam): Promise<DataEntryRequest[]> {
     // only contract creator allowed
     await this.checkAdminPermissions(tx);
     const { USDapTokenId } = await this.stateService.getConfig();
@@ -364,7 +358,7 @@ export class RPCService {
     /**
      * check transfers
      */
-    const { eastAmount, usdpAmount, westAmount, address } = await this.stateService.getVault(vaultId);
+    const { eastAmount, usdpAmount, westAmount } = await this.stateService.getVault(address);
     const {
       sender_public_key: westSenderPubKey,
       amount: westTransferAmount,
@@ -404,8 +398,8 @@ export class RPCService {
     }
 
     // check transfers amounts
-    if (roundValue(parseValue(westTransferAmount)) !== roundValue(westAmount)) {
-      throw new Error(`west transfer amount not equal to vault amount, 
+    if (roundValue(parseValue(westTransferAmount)) < roundValue(westAmount) - CLOSE_COMISSION) {
+      throw new Error(`west transfer amount must be more or equal vault amount, 
         westAmount: ${westAmount}, westTransferAmount: ${westTransferAmount}`)
     }
     if (roundValue(parseValue(usdpTransferAmount)) !== roundValue(usdpAmount)) {
@@ -418,7 +412,7 @@ export class RPCService {
 
     // check balance
     if (balance < eastAmount) {
-      throw new Error(`Not enought EAST amount(${eastAmount}) on ${address} to burn vault: ${vaultId}`);
+      throw new Error(`Not enought EAST amount(${eastAmount}) on ${address} to burn vault: ${address}`);
     }
 
     balance -= eastAmount;
@@ -434,7 +428,7 @@ export class RPCService {
         string_value: '' + Math.max(balance, 0)
       },
       {
-        key: `${StateKeys.vault}_${vaultId}`,
+        key: `${StateKeys.vault}_${address}`,
         string_value: ''
       }
     ];
@@ -461,10 +455,10 @@ export class RPCService {
     }];
   }
 
-  async liquidate(tx: Transaction, { vaultId }: VaultParam): Promise<DataEntryRequest[]> {
+  async liquidate(tx: Transaction, { address }: LiquidateParam): Promise<DataEntryRequest[]> {
     // only contract creator allowed
     await this.checkAdminPermissions(tx);
-    const { eastAmount, westAmount, address } = await this.stateService.getVault(vaultId);
+    const { eastAmount, westAmount } = await this.stateService.getVault(address);
     const { 
       oracleContractId,
       usdpPart,
@@ -479,7 +473,7 @@ export class RPCService {
     const currentWestCollateral = (westAmount * westRate.value) / (westPart * eastAmount);
 
     if (currentWestCollateral > liquidationCollateral) {
-      throw new Error(`Cannot liquidate vault ${vaultId}, currentWestCollateral: ${currentWestCollateral}, liquidationCollateral: ${liquidationCollateral}`);
+      throw new Error(`Cannot liquidate vault ${address}, currentWestCollateral: ${currentWestCollateral}, liquidationCollateral: ${liquidationCollateral}`);
     }
 
     const liquidatedVault = {
@@ -492,20 +486,24 @@ export class RPCService {
 
     return [
       {
-        key: `${StateKeys.vault}_${vaultId}`,
+        key: `${StateKeys.vault}_${address}`,
+        string_value: ''
+      },
+      {
+        key: `${StateKeys.liquidatedVault}_${address}_${Date.now()}`,
         string_value: JSON.stringify(liquidatedVault)
       }
     ];
   }
 
-  async supply(tx: Transaction, { transferId, vaultId }: SupplyParam): Promise<DataEntryRequest[]> {
-    const vault = await this.stateService.getVault(vaultId);
+  async supply(tx: Transaction, { transferId }: SupplyParam): Promise<DataEntryRequest[]> {
+    const vault = await this.stateService.getVault(tx.sender);
     const transferAmount = await this.checkTransfer(tx, transferId);
     vault.westAmount = vault.westAmount + (Number(transferAmount) / Math.pow(10, WEST_DECIMALS));
 
     return [
       {
-        key: `${StateKeys.vault}_${vaultId}`,
+        key: `${StateKeys.vault}_${tx.sender}`,
         string_value: JSON.stringify(vault)
       },
       {
@@ -515,19 +513,11 @@ export class RPCService {
     ];
   }
 
-  async claimOverpayInit(tx: Transaction, { vaultId }: VaultParam): Promise<DataEntryRequest[]> {
-    const { address } = await this.stateService.getVault(vaultId);
-    // check
-    if (tx.sender !== address) {
-      throw new Error(`Only ${address} can claim overpay from vault ${vaultId}`);
-    }
-    return []
-  }
 
-  async claimOverpay(tx: Transaction, { vaultId, transferId, requestId }: ClaimOverpayParam) {
+  async claimOverpay(tx: Transaction, { address, transferId, requestId }: ClaimOverpayParam) {
     await this.checkAdminPermissions(tx);
 
-    const vault = await this.stateService.getVault(vaultId);
+    const vault = await this.stateService.getVault(address);
     const {
       sender_public_key: senderPubKey,
       asset_id: assetId,
@@ -537,8 +527,8 @@ export class RPCService {
     } = await this.stateService.getTransactionInfoOrFail<TransferTx>(transferId);
 
     // checks
-    if (vault.address !== recipient) {
-      throw new Error(`Expected recipient to be equal to ${vault.address}, got: ${recipient}`);
+    if (address !== recipient) {
+      throw new Error(`Expected recipient to be equal to ${address}, got: ${recipient}`);
     }
     if (tx.sender_public_key !== senderPubKey) {
       throw new Error(`Expected senderPubKey to be equal to ${tx.sender_public_key}, got: ${senderPubKey}`);
@@ -565,7 +555,7 @@ export class RPCService {
 
     return [
       {
-        key: `${StateKeys.vault}_${vaultId}`,
+        key: `${StateKeys.vault}_${address}`,
         string_value: JSON.stringify(vault)
       },
       {
@@ -619,18 +609,18 @@ export class RPCService {
         case Operations.transfer:
           results = await this.transfer(tx, value);
           break;
-        case Operations.recalculate:
+        case Operations.reissue:
           await this.checkIssueEnabled();
-          results = await this.recalculate(tx, value);
+          results = await this.reissue(tx);
           break;
-        case Operations.burn_init:
-          results = await this.burnInit(tx, value);
+        case Operations.close_init:
+          results = await this.closeInit(tx);
           break;
-        case Operations.burn:
-          results = await this.burn(tx, value);
+        case Operations.close:
+          results = await this.close(tx, value);
           break;
         case Operations.claim_overpay_init:
-          results = await this.claimOverpayInit(tx, value);
+          results = [];
           break;
         case Operations.claim_overpay:
           results = await this.claimOverpay(tx, value);

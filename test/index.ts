@@ -174,9 +174,7 @@ Promise.resolve().then(async () => {
   /**
   *  User1 supply vault
   */
-  
-  const vaultId = await mintCall.getId()
-  
+
   const supplyTransfer = Waves.API.Transactions.Transfer.V3({
     recipient: ownerSeed.address,
     assetId: '',
@@ -200,8 +198,7 @@ Promise.resolve().then(async () => {
       type: 'string',
       key: 'supply',
       value: JSON.stringify({
-        transferId: await supplyTransfer.getId(),
-        vaultId
+        transferId: await supplyTransfer.getId()
       })
     }],
     atomicBadge: {
@@ -222,20 +219,20 @@ Promise.resolve().then(async () => {
   * User1 - Recalculate
   */
   
-  const recalculateCall = await Waves.API.Transactions.CallContract.V4({
+  const reissueCall = await Waves.API.Transactions.CallContract.V4({
     contractId,
     contractVersion: 1,
     timestamp: Date.now(),
     params: [{
       type: 'string',
       key: 'recalculate',
-      value: JSON.stringify({ vaultId })
+      value: ''
     }]
   })
   
-  await recalculateCall.broadcast(user1Seed.keyPair);
+  await reissueCall.broadcast(user1Seed.keyPair);
   
-  console.log(`recalculate call: ${JSON.stringify(recalculateCall.getBody())}`);
+  console.log(`recalculate call: ${JSON.stringify(reissueCall.getBody())}`);
   console.log('Waiting 15 seconds...');
   await sleep(15);
   
@@ -251,7 +248,7 @@ Promise.resolve().then(async () => {
     params: [{
       type: 'string',
       key: 'liquidate',
-      value: JSON.stringify({ vaultId })
+      value: JSON.stringify({ address: user1Seed.address})
     }]
   })
   

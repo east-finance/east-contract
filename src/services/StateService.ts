@@ -175,4 +175,16 @@ export class StateService {
     }
     return vault;
   }
+
+  async isVaultExists (vaultId: string): Promise<boolean> {
+    const value = await this.getContractKeyValue(`${StateKeys.vault}_${vaultId}`);
+    const vault = JSON.parse(value as string) as Vault;
+    console.log('!!!!!!@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@')
+    console.log(value);
+    console.log(vault);
+    if (vault && vault.usdpAmount) {
+      return true;
+    }
+    return false;
+  }
 }
