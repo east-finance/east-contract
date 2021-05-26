@@ -74,6 +74,10 @@ export interface TransferParam {
   eastAmount: number
 }
 
+export interface ReissueParam {
+  maxWestToExchange: number
+}
+
 export interface Vault {
   eastAmount: number,
   westAmount: number,

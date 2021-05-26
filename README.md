@@ -111,8 +111,9 @@
 Владелец vault  
 <b>Тело метода: </b>
 ```js
-  vaultId: string // vault id
+  maxWestToExchange: number // vault id
 ```  
+maxWestToExchange - максимальное колличество west для обменя на east, меньше этого значения может быть, больше - нет  
 <b>Результат выполнения: </b>
 - обновляет ключ `vault_${vault.id}` хранит в себе информацию о vault
 - обновляет ключ `balance_${address}` если есть разница между старым и новым значением eastAmount

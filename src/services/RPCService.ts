@@ -19,7 +19,8 @@ import {
   Oracle,
   SupplyParam,
   ConfigParam,
-  ClaimOverpayParam
+  ClaimOverpayParam,
+  ReissueParam
 } from '../interfaces';
 import { CONNECTION_ID, CONNECTION_TOKEN, NODE, NODE_PORT, HOST_NETWORK } from '../config';
 import { StateService } from './StateService';
@@ -161,7 +162,7 @@ export class RPCService {
     return { westRate, usdpRate }
   }
 
-  async calculateVault(inputWestAmount: number): Promise<{
+  async calculateVault(transferAmount: number): Promise<{
     eastAmount: number,
     usdpAmount: number,
     westAmount: number,
@@ -179,7 +180,6 @@ export class RPCService {
     // const westRate = {value: 0.34, timestamp: Date.now()}, usdpRate = {value: 1, timestamp: Date.now()}
     const { westRate, usdpRate } = await this.getLastOracles(oracleTimestampMaxDiff, oracleContractId);
     const usdpPartInPosition = usdpPart / ((1 - usdpPart) * westCollateral + usdpPart)
-    const transferAmount = parseFloat(inputWestAmount + '') / Math.pow(10, WEST_DECIMALS)
     const westToUsdpAmount = usdpPartInPosition * transferAmount
     const eastAmount = (westToUsdpAmount * westRate.value) / usdpPart
     const usdpAmount = westToUsdpAmount * westRate.value / usdpRate.value
@@ -188,6 +188,32 @@ export class RPCService {
       eastAmount: roundValue(eastAmount),
       usdpAmount: roundValue(usdpAmount),
       westAmount: roundValue(transferAmount - westToUsdpAmount),
+      westRate,
+      usdpRate
+    }
+  }
+
+  async exchangeWest(westToUsdpAmount: number): Promise<{
+    eastAmount: number,
+    usdpAmount: number,
+    westRate: Oracle,
+    usdpRate: Oracle
+  }> {
+    const {
+      oracleContractId,
+      oracleTimestampMaxDiff,
+      usdpPart
+    } = await this.stateService.getConfig()
+    
+    // mock
+    // const westRate = {value: 0.34, timestamp: Date.now()}, usdpRate = {value: 1, timestamp: Date.now()}
+    const { westRate, usdpRate } = await this.getLastOracles(oracleTimestampMaxDiff, oracleContractId);
+    const eastAmount = (westToUsdpAmount * westRate.value) / usdpPart
+    const usdpAmount = westToUsdpAmount * westRate.value / usdpRate.value
+
+    return {
+      eastAmount: roundValue(eastAmount),
+      usdpAmount: roundValue(usdpAmount),
       westRate,
       usdpRate
     }
@@ -281,8 +307,8 @@ export class RPCService {
     }
 
     const transferAmount = await this.checkTransfer(tx, transferId)
-    
-    const vault = await this.calculateVault(transferAmount) as Vault
+    const parsedTransferAmount = parseFloat(transferAmount + '') / Math.pow(10, WEST_DECIMALS)
+    const vault = await this.calculateVault(parsedTransferAmount) as Vault
     vault.updatedAt = Date.now();
 
     let totalSupply = await this.stateService.getTotalSupply();
@@ -315,13 +341,26 @@ export class RPCService {
     ];
   }
 
-  async reissue(tx: Transaction): Promise<DataEntryRequest[]> {
+  async reissue(tx: Transaction, { maxWestToExchange }: ReissueParam): Promise<DataEntryRequest[]> {
     const oldVault = await this.stateService.getVault(tx.sender);
 
-    const newVault: Vault = await this.recalculateVault(oldVault) as Vault
+    let newVault: Vault = await this.recalculateVault(oldVault) as Vault
 
     if (!newVault) {
       throw new Error(`Cannot increase east amount`);
+    }
+
+    const westAmountDelta = newVault.westAmount - oldVault.westAmount;
+    if (westAmountDelta > maxWestToExchange) {
+      const exchange = await this.exchangeWest(maxWestToExchange);
+      newVault = {
+        ...oldVault,
+        eastAmount: oldVault.eastAmount + exchange.eastAmount,
+        westAmount: oldVault.westAmount - maxWestToExchange,
+        usdpAmount: oldVault.usdpAmount + exchange.usdpAmount,
+        westRate: exchange.westRate,
+        usdpRate: exchange.usdpRate
+      }
     }
 
     let totalSupply = await this.stateService.getTotalSupply();
@@ -638,7 +677,7 @@ export class RPCService {
           break;
         case Operations.reissue:
           await this.checkIssueEnabled();
-          results = await this.reissue(tx);
+          results = await this.reissue(tx, value);
           break;
         case Operations.close_init:
           results = await this.closeInit(tx);
