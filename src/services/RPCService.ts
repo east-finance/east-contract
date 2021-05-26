@@ -350,8 +350,9 @@ export class RPCService {
       throw new Error(`Cannot increase east amount`);
     }
 
-    const westAmountDelta = newVault.westAmount - oldVault.westAmount;
-    if (westAmountDelta > maxWestToExchange) {
+    const westAmountDelta = oldVault.westAmount - newVault.westAmount;
+
+    if (maxWestToExchange && westAmountDelta > maxWestToExchange) {
       const exchange = await this.exchangeWest(maxWestToExchange);
       newVault = {
         ...oldVault,

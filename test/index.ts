@@ -226,7 +226,7 @@ Promise.resolve().then(async () => {
     params: [{
       type: 'string',
       key: 'reissue',
-      value: ''
+      value: JSON.stringify({ maxWestToExchange: 10 })
     }]
   })
   
