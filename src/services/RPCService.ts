@@ -453,7 +453,7 @@ export class RPCService {
     }
 
     // check transfers amounts
-    if (roundValue(parseValue(westTransferAmount)) < roundValue(westAmount) - CLOSE_COMISSION) {
+    if (roundValue(parseValue(westTransferAmount)) !== roundValue(westAmount) - CLOSE_COMISSION) {
       throw new Error(`west transfer amount must be more or equal vault amount, 
         westAmount: ${westAmount}, westTransferAmount: ${westTransferAmount}`)
     }
