@@ -3,8 +3,8 @@
 ### Краткое описание методов:
 - [mint](#mint) - выпуск EAST, открытие позиции
 - [transfer](#transfer) - перевод EAST
-- [burn_init](#burn_init) - запрос на закрытие позиции
-- [burn](#burn) - закрытие позиции
+- [close_init](#close_init) - запрос на закрытие позиции
+- [close](#close) - закрытие позиции
 - [recalculate](#recalculate) - довыпуск EAST
 - [supply](#supply) - дообеспечить позицию токенами WEST
 - [claim_overpay_init](#claim_overpay_init) - запрос на вывод токенов WEST из позиции (при переобеспечении)
@@ -141,7 +141,9 @@ maxWestToExchange - максимальное колличество west для 
 <b> Доступ к методу: </b>
 Владелец позиции(vault)  
 <b>Тело метода: </b>
-empty  
+```js
+  amount: number // не обязательный параметр, сумма вывода 
+```  
 <b>Результат выполнения: </b>
 без результата  
 
@@ -222,9 +224,9 @@ Requirements: Docker, NodeJs
 ### Create docker image and push it to registry
 ```
 docker login registry.vostokservices.com
-docker build -t east-contract:0.1 .
-docker tag east-contract:0.1 registry.vostokservices.com/vostok-sc/east-contract:0.1
-docker push registry.vostokservices.com/vostok-sc/east-contract:0.1
+docker build -t east-contract:0.5-RC4 .
+docker tag east-contract:0.5-RC4 registry.vostokservices.com/vostok-sc/east-contract:0.5-RC4 
+docker push registry.vostokservices.com/vostok-sc/east-contract:0.5-RC4 
 ```
 
 ##### Get image hash
