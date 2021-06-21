@@ -79,11 +79,11 @@ Promise.resolve().then(async () => {
         value: JSON.stringify({
           oracleContractId: 'some oracle',
           oracleTimestampMaxDiff: 1000 * 10,
-          usdpPart:  0.5,
+          rawPart:  0.5,
           westCollateral: 2.5,
           liquidationCollateral: 1.3,
           minHoldTime: 1000 * 60 * 60,
-          USDapTokenId: '6Cc3dePRVFwn4VX6NZuwS2R9wDHU6z2eoKhZ7MdJ1fkR',
+          RwaTokenId: '6Cc3dePRVFwn4VX6NZuwS2R9wDHU6z2eoKhZ7MdJ1fkR',
         })
       }
     ],

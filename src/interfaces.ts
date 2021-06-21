@@ -56,7 +56,7 @@ export interface Oracle {
 export interface CloseParam {
   address: string,
   westTransferId: string,
-  usdpTransferId: string
+  rwaTransferId: string
 }
 
 export interface ClaimOverpayParam {
@@ -71,7 +71,7 @@ export interface LiquidateParam {
 
 export interface TransferParam {
   to: string,
-  eastAmount: number
+  amount: number
 }
 
 export interface ReissueParam {
@@ -81,10 +81,11 @@ export interface ReissueParam {
 export interface Vault {
   eastAmount: number,
   westAmount: number,
-  usdpAmount: number,
+  rwaAmount: number,
   westRate: Oracle,
-  usdpRate: Oracle,
+  rwaRate: Oracle,
   updatedAt: number,
+  liquidationCollateral: number,
   liquidated?: boolean
 }
 
@@ -122,17 +123,17 @@ export enum StateKeys {
   config = 'config',
   exchange = 'exchange',
   liquidatedVault = 'liquidated_vault',
-  totalUsdap = 'total_usdap'
+  totalRwa = 'total_rwa'
 }
 
 export interface ConfigParam {
   oracleContractId: string,
   oracleTimestampMaxDiff: number,
-  usdpPart: number,
+  rwaPart: number,
   westCollateral: number,
   liquidationCollateral: number,
   minHoldTime: number,
-  USDapTokenId: string,
+  RwaTokenId: string,
   issueEnabled: boolean,
   adminAddress: string,
   adminPublicKey: string

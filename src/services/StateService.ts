@@ -115,8 +115,8 @@ export class StateService {
     return value ? Number(value) : 0;
   }
 
-  async getTotalUsdap (): Promise<number> {
-    const value = await this.getContractKeyValue(StateKeys.totalUsdap);
+  async getTotalRwa (): Promise<number> {
+    const value = await this.getContractKeyValue(StateKeys.totalRwa);
     return value ? Number(value) : 0;
   }
 
@@ -143,29 +143,29 @@ export class StateService {
     const {
       oracleContractId,
       oracleTimestampMaxDiff,
-      usdpPart,
+      rwaPart,
       westCollateral,
       liquidationCollateral,
       minHoldTime,
       adminAddress,
       adminPublicKey,
       issueEnabled,
-      USDapTokenId
+      RwaTokenId
     } = JSON.parse(value as string)
-    if (!oracleContractId || !oracleTimestampMaxDiff || !usdpPart || !westCollateral || !liquidationCollateral) {
+    if (!oracleContractId || !oracleTimestampMaxDiff || !rwaPart || !westCollateral || !liquidationCollateral) {
       throw new Error('Wrong config contract param')
     }
     return {
       oracleContractId,
       oracleTimestampMaxDiff,
-      usdpPart,
+      rwaPart,
       westCollateral,
       liquidationCollateral,
       minHoldTime,
       adminAddress,
       adminPublicKey,
       issueEnabled,
-      USDapTokenId
+      RwaTokenId
     }
   }
 
@@ -185,7 +185,7 @@ export class StateService {
     try {
       const value = await this.getContractKeyValue(`${StateKeys.vault}_${vaultId}`);
       const vault = JSON.parse(value as string) as Vault;
-      if (vault && vault.usdpAmount) {
+      if (vault && vault.rwaAmount) {
         return true;
       }
       return false;

@@ -53,11 +53,11 @@ const TransactionService = proto.TransactionService as ServiceClientConstructor;
 // CONSTS
 const WEST_DECIMALS = 8
 const WEST_ORACLE_STREAM = '000003_latest'
-const USDP_ORACLE_STREAM = '000010_latest'
+const RWA_ORACLE_STREAM = '000010_latest'
 const MINIMUM_TRANSFER = 0.1
 const CLAIN_OVERPAY_COMISSION = 0.2
 const CLOSE_COMISSION = 0.3
-
+const CLAIM_OVERPAY_INACCURACY = 1.05
 
 function roundValue(num: number) {
   if (typeof num === 'string') {
@@ -103,11 +103,11 @@ export class RPCService {
     }
     this.checkConfigFieldType(config, 'oracleContractId', 'string');
     this.checkConfigFieldType(config, 'oracleTimestampMaxDiff', 'number');
-    this.checkConfigFieldType(config, 'usdpPart', 'number');
+    this.checkConfigFieldType(config, 'rwaPart', 'number');
     this.checkConfigFieldType(config, 'westCollateral', 'number');
     this.checkConfigFieldType(config, 'liquidationCollateral', 'number');
     this.checkConfigFieldType(config, 'minHoldTime', 'number');
-    this.checkConfigFieldType(config, 'USDapTokenId', 'string');
+    this.checkConfigFieldType(config, 'RwaTokenId', 'string');
   }
 
   async handleDockerCreate(tx: Transaction): Promise<void> {
@@ -132,7 +132,7 @@ export class RPCService {
         string_value: '0'
       }, 
       {
-        key: StateKeys.totalUsdap,
+        key: StateKeys.totalRwa,
         string_value: '0'
       }
     ]);
@@ -148,114 +148,117 @@ export class RPCService {
     }
   }
 
-  async getLastOracles(oracleTimestampMaxDiff: number, oracleContractId: string) : Promise<{ westRate: Oracle, usdpRate: Oracle }> {
+  async getLastOracles(oracleTimestampMaxDiff: number, oracleContractId: string) : Promise<{ westRate: Oracle, rwaRate: Oracle }> {
     const westRate = JSON.parse(await this.stateService.getContractKeyValue(WEST_ORACLE_STREAM, oracleContractId))
-    const usdpRate = JSON.parse(await this.stateService.getContractKeyValue(USDP_ORACLE_STREAM, oracleContractId))
+    const rwaRate = JSON.parse(await this.stateService.getContractKeyValue(RWA_ORACLE_STREAM, oracleContractId))
 
     const westTimeDiff = Date.now() - westRate.timestamp
-    const usdpTimeDiff = Date.now() - usdpRate.timestamp
+    const rwaTimeDiff = Date.now() - rwaRate.timestamp
 
-    if (westTimeDiff > oracleTimestampMaxDiff || usdpTimeDiff > oracleTimestampMaxDiff) {
+    if (westTimeDiff > oracleTimestampMaxDiff || rwaTimeDiff > oracleTimestampMaxDiff) {
       throw new Error(`Too big difference in milliseconds between oracle_data.timestamp and current timestamp: 
-        westRate: ${JSON.stringify(westRate)}, usdpRate: ${JSON.stringify(usdpRate)}, ${westTimeDiff}, ${usdpTimeDiff}, ${oracleTimestampMaxDiff}`)
+        westRate: ${JSON.stringify(westRate)}, rwaRate: ${JSON.stringify(rwaRate)}, ${westTimeDiff}, ${rwaTimeDiff}, ${oracleTimestampMaxDiff}`)
     }
-    return { westRate, usdpRate }
+    return { westRate, rwaRate }
   }
 
   async calculateVault(transferAmount: number): Promise<{
     eastAmount: number,
-    usdpAmount: number,
+    rwaAmount: number,
     westAmount: number,
     westRate: Oracle,
-    usdpRate: Oracle
+    rwaRate: Oracle,
+    liquidationCollateral: number
   }> {
     const {
       oracleContractId,
       oracleTimestampMaxDiff,
-      usdpPart,
-      westCollateral
+      rwaPart,
+      westCollateral,
+      liquidationCollateral
     } = await this.stateService.getConfig()
     
     // mock
-    // const westRate = {value: 0.34, timestamp: Date.now()}, usdpRate = {value: 1, timestamp: Date.now()}
-    const { westRate, usdpRate } = await this.getLastOracles(oracleTimestampMaxDiff, oracleContractId);
-    const usdpPartInPosition = usdpPart / ((1 - usdpPart) * westCollateral + usdpPart)
-    const westToUsdpAmount = usdpPartInPosition * transferAmount
-    const eastAmount = (westToUsdpAmount * westRate.value) / usdpPart
-    const usdpAmount = westToUsdpAmount * westRate.value / usdpRate.value
+    // const westRate = {value: 0.34, timestamp: Date.now()}, rwaRate = {value: 1, timestamp: Date.now()}
+    const { westRate, rwaRate } = await this.getLastOracles(oracleTimestampMaxDiff, oracleContractId);
+    const rwaPartInPosition = rwaPart / ((1 - rwaPart) * westCollateral + rwaPart)
+    const westToRwaAmount = rwaPartInPosition * transferAmount
+    const eastAmount = (westToRwaAmount * westRate.value) / rwaPart
+    const rwaAmount = westToRwaAmount * westRate.value / rwaRate.value
 
     return {
       eastAmount: roundValue(eastAmount),
-      usdpAmount: roundValue(usdpAmount),
-      westAmount: roundValue(transferAmount - westToUsdpAmount),
+      rwaAmount: roundValue(rwaAmount),
+      westAmount: roundValue(transferAmount - westToRwaAmount),
       westRate,
-      usdpRate
+      rwaRate,
+      liquidationCollateral
     }
   }
 
-  async exchangeWest(westToUsdpAmount: number): Promise<{
+  async exchangeWest(westToRwaAmount: number): Promise<{
     eastAmount: number,
-    usdpAmount: number,
+    rwaAmount: number,
     westRate: Oracle,
-    usdpRate: Oracle
+    rwaRate: Oracle
   }> {
     const {
       oracleContractId,
       oracleTimestampMaxDiff,
-      usdpPart
+      rwaPart
     } = await this.stateService.getConfig()
     
     // mock
-    // const westRate = {value: 0.34, timestamp: Date.now()}, usdpRate = {value: 1, timestamp: Date.now()}
-    const { westRate, usdpRate } = await this.getLastOracles(oracleTimestampMaxDiff, oracleContractId);
-    const eastAmount = (westToUsdpAmount * westRate.value) / usdpPart
-    const usdpAmount = westToUsdpAmount * westRate.value / usdpRate.value
+    // const westRate = {value: 0.34, timestamp: Date.now()}, rwaRate = {value: 1, timestamp: Date.now()}
+    const { westRate, rwaRate } = await this.getLastOracles(oracleTimestampMaxDiff, oracleContractId);
+    const eastAmount = (westToRwaAmount * westRate.value) / rwaPart
+    const rwaAmount = westToRwaAmount * westRate.value / rwaRate.value
 
     return {
       eastAmount: roundValue(eastAmount),
-      usdpAmount: roundValue(usdpAmount),
+      rwaAmount: roundValue(rwaAmount),
       westRate,
-      usdpRate
+      rwaRate
     }
   }
 
   async recalculateVault(oldVault: Vault): Promise<{
     eastAmount: number,
-    usdpAmount: number,
+    rwaAmount: number,
     westAmount: number,
     westRate: Oracle,
-    usdpRate: Oracle
+    rwaRate: Oracle
   } | false> {
     const {
       oracleContractId,
       oracleTimestampMaxDiff,
-      usdpPart,
+      rwaPart,
       westCollateral
     } = await this.stateService.getConfig();
     
     // mock
     // const westRate = {value: 0.68, timestamp: Date.now()}, usdpRate = {value: 1, timestamp: Date.now()}
-    const { westRate, usdpRate } = await this.getLastOracles(oracleTimestampMaxDiff, oracleContractId);
+    const { westRate, rwaRate } = await this.getLastOracles(oracleTimestampMaxDiff, oracleContractId);
     const {
       eastAmount: oldEastAmount,
-      usdpAmount: oldUsdpAmount,
+      rwaAmount: oldRwaAmount,
       westAmount: oldWestAmount
     } = oldVault;
 
-    const usdTotal = oldUsdpAmount * usdpRate.value + oldWestAmount * westRate.value
-    const usdpPartInPosition = usdpPart / ((1 - usdpPart) * westCollateral + usdpPart)
-    const usdToUsdpAmount = usdpPartInPosition * usdTotal
-    const usdpAmount = usdToUsdpAmount / usdpRate.value
-    const eastAmount = roundValue(usdpAmount / usdpPart)
-    const westAmount = (usdTotal - usdToUsdpAmount) / westRate.value
+    const usdTotal = oldRwaAmount * rwaRate.value + oldWestAmount * westRate.value
+    const rwaPartInPosition = rwaPart / ((1 - rwaPart) * westCollateral + rwaPart)
+    const usdToRwaAmount = rwaPartInPosition * usdTotal
+    const rwaAmount = usdToRwaAmount / rwaRate.value
+    const eastAmount = roundValue(rwaAmount / rwaPart)
+    const westAmount = (usdTotal - usdToRwaAmount) / westRate.value
 
     if (eastAmount > oldEastAmount) {
       return {
         eastAmount,
-        usdpAmount: roundValue(usdpAmount),
+        rwaAmount: roundValue(rwaAmount),
         westAmount: roundValue(westAmount),
         westRate,
-        usdpRate
+        rwaRate
       }
     } else {
       return false;
@@ -312,19 +315,19 @@ export class RPCService {
     vault.updatedAt = Date.now();
 
     let totalSupply = await this.stateService.getTotalSupply();
-    let totalUsdap = await this.stateService.getTotalUsdap();
+    let totalRwa = await this.stateService.getTotalRwa();
     let balance = await this.stateService.getBalance(tx.sender);
     balance += vault.eastAmount;
     totalSupply += vault.eastAmount;
-    totalUsdap += vault.usdpAmount;
+    totalRwa += vault.rwaAmount;
     return [
       {
         key: StateKeys.totalSupply,
         string_value: '' + totalSupply
       },
       {
-        key: StateKeys.totalUsdap,
-        string_value: '' + totalUsdap
+        key: StateKeys.totalRwa,
+        string_value: '' + totalRwa
       },
       {
         key: `${StateKeys.balance}_${tx.sender}`,
@@ -358,21 +361,21 @@ export class RPCService {
         ...oldVault,
         eastAmount: oldVault.eastAmount + exchange.eastAmount,
         westAmount: oldVault.westAmount - maxWestToExchange,
-        usdpAmount: oldVault.usdpAmount + exchange.usdpAmount,
+        rwaAmount: oldVault.rwaAmount + exchange.rwaAmount,
         westRate: exchange.westRate,
-        usdpRate: exchange.usdpRate
+        rwaRate: exchange.rwaRate
       }
     }
 
     let totalSupply = await this.stateService.getTotalSupply();
-    let totalUsdap = await this.stateService.getTotalUsdap();
+    let totalRwa = await this.stateService.getTotalRwa();
     let balance = await this.stateService.getBalance(tx.sender);
     const diff = newVault.eastAmount - oldVault.eastAmount;
     newVault.updatedAt = Date.now();
 
     balance += diff;
     totalSupply += diff;
-    totalUsdap +=  newVault.usdpAmount - oldVault.usdpAmount;
+    totalRwa +=  newVault.rwaAmount - oldVault.rwaAmount;
 
     return [
       {
@@ -380,8 +383,8 @@ export class RPCService {
         string_value: '' + totalSupply
       },
       {
-        key: StateKeys.totalUsdap,
-        string_value: '' + totalUsdap
+        key: StateKeys.totalRwa,
+        string_value: '' + totalRwa
       },
       {
         key: `${StateKeys.balance}_${tx.sender}`,
@@ -405,15 +408,15 @@ export class RPCService {
     return []
   }
 
-  async close(tx: Transaction, { address, usdpTransferId, westTransferId }: CloseParam): Promise<DataEntryRequest[]> {
+  async close(tx: Transaction, { address, rwaTransferId, westTransferId }: CloseParam): Promise<DataEntryRequest[]> {
     // only contract creator allowed
     await this.checkAdminPermissions(tx);
-    const { USDapTokenId } = await this.stateService.getConfig();
+    const { RwaTokenId } = await this.stateService.getConfig();
 
     /**
      * check transfers
      */
-    const { eastAmount, usdpAmount, westAmount } = await this.stateService.getVault(address);
+    const { eastAmount, rwaAmount, westAmount } = await this.stateService.getVault(address);
     const {
       sender_public_key: westSenderPubKey,
       amount: westTransferAmount,
@@ -422,34 +425,34 @@ export class RPCService {
     } = await this.stateService.getTransactionInfoOrFail<TransferTx>(westTransferId);
 
     const {
-      sender_public_key: usdpSenderPubKey,
-      amount: usdpTransferAmount,
-      recipient: usdpRecipient,
-      asset_id: usdpAssetId,
-    } = await this.stateService.getTransactionInfoOrFail<TransferTx>(usdpTransferId);
+      sender_public_key: rwaSenderPubKey,
+      amount: rwaTransferAmount,
+      recipient: rwaRecipient,
+      asset_id: rwaAssetId,
+    } = await this.stateService.getTransactionInfoOrFail<TransferTx>(rwaTransferId);
 
     // check recipients
     if (address !== westRecipient) {
       throw new Error(`Expected westRecipient to be equal to ${address}, got: ${westRecipient}`);
     }
-    if (address !== usdpRecipient) {
-      throw new Error(`Expected usdpRecipient to be equal to ${address}, got: ${usdpRecipient}`);
+    if (address !== rwaRecipient) {
+      throw new Error(`Expected rwaRecipient to be equal to ${address}, got: ${rwaRecipient}`);
     }
 
     // check sender_public_key
     if (tx.sender_public_key !== westSenderPubKey) {
       throw new Error(`Expected westSenderPubKey to be equal to ${tx.sender_public_key}, got: ${westSenderPubKey}`);
     }
-    if (tx.sender_public_key !== usdpSenderPubKey) {
-      throw new Error(`Expected usdpSenderPubKey to be equal to ${tx.sender_public_key}, got: ${usdpSenderPubKey}`);
+    if (tx.sender_public_key !== rwaSenderPubKey) {
+      throw new Error(`Expected rwaSenderPubKey to be equal to ${tx.sender_public_key}, got: ${rwaSenderPubKey}`);
     }
 
     // check assets id
     if (westAssetId) {
       throw new Error(`Expected transfer asset to be WEST, now: ${westAssetId}`);
     }
-    if (usdpAssetId !== USDapTokenId) {
-      throw new Error(`Expected transfer asset to be ${USDapTokenId}, got: ${usdpAssetId}`);
+    if (rwaAssetId !== RwaTokenId) {
+      throw new Error(`Expected transfer asset to be ${RwaTokenId}, got: ${rwaAssetId}`);
     }
 
     // check transfers amounts
@@ -457,13 +460,13 @@ export class RPCService {
       throw new Error(`west transfer amount must be more or equal vault amount, 
         westAmount: ${westAmount}, westTransferAmount: ${westTransferAmount}`)
     }
-    if (roundValue(parseValue(usdpTransferAmount)) !== roundValue(usdpAmount)) {
-      throw new Error(`usdp transfer amount not equal to vault amount, 
-        usdpAmount: ${usdpAmount}, usdpTransferAmount: ${usdpTransferAmount}`)
+    if (roundValue(parseValue(rwaTransferAmount)) !== roundValue(rwaAmount)) {
+      throw new Error(`rwa transfer amount not equal to vault amount, 
+        rwaAmount: ${rwaAmount}, rwaTransferAmount: ${rwaTransferAmount}`)
     }
 
     let totalSupply = await this.stateService.getTotalSupply();
-    let totalUsdap = await this.stateService.getTotalUsdap();
+    let totalRwa = await this.stateService.getTotalRwa();
     let balance = await this.stateService.getBalance(address);
 
     // check balance
@@ -473,15 +476,15 @@ export class RPCService {
 
     balance -= eastAmount;
     totalSupply -= eastAmount;
-    totalUsdap -= usdpAmount;
+    totalRwa -= rwaAmount;
     return [
       {
         key: StateKeys.totalSupply,
         string_value: '' + Math.max(totalSupply, 0)
       }, 
       {
-        key: StateKeys.totalUsdap,
-        string_value: '' + totalUsdap
+        key: StateKeys.totalRwa,
+        string_value: '' + totalRwa
       }, 
       {
         key: `${StateKeys.balance}_${address}`,
@@ -495,7 +498,7 @@ export class RPCService {
   }
 
   async transfer(tx: Transaction, value: TransferParam): Promise<DataEntryRequest[]> {
-    const { to, eastAmount: amount } = value
+    const { to, amount } = value
     const from = tx.sender
 
     let fromBalance = await this.stateService.getBalance(from);
@@ -518,18 +521,17 @@ export class RPCService {
   async liquidate(tx: Transaction, { address }: LiquidateParam): Promise<DataEntryRequest[]> {
     // only contract creator allowed
     await this.checkAdminPermissions(tx);
-    const { eastAmount, westAmount, usdpAmount } = await this.stateService.getVault(address);
+    const { eastAmount, westAmount, rwaAmount, liquidationCollateral } = await this.stateService.getVault(address);
     const { 
       oracleContractId,
-      usdpPart,
-      liquidationCollateral 
+      rwaPart
     } = await this.stateService.getConfig();
     
     const westRate = JSON.parse(await this.stateService.getContractKeyValue(WEST_ORACLE_STREAM, oracleContractId));
     // mock
     // const westRate = { value: 0.1, timestamp: Date.now() }
 
-    const westPart = 1 - usdpPart;
+    const westPart = 1 - rwaPart;
     const currentWestCollateral = (westAmount * westRate.value) / (westPart * eastAmount);
 
     if (currentWestCollateral > liquidationCollateral) {
@@ -538,19 +540,20 @@ export class RPCService {
 
     const liquidatedVault = {
       eastAmount,
-      usdpAmount: eastAmount,
+      rwaAmount: eastAmount,
       address,
       liquidated: true,
-      westRate
+      westRate,
+      liquidationCollateral
     }
 
-    let totalUsdap = await this.stateService.getTotalUsdap();
-    totalUsdap += liquidatedVault.usdpAmount - usdpAmount;
+    let totalRwa = await this.stateService.getTotalRwa();
+    totalRwa += liquidatedVault.rwaAmount - rwaAmount;
 
     return [
       {
-        key: StateKeys.totalUsdap,
-        string_value: '' + totalUsdap
+        key: StateKeys.totalRwa,
+        string_value: '' + totalRwa
       },
       {
         key: `${StateKeys.vault}_${address}`,
@@ -613,6 +616,19 @@ export class RPCService {
     }
 
     const amountParsed = amount / Math.pow(10, WEST_DECIMALS);
+    // check claim overpay limits
+    const { oracleContractId, rwaPart, westCollateral } = await this.stateService.getConfig();
+    const westRate = JSON.parse(await this.stateService.getContractKeyValue(WEST_ORACLE_STREAM, oracleContractId))
+    const rwaRate = JSON.parse(await this.stateService.getContractKeyValue(RWA_ORACLE_STREAM, oracleContractId))
+    const westPart = 1 - rwaPart;
+    const westExpectedValue = vault.eastAmount * westPart * rwaRate.value * westCollateral
+    const expectedWestAmount = westExpectedValue / westRate.value
+    const expectedTransferAmount = vault.westAmount - expectedWestAmount
+
+    if (amountParsed > expectedTransferAmount * CLAIM_OVERPAY_INACCURACY) {
+      throw new Error(`Maximum allowable withdrawal: ${expectedTransferAmount * CLAIM_OVERPAY_INACCURACY}, received: ${amountParsed}`);
+    }
+
     const newWestAmount = roundValue(vault.westAmount - amountParsed - CLAIN_OVERPAY_COMISSION);
     if (newWestAmount <= 0) {
       throw new Error(`newWestAmount less than 0, newWestAmount: ${newWestAmount}, amountParsed: ${amountParsed}`);
