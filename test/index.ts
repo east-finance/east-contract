@@ -35,7 +35,7 @@ const sleep = (timeout: number): Promise<void>=> {
 
 
 Promise.resolve().then(async () => {
-  const imageName = 'east-contract:1.4';
+  const imageName = 'east-contract:1.111';
   console.log(`Building docker image ${imageName}, HOST_NETWORK=${hostIp}`);
   await execute(`docker build --build-arg HOST_NETWORK=${hostIp} -t ${imageName} .`);
   console.log('Build image done');
@@ -79,7 +79,7 @@ Promise.resolve().then(async () => {
         value: JSON.stringify({
           oracleContractId: 'some oracle',
           oracleTimestampMaxDiff: 1000 * 10,
-          rawPart:  0.5,
+          rwaPart:  0.5,
           westCollateral: 2.5,
           liquidationCollateral: 1.3,
           minHoldTime: 1000 * 60 * 60,
@@ -160,7 +160,7 @@ Promise.resolve().then(async () => {
       key: 'transfer',
       value: JSON.stringify({
         to: user2Seed.address,
-        eastAmount: 10
+        amount: 10
       })
     }]
   })
