@@ -7,7 +7,7 @@
 - [transfer](#transfer) - перевод EAST
 - [close_init](#close_init) - запрос на закрытие позиции
 - [close](#close) - закрытие позиции
-- [recalculate](#recalculate) - довыпуск EAST
+- [reissue](#reissue) - довыпуск EAST
 - [supply](#supply) - дообеспечить позицию токенами WEST
 - [claim_overpay_init](#claim_overpay_init) - запрос на вывод токенов WEST из позиции (при переобеспечении)
 - [claim_overpay](#claim_overpay) - вывод токенов WEST из позиции
@@ -225,10 +225,10 @@ Requirements: Docker, NodeJs
 
 ### Create docker image and push it to registry
 ```
-docker login registry.vostokservices.com
-docker build -t east-contract:0.5-RC4 .
-docker tag east-contract:0.5-RC4 registry.vostokservices.com/vostok-sc/east-contract:0.5-RC4 
-docker push registry.vostokservices.com/vostok-sc/east-contract:0.5-RC4 
+docker login registry.wvservices.com
+docker build -t east-contract:0.6-RC1 .
+docker tag east-contract:0.6-RC1 registry.wvservices.com/vostok-sc/east-contract:0.6-RC1 
+docker push registry.wvservices.com/vostok-sc/east-contract:0.6-RC1 
 ```
 
 ##### Get image hash
