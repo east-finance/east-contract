@@ -107,7 +107,7 @@ export class RPCService {
     this.checkConfigFieldType(config, 'westCollateral', 'number');
     this.checkConfigFieldType(config, 'liquidationCollateral', 'number');
     this.checkConfigFieldType(config, 'minHoldTime', 'number');
-    this.checkConfigFieldType(config, 'RwaTokenId', 'string');
+    this.checkConfigFieldType(config, 'rwaTokenId', 'string');
   }
 
   async handleDockerCreate(tx: Transaction): Promise<void> {
@@ -411,7 +411,7 @@ export class RPCService {
   async close(tx: Transaction, { address, rwaTransferId, westTransferId }: CloseParam): Promise<DataEntryRequest[]> {
     // only contract creator allowed
     await this.checkAdminPermissions(tx);
-    const { RwaTokenId } = await this.stateService.getConfig();
+    const { rwaTokenId } = await this.stateService.getConfig();
 
     /**
      * check transfers
@@ -451,8 +451,8 @@ export class RPCService {
     if (westAssetId) {
       throw new Error(`Expected transfer asset to be WEST, now: ${westAssetId}`);
     }
-    if (rwaAssetId !== RwaTokenId) {
-      throw new Error(`Expected transfer asset to be ${RwaTokenId}, got: ${rwaAssetId}`);
+    if (rwaAssetId !== rwaTokenId) {
+      throw new Error(`Expected transfer asset to be ${rwaTokenId}, got: ${rwaAssetId}`);
     }
 
     // check transfers amounts

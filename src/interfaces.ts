@@ -133,7 +133,7 @@ export interface ConfigParam {
   westCollateral: number,
   liquidationCollateral: number,
   minHoldTime: number,
-  RwaTokenId: string,
+  rwaTokenId: string,
   issueEnabled: boolean,
   adminAddress: string,
   adminPublicKey: string

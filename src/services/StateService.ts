@@ -150,7 +150,7 @@ export class StateService {
       adminAddress,
       adminPublicKey,
       issueEnabled,
-      RwaTokenId
+      rwaTokenId
     } = JSON.parse(value as string)
     if (!oracleContractId || !oracleTimestampMaxDiff || !rwaPart || !westCollateral || !liquidationCollateral) {
       throw new Error('Wrong config contract param')
@@ -165,7 +165,7 @@ export class StateService {
       adminAddress,
       adminPublicKey,
       issueEnabled,
-      RwaTokenId
+      rwaTokenId
     }
   }
 
