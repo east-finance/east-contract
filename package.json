@@ -5,18 +5,20 @@
   "main": "index.js",
   "scripts": {
     "proto-gen": "sudo chmod +x ./scripts/protoc.sh &&  ./scripts/protoc.sh",
-    "test": "ts-node test/index.ts",
+    "examples": "ts-node examples/index.ts",
     "dev": "nodemon",
     "build": "tsc",
     "postbuild": "cp -R ./src/protos ./build",
     "start": "node build/index.js",
-    "logger": "node test/logger.js",
-    "lint": "eslint '*/**/*.{ts}' --quiet --fix"
+    "logger": "node examples/logger.js",
+    "lint": "eslint '*/**/*.{ts}' --quiet --fix",
+    "test": "jest"
   },
   "author": "Aleksandr Kuvakin",
   "license": "ISC",
   "devDependencies": {
     "@types/google-protobuf": "^3.7.4",
+    "@types/jest": "^26.0.23",
     "@types/node": "^14.14.31",
     "@types/node-fetch": "^2.5.8",
     "@typescript-eslint/eslint-plugin": "^4.16.1",
@@ -27,9 +29,11 @@
     "eslint-config-prettier": "^8.1.0",
     "eslint-plugin-prettier": "^3.3.1",
     "express": "^4.17.1",
+    "jest": "^27.0.5",
     "nodemon": "^2.0.7",
     "pino-pretty": "^4.6.0",
     "prettier": "^2.2.1",
+    "ts-jest": "^27.0.3",
     "ts-node": "^9.1.1"
   },
   "dependencies": {
