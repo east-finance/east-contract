@@ -1,0 +1,28 @@
+image: ${REGISTRY}/it/docker:19.03.1
+
+services:
+  - name: ${REGISTRY}/it/docker:19.03.1-dind
+    alias: docker
+
+variables:
+  DOCKER_HOST: tcp://docker:2375
+  DOCKER_TLS_CERTDIR: ""
+
+stages:
+  - release
+
+build_image:
+  stage: release
+  script:
+    - docker login -u "${REGISTRY_USER}" -p "${REGISTRY_PASSWORD}" "${REGISTRY}"
+    # Pull latest image for using cache
+    - docker pull "${REGISTRY}/${REGISTRY_PROJECT}/${CI_PROJECT_NAME}:latest" || true
+    - cat Dockerfile | sed "s/\${REGISTRY}/${REGISTRY}/g" | docker build --cache-from "${REGISTRY}/${REGISTRY_PROJECT}/${CI_PROJECT_NAME}:latest" -t "${REGISTRY}/${REGISTRY_PROJECT}/${CI_PROJECT_NAME}:${CI_COMMIT_REF_NAME}" -t "${REGISTRY}/${REGISTRY_PROJECT}/${CI_PROJECT_NAME}:latest" -f - .
+    - docker push "${REGISTRY}/${REGISTRY_PROJECT}/${CI_PROJECT_NAME}:${CI_COMMIT_REF_NAME}"
+    - docker push "${REGISTRY}/${REGISTRY_PROJECT}/${CI_PROJECT_NAME}:latest"
+    - "docker inspect --format='{{.Id}}' ${REGISTRY}/${REGISTRY_PROJECT}/${CI_PROJECT_NAME}:${CI_COMMIT_REF_NAME} | awk '{print \"ImageHash: \" substr($0,8)}'"
+  only:
+    - branches
+    - tags
+  tags:
+    - wavesenterprise
