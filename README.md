@@ -218,9 +218,27 @@ Requirements: Docker, NodeJs
       remove-container-after = "30m"
     }
     ```
-3) Restart compose
-4) Run logger: `npm run logger`
-4) Build test contract image and watch logger output:
+    ```
+    pre-activated-features {
+      2 = 0
+      3 = 0
+      4 = 0
+      5 = 0
+      6 = 0
+      7 = 0
+      9 = 0
+      10 = 0
+      100 = 0
+      101 = 0
+      120 = 0
+      140 = 0
+    }
+    ```
+3) Issue permissions to 3NdqnzceY42SdwC9rYA1HgdkDkRc6DnWug6U to publish contracts.
+4) Transfer west to 3NdqnzceY42SdwC9rYA1HgdDkRc6DnWug6U
+5) Restart compose
+6) Run logger: `npm run logger`
+7) Build test contract image and watch logger output:
 `npm run test`
 
 ### Create docker image and push it to registry
