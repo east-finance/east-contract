@@ -234,9 +234,9 @@ Requirements: Docker, NodeJs
       140 = 0
     }
     ```
-3) Issue permissions to 3NdqnzceY42SdwC9rYA1HgdkDkRc6DnWug6U to publish contracts.
-4) Transfer west to 3NdqnzceY42SdwC9rYA1HgdDkRc6DnWug6U
-5) Restart compose
+3) Restart compose
+4) Issue permissions to 3NdqnzceY42SdwC9rYA1HgdkDkRc6DnWug6U to publish contracts.
+5) Transfer west to 3NdqnzceY42SdwC9rYA1HgdDkRc6DnWug6U
 6) Run logger: `npm run logger`
 7) Build test contract image and watch logger output:
 `npm run test`
