@@ -1,5 +1,3 @@
-import { plainToClass } from "class-transformer"
-import { validate } from "class-validator"
 import { ConfigDto } from "../dto/config.dto"
 import { Globals, initGlobals } from "./utils"
 
@@ -10,6 +8,7 @@ beforeAll(async () => {
 })
 
 test('config dto validation', async () => {
+  expect.assertions(1)
   const { rpcService } = globals
   const invalidConfig: ConfigDto = {
     oracleContractId: 'oracleContractId',
@@ -23,7 +22,7 @@ test('config dto validation', async () => {
     // @ts-ignore
     issueEnabled: 'yes',
   }
-  expect(
+  try {
     await rpcService.handleDockerCreate({
       id: '',
       type: 103,
@@ -41,9 +40,11 @@ test('config dto validation', async () => {
         {
           key: 'config',
           value: 'string_value',
-          string_value: '' // JSON.stringify(invalidConfig)
+          string_value: JSON.stringify(invalidConfig)
         }
       ],
-    })  
-  ).rejects.toThrowError(Error)
+    })
+  } catch (e) {
+    expect(e).toBeInstanceOf(Error)
+  }
 })
