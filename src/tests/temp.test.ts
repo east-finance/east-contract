@@ -26,9 +26,5 @@ test('config dto validation', async () => {
   }
   const errors = await validate(plainToClass(ConfigDto, configDto))
   expect(errors.length).toBe(3)
-  expect(errors.map(error => error.property)).toEqual(expect.arrayContaining(['oracleTimestampMaxDiff', 'issueEnabled', 'issueEnabled']))
-})
-
-test('temp', () => {
-  expect(['a', 'b']).toStrictEqual(['b', 'a'])
+  expect(errors.map(error => error.property).sort()).toEqual(['oracleTimestampMaxDiff', 'rwaPart', 'issueEnabled'].sort())
 })
