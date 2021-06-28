@@ -6,6 +6,6 @@ beforeAll(async () => {
   globals = await initGlobals()
 })
 
-test('example', async () => {
+test('create contract', async () => {
   
 })

@@ -1,8 +1,11 @@
 import { create, MAINNET_CONFIG, WeSdk } from '@wavesenterprise/js-sdk';
 import nodeFetch from 'node-fetch';
+import { ContractTransactionResponse } from '../interfaces';
+import { RPCService } from '../services/RPCService';
 import { NODE_ADDRESS, SEED_PHRASE } from './config';
 
 export interface Globals {
+  rpcService: RPCService,
   fetch?: typeof fetch,
   weSdk?: WeSdk,
   keyPair?: { publicKey: string, privateKey: string },
@@ -10,7 +13,9 @@ export interface Globals {
 }
 
 export async function initGlobals(): Promise<Required<Globals>> {
-  const globals: Globals = {}
+  const globals: Globals = {
+    rpcService: new RPCService()
+  }
   globals.fetch = (url: RequestInfo, options?: RequestInit): Promise<Response> => {
     // @ts-ignore
     return nodeFetch(url, {

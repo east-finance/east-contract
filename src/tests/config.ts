@@ -4,6 +4,8 @@ import { config, DotenvConfigOutput } from "dotenv"
 const REQUIRED_ENVS = {
   NODE_ADDRESS: '',
   SEED_PHRASE: '',
+  IMAGE_NAME: '',
+  IMAGE_HASH: '',
 }
 
 type Envs = Omit<DotenvConfigOutput, 'parsed'> & { parsed: typeof REQUIRED_ENVS }
@@ -24,4 +26,4 @@ function validateEnvs() {
 }
 validateEnvs()
 
-export const { NODE_ADDRESS, SEED_PHRASE } = envs.parsed
+export const { NODE_ADDRESS, SEED_PHRASE, IMAGE_NAME, IMAGE_HASH } = envs.parsed
