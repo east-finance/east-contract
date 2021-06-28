@@ -6,7 +6,9 @@ const REQUIRED_ENVS = {
   SEED_PHRASE: '',
 }
 
-const envs = config({ path: path.resolve(process.cwd(), '.env.test') }) as Omit<DotenvConfigOutput, 'parsed'> & { parsed: typeof REQUIRED_ENVS }
+type Envs = Omit<DotenvConfigOutput, 'parsed'> & { parsed: typeof REQUIRED_ENVS }
+
+const envs = config({ path: path.resolve(process.cwd(), '.env.test') }) as Envs
 
 function validateEnvs() {
   const missingVariables = []
