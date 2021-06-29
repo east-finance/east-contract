@@ -8,7 +8,6 @@ beforeAll(async () => {
 })
 
 test('config dto validation', async () => {
-  expect.assertions(1)
   const { rpcService } = globals
   const invalidConfig: ConfigDto = {
     oracleContractId: 'oracleContractId',
@@ -44,7 +43,10 @@ test('config dto validation', async () => {
         }
       ],
     })
-  } catch (e) {
-    expect(e).toBeInstanceOf(Error)
+  } catch (error) {
+    expect(typeof error.message).toBe('string')
+    expect(error.message.includes('oracleTimestampMaxDiff'))
+    expect(error.message.includes('rwaPart'))
+    expect(error.message.includes('issueEnabled'))
   }
 })
