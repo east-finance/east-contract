@@ -44,7 +44,6 @@ test('config dto validation', async () => {
       ],
     })
   } catch (error) {
-    expect(typeof error.message).toBe('string')
     expect(error.message.includes('oracleTimestampMaxDiff'))
     expect(error.message.includes('rwaPart'))
     expect(error.message.includes('issueEnabled'))
