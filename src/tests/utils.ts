@@ -1,9 +1,7 @@
 import { create, MAINNET_CONFIG, WeSdk } from '@wavesenterprise/js-sdk';
 import nodeFetch from 'node-fetch';
 import { RPCService } from '../services/RPCService';
-import { StateService } from '../services/StateService';
 import { NODE_ADDRESS, SEED_PHRASE } from './config';
-import { StateServiceMock } from './mocks';
 
 export interface Globals {
   rpcService: RPCService,
@@ -15,7 +13,7 @@ export interface Globals {
 
 export async function initGlobals(): Promise<Required<Globals>> {
   const globals: Globals = {
-    rpcService: new RPCService(StateServiceMock, {})
+    rpcService: new RPCService()
   }
   globals.fetch = (url: RequestInfo, options?: RequestInit): Promise<Response> => {
     // @ts-ignore
