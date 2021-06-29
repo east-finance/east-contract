@@ -24,6 +24,9 @@ import {
 } from '../interfaces';
 import { CONNECTION_ID, CONNECTION_TOKEN, NODE, NODE_PORT, HOST_NETWORK } from '../config';
 import { StateService } from './StateService';
+import { ConfigDto } from '../dto/config.dto';
+import { validate } from 'class-validator';
+import { plainToClass } from 'class-transformer';
 
 
 const logger = createLogger('GRPC service');
@@ -97,17 +100,11 @@ export class RPCService {
     }
   }
 
-  checkConfig(config: ConfigParam)  {
-    if (!config) {
-      throw new Error(`Config error: confid undefined: ${config}`);
+  async validateConfig(config: ConfigDto) {
+    const errors = await validate(plainToClass(ConfigDto, config))
+    if (errors.length > 0) {
+      throw new Error(`Validation error: ${errors.map(error => Object.values(error.constraints as Object)).join(', ')}`)
     }
-    this.checkConfigFieldType(config, 'oracleContractId', 'string');
-    this.checkConfigFieldType(config, 'oracleTimestampMaxDiff', 'number');
-    this.checkConfigFieldType(config, 'rwaPart', 'number');
-    this.checkConfigFieldType(config, 'westCollateral', 'number');
-    this.checkConfigFieldType(config, 'liquidationCollateral', 'number');
-    this.checkConfigFieldType(config, 'minHoldTime', 'number');
-    this.checkConfigFieldType(config, 'rwaTokenId', 'string');
   }
 
   async handleDockerCreate(tx: Transaction): Promise<void> {
@@ -116,7 +113,7 @@ export class RPCService {
     }
     const paramConfig = tx.params[0];
     const config = JSON.parse(paramConfig.string_value || '{}');
-    this.checkConfig(config);
+    await this.validateConfig(config)
     config.adminAddress = tx.sender;
     config.adminPublicKey = tx.sender_public_key;
     await this.stateService.commitSuccess(tx.id, [
@@ -656,7 +653,7 @@ export class RPCService {
       ...oldConfig,
       ...newConfig
     }
-    this.checkConfig(config);
+    this.validateConfig(config);
 
     return [
       {
