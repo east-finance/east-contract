@@ -16,7 +16,7 @@ export interface Globals {
 export async function initGlobals(): Promise<Required<Globals>> {
   const globals: Globals = {
     rpcService: new RPCService(),
-    createTx(type: 103 | 104, methodKey: string, methodBody: Record<string, any>) {
+    createTx: (type: 103 | 104, methodKey: string, methodBody: Record<string, any>) => {
       return {
         id: '',
         type: 103,
@@ -39,7 +39,11 @@ export async function initGlobals(): Promise<Required<Globals>> {
         ],
       }
     },
-  }
+  };
+  (globals.rpcService as any).stateService.commitSuccess = () => {}
+  (globals.rpcService as any).stateService.getConfig = () => ({
+    issueEnabled: true
+  })
   globals.fetch = (url: RequestInfo, options?: RequestInit): Promise<Response> => {
     // @ts-ignore
     return nodeFetch(url, {

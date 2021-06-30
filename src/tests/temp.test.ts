@@ -40,6 +40,5 @@ test('mint test validation', async () => {
     await rpcService.handleDockerCall(createTx(104, 'mint', invalidData))
   } catch (e) {
     expect(e.message.includes('transferId'))
-    console.log(e)
   }
 })
