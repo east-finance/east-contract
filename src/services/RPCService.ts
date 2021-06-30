@@ -94,12 +94,6 @@ export class RPCService {
     this.stateService = new StateService(this.client, this.txClient);
   }
 
-  checkConfigFieldType(config: any, field: string, type: string) {
-    if (!config[field] && typeof config[field] !== type)  {
-      throw new Error(`Config error: ${field} expected to be a ${type}, received: ${config[field]}`);
-    }
-  }
-
   async validateConfig(config: ConfigDto) {
     const errors = await validate(plainToClass(ConfigDto, config))
     if (errors.length > 0) {
@@ -653,7 +647,7 @@ export class RPCService {
       ...oldConfig,
       ...newConfig
     }
-    this.validateConfig(config);
+    await this.validateConfig(config);
 
     return [
       {
