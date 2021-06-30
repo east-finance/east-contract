@@ -29,6 +29,7 @@ import { validate } from 'class-validator';
 import { plainToClass } from 'class-transformer';
 import { MintDto } from '../dto/mint.dto';
 import { TransferDto } from '../dto/transfer.dto';
+import { CloseDto } from '../dto/close.dto';
 
 
 const logger = createLogger('GRPC service');
@@ -407,8 +408,10 @@ export class RPCService {
     return []
   }
 
-  async close(tx: Transaction, { address, rwaTransferId, westTransferId }: CloseParam): Promise<DataEntryRequest[]> {
+  async close(tx: Transaction, param: CloseParam): Promise<DataEntryRequest[]> {
+    await this.validate(CloseDto, param)
     // only contract creator allowed
+    const { address, rwaTransferId, westTransferId } = param
     await this.checkAdminPermissions(tx);
     const { rwaTokenId } = await this.stateService.getConfig();
 

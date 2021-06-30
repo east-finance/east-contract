@@ -1,3 +1,4 @@
+import { CloseDto } from "../dto/close.dto"
 import { ConfigDto } from "../dto/config.dto"
 import { TransferDto } from "../dto/transfer.dto"
 import { Operations } from "../interfaces"
@@ -9,7 +10,7 @@ beforeAll(async () => {
   globals = await initGlobals()
 })
 
-test('config dto validation', async () => {
+test('Config dto validation', async () => {
   const { rpcService, createTx } = globals
   const invalidConfig: ConfigDto = {
     oracleContractId: 'oracleContractId',
@@ -33,7 +34,7 @@ test('config dto validation', async () => {
   }
 })
 
-test('mint dto validation', async () => {
+test('Mint DTO validation', async () => {
   const { rpcService, createTx } = globals
   const invalidData = {
     transferId: 1 // invalid
@@ -45,7 +46,7 @@ test('mint dto validation', async () => {
   }
 })
 
-test('transfer dto validation', async () => {
+test('Transfer DTO validation', async () => {
   const { rpcService, createTx } = globals
   const invalidData: TransferDto = {
     // @ts-ignore
@@ -57,5 +58,24 @@ test('transfer dto validation', async () => {
   } catch (e) {
     expect(e.message.includes('to')).toBeTruthy()
     expect(e.message.includes('amount')).toBeTruthy()
+  }
+})
+
+test('Close DTO validation', async () => {
+  const { rpcService, createTx } = globals
+  const invalidData: CloseDto = {
+    // @ts-ignore
+    address: 0, // invalid
+    // @ts-ignore
+    rwaTransferId: 0, // invalid
+    // @ts-ignore
+    westTransferId: 0, // invalid
+  }
+  try {
+    await rpcService.handleDockerCall(createTx(104, Operations.close, invalidData))
+  } catch (e) {
+    expect(e.message.includes('address')).toBeTruthy()
+    expect(e.message.includes('rwaTransferId')).toBeTruthy()
+    expect(e.message.includes('westTransferId')).toBeTruthy()
   }
 })
