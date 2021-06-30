@@ -8,45 +8,37 @@ beforeAll(async () => {
 })
 
 test('config dto validation', async () => {
-  const { rpcService } = globals
+  const { rpcService, createTx } = globals
   const invalidConfig: ConfigDto = {
     oracleContractId: 'oracleContractId',
-    oracleTimestampMaxDiff: -1,
+    oracleTimestampMaxDiff: -1, // invalid
     // @ts-ignore
-    rwaPart: '0.5',
+    rwaPart: '0.5', // invalid
     westCollateral: 2.5,
     liquidationCollateral: 1.3,
     minHoldTime: 1000 * 60 * 60,
     rwaTokenId: 'Rwa token id',
     // @ts-ignore
-    issueEnabled: 'yes',
+    issueEnabled: 'yes', // invalid
   }
   try {
-    await rpcService.handleDockerCreate({
-      id: '',
-      type: 103,
-      sender: 'sender',
-      sender_public_key: 'pk',
-      contract_id: 'contract_id',
-      fee: 1000,
-      version: 1,
-      proofs: Buffer.from(''),
-      timestamp: Date.now(),
-      fee_asset_id: {
-        value: 'fee_asset_id',
-      },
-      params: [
-        {
-          key: 'config',
-          value: 'string_value',
-          string_value: JSON.stringify(invalidConfig)
-        }
-      ],
-    })
+    await rpcService.handleDockerCreate(createTx(103, 'config', invalidConfig))
   } catch (error) {
     expect(error.message.includes('oracleTimestampMaxDiff'))
     expect(error.message.includes('rwaPart'))
     expect(error.message.includes('issueEnabled'))
     expect(error.message).toBe('Validation error: oracleTimestampMaxDiff must be a positive number, rwaPart must be a positive number, issueEnabled must be a boolean value')
+  }
+})
+
+test('mint test validation', async () => {
+  const { rpcService, createTx } = globals
+  const invalidData = {
+    transferId: 1 // invalid
+  }
+  try {
+    await rpcService.handleDockerCall(createTx(104, 'mint', invalidData))
+  } catch (e) {
+    
   }
 })

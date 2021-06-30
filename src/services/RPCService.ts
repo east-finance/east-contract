@@ -26,7 +26,8 @@ import { CONNECTION_ID, CONNECTION_TOKEN, NODE, NODE_PORT, HOST_NETWORK } from '
 import { StateService } from './StateService';
 import { ConfigDto } from '../dto/config.dto';
 import { validate } from 'class-validator';
-import { plainToClass } from 'class-transformer';
+import { ClassConstructor, plainToClass } from 'class-transformer';
+import { MintDto } from '../dto/mint.dto';
 
 
 const logger = createLogger('GRPC service');
@@ -94,11 +95,15 @@ export class RPCService {
     this.stateService = new StateService(this.client, this.txClient);
   }
 
-  async validateConfig(config: ConfigDto) {
-    const errors = await validate(plainToClass(ConfigDto, config))
+  async validate(dtoClass: any, obj: Record<string, any>) {
+    const errors = await validate(plainToClass(dtoClass, obj))
     if (errors.length > 0) {
       throw new Error(`Validation error: ${errors.map(error => Object.values(error.constraints as Object)).join(', ')}`)
     }
+  }
+
+  async validateConfig(config: ConfigDto) {
+    return this.validate(ConfigDto, config)
   }
 
   async handleDockerCreate(tx: Transaction): Promise<void> {
@@ -294,7 +299,9 @@ export class RPCService {
     return transferAmount
   }
 
-  async mint(tx: Transaction, { transferId }: MintParam): Promise<DataEntryRequest[]> {
+  async mint(tx: Transaction, param: MintParam): Promise<DataEntryRequest[]> {
+    await this.validate(MintDto, param)
+    const { transferId } = param
     const vaultExists = await this.stateService.isVaultExists(tx.sender)
     if (vaultExists) {
       throw new Error(`Vault for user ${tx.sender} alreasy exist, use methods supply and reissue`);
