@@ -26,8 +26,9 @@ import { CONNECTION_ID, CONNECTION_TOKEN, NODE, NODE_PORT, HOST_NETWORK } from '
 import { StateService } from './StateService';
 import { ConfigDto } from '../dto/config.dto';
 import { validate } from 'class-validator';
-import { ClassConstructor, plainToClass } from 'class-transformer';
+import { plainToClass } from 'class-transformer';
 import { MintDto } from '../dto/mint.dto';
+import { TransferDto } from '../dto/transfer.dto';
 
 
 const logger = createLogger('GRPC service');
@@ -496,6 +497,7 @@ export class RPCService {
   }
 
   async transfer(tx: Transaction, value: TransferParam): Promise<DataEntryRequest[]> {
+    await this.validate(TransferDto, value)
     const { to, amount } = value
     const from = tx.sender
 

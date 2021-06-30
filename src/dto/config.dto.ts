@@ -1,6 +1,7 @@
 import { IsBoolean, IsPositive, IsString } from "class-validator"
+import { ConfigParam } from "../interfaces"
 
-export class ConfigDto {
+export class ConfigDto implements Omit<ConfigParam, 'adminAddress' | 'adminPublicKey'> {
   @IsString()
   oracleContractId!: string
 
