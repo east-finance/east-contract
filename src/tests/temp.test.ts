@@ -1,4 +1,3 @@
-import { rpc } from "protobufjs"
 import { ClaimOverpayInitDto } from "../dto/claim-overpay-init.dto"
 import { ClaimOverpayDto } from "../dto/claim-overpay.dto"
 import { CloseDto } from "../dto/close.dto"
