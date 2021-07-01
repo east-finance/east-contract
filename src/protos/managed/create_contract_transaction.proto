@@ -4,10 +4,13 @@ package wavesenterprise;
 option java_multiple_files = true;
 option java_package = "com.wavesplatform.transaction.protobuf.docker";
 option csharp_namespace = "WavesEnterprise";
+option go_package = "wavesenterprise.com/weproto";
 
-import "data_entry.proto";
 import "google/protobuf/wrappers.proto";
+import "contract_api_version.proto";
 import "atomic_badge.proto";
+import "validation_policy.proto";
+import "data_entry.proto";
 
 message CreateContractTransaction {
   bytes id = 1;
@@ -20,5 +23,7 @@ message CreateContractTransaction {
   int64 timestamp = 8;
   google.protobuf.BytesValue fee_asset_id = 9;
   AtomicBadge atomic_badge = 10;
-  repeated bytes proofs = 11;
+  ValidationPolicy validation_policy = 11;
+  ContractApiVersion api_version = 12;
+  repeated bytes proofs = 13;
 }

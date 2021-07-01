@@ -6,7 +6,7 @@ option java_package = "com.wavesplatform.transaction.protobuf";
 option csharp_namespace = "WavesEnterprise";
 option go_package = "wavesenterprise.com/weproto";
 
-message Transfer {
-    bytes recipient = 1;
-    int64 amount = 2;
+message ContractApiVersion {
+  int32 major_version = 1;
+  int32 minor_version = 2;
 }
