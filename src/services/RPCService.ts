@@ -30,6 +30,9 @@ import { plainToClass } from 'class-transformer';
 import { MintDto } from '../dto/mint.dto';
 import { TransferDto } from '../dto/transfer.dto';
 import { CloseDto } from '../dto/close.dto';
+import { ReissueDto } from '../dto/reissue.dto';
+import { SupplyDto } from '../dto/supply.dto';
+import { ClaimOverpayDto } from '../dto/claim-overpay.dto';
 
 
 const logger = createLogger('GRPC service');
@@ -344,7 +347,9 @@ export class RPCService {
     ];
   }
 
-  async reissue(tx: Transaction, { maxWestToExchange }: ReissueParam): Promise<DataEntryRequest[]> {
+  async reissue(tx: Transaction, param: ReissueParam): Promise<DataEntryRequest[]> {
+    await this.validate(ReissueDto, param)
+    const { maxWestToExchange } = param
     const oldVault = await this.stateService.getVault(tx.sender);
 
     let newVault: Vault = await this.recalculateVault(oldVault) as Vault
@@ -569,7 +574,9 @@ export class RPCService {
     ];
   }
 
-  async supply(tx: Transaction, { transferId }: SupplyParam): Promise<DataEntryRequest[]> {
+  async supply(tx: Transaction, param: SupplyParam): Promise<DataEntryRequest[]> {
+    await this.validate(SupplyDto, param)
+    const { transferId } = param
     const vault = await this.stateService.getVault(tx.sender);
     const transferAmount = await this.checkTransfer(tx, transferId);
     vault.westAmount = vault.westAmount + (Number(transferAmount) / Math.pow(10, WEST_DECIMALS));
@@ -587,9 +594,11 @@ export class RPCService {
   }
 
 
-  async claimOverpay(tx: Transaction, { address, transferId, requestId }: ClaimOverpayParam) {
+  async claimOverpay(tx: Transaction, param: ClaimOverpayParam) {
+    await this.validate(ClaimOverpayDto, param)
     await this.checkAdminPermissions(tx);
 
+    const { address, transferId, requestId } = param
     const vault = await this.stateService.getVault(address);
     const {
       sender_public_key: senderPubKey,

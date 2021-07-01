@@ -1,5 +1,9 @@
+import { rpc } from "protobufjs"
+import { ClaimOverpayInitDto } from "../dto/claim-overpay-init.dto"
 import { CloseDto } from "../dto/close.dto"
 import { ConfigDto } from "../dto/config.dto"
+import { ReissueDto } from "../dto/reissue.dto"
+import { SupplyDto } from "../dto/supply.dto"
 import { TransferDto } from "../dto/transfer.dto"
 import { Operations } from "../interfaces"
 import { Globals, initGlobals } from "./utils"
@@ -78,4 +82,45 @@ test('Close DTO validation', async () => {
     expect(e.message.includes('rwaTransferId')).toBeTruthy()
     expect(e.message.includes('westTransferId')).toBeTruthy()
   }
+})
+
+test('Reissue DTO validation', async () => {
+  const { rpcService, createTx } = globals
+  const invalidData: ReissueDto = {
+    maxWestToExchange: -1,
+  }
+  try {
+    await rpcService.handleDockerCall(createTx(104, Operations.reissue, invalidData))
+  } catch (e) {
+    expect(e.message.includes('maxWestToExchange')).toBeTruthy()
+  }
+})
+
+test('Supply DTO validation', async () => {
+  const { rpcService, createTx } = globals
+  const invalidData: SupplyDto = {
+    // @ts-ignore
+    transferId: 0,
+  }
+  try {
+    await rpcService.handleDockerCall(createTx(104, Operations.supply, invalidData))
+  } catch (e) {
+    expect(e.message.includes('transferId')).toBeTruthy()
+  }
+})
+
+test('ClaimOverpayInit DTO validation', async () => {
+  const { rpcService, createTx } = globals
+  const invalidData: ClaimOverpayInitDto = {
+    amount: -1, // invalid
+  }
+  try {
+    await rpcService.handleDockerCall(createTx(104, Operations.claim_overpay_init, invalidData))
+  } catch (e) {
+    expect(e.message.includes('amount')).toBeTruthy()
+  }
+})
+
+test('ClaimOverpay DTO validation', async () => {
+  const { rpcService, createTx } = globals
 })
