@@ -154,3 +154,26 @@ test('Liquidate DTO validation', async () => {
     expect(e.message.includes('address')).toBeTruthy()
   }
 })
+
+test('UpdateConfig DTO validation', async () => {
+  const { rpcService, createTx } = globals
+  const invalidConfig: ConfigDto = {
+    oracleContractId: 'oracleContractId',
+    oracleTimestampMaxDiff: -1, // invalid
+    // @ts-ignore
+    rwaPart: '0.5', // invalid
+    westCollateral: 2.5,
+    liquidationCollateral: 1.3,
+    minHoldTime: 1000 * 60 * 60,
+    rwaTokenId: 'Rwa token id',
+    // @ts-ignore
+    issueEnabled: 'yes', // invalid
+  }
+  try {
+    await rpcService.handleDockerCall(createTx(104, Operations.update_config, invalidConfig))
+  } catch (e) {
+    expect(e.message.includes('oracleTimestampMaxDiff')).toBeTruthy()
+    expect(e.message.includes('rwaPart')).toBeTruthy()
+    expect(e.message.includes('issueEnabled')).toBeTruthy()
+  }
+})

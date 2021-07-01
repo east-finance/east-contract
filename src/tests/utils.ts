@@ -40,10 +40,11 @@ export async function initGlobals(): Promise<Required<Globals>> {
       }
     },
   };
-  (globals.rpcService as any).stateService.commitSuccess = () => {}
+  (globals.rpcService as any).stateService.commitSuccess = () => {};
   (globals.rpcService as any).stateService.getConfig = () => ({
     issueEnabled: true
-  })
+  });
+  (globals.rpcService as any).checkAdminPermissions = () => {}
   globals.fetch = (url: RequestInfo, options?: RequestInit): Promise<Response> => {
     // @ts-ignore
     return nodeFetch(url, {
