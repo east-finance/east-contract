@@ -1,5 +1,6 @@
 import { rpc } from "protobufjs"
 import { ClaimOverpayInitDto } from "../dto/claim-overpay-init.dto"
+import { ClaimOverpayDto } from "../dto/claim-overpay.dto"
 import { CloseDto } from "../dto/close.dto"
 import { ConfigDto } from "../dto/config.dto"
 import { ReissueDto } from "../dto/reissue.dto"
@@ -123,4 +124,19 @@ test('ClaimOverpayInit DTO validation', async () => {
 
 test('ClaimOverpay DTO validation', async () => {
   const { rpcService, createTx } = globals
+  const invalidData: ClaimOverpayDto = {
+    // @ts-ignore
+    address: false, // invalid
+    // @ts-ignore
+    requestId: false, // invalid
+    // @ts-ignore
+    transferId: false, // invalid
+  }
+  try {
+    await rpcService.handleDockerCall(createTx(104, Operations.claim_overpay, invalidData))
+  } catch (e) {
+    expect(e.message.includes('address')).toBeTruthy()
+    expect(e.message.includes('requestId')).toBeTruthy()
+    expect(e.message.includes('transferId')).toBeTruthy()
+  }
 })
