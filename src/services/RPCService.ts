@@ -33,6 +33,7 @@ import { CloseDto } from '../dto/close.dto';
 import { ReissueDto } from '../dto/reissue.dto';
 import { SupplyDto } from '../dto/supply.dto';
 import { ClaimOverpayDto } from '../dto/claim-overpay.dto';
+import { LiquidateDto } from '../dto/liquidate.dto';
 
 
 const logger = createLogger('GRPC service');
@@ -526,7 +527,9 @@ export class RPCService {
     }];
   }
 
-  async liquidate(tx: Transaction, { address }: LiquidateParam): Promise<DataEntryRequest[]> {
+  async liquidate(tx: Transaction, param: LiquidateParam): Promise<DataEntryRequest[]> {
+    await this.validate(LiquidateDto, param)
+    const { address } = param
     // only contract creator allowed
     await this.checkAdminPermissions(tx);
     const { eastAmount, westAmount, rwaAmount, liquidationCollateral } = await this.stateService.getVault(address);

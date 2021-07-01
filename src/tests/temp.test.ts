@@ -3,6 +3,7 @@ import { ClaimOverpayInitDto } from "../dto/claim-overpay-init.dto"
 import { ClaimOverpayDto } from "../dto/claim-overpay.dto"
 import { CloseDto } from "../dto/close.dto"
 import { ConfigDto } from "../dto/config.dto"
+import { LiquidateDto } from "../dto/liquidate.dto"
 import { ReissueDto } from "../dto/reissue.dto"
 import { SupplyDto } from "../dto/supply.dto"
 import { TransferDto } from "../dto/transfer.dto"
@@ -138,5 +139,18 @@ test('ClaimOverpay DTO validation', async () => {
     expect(e.message.includes('address')).toBeTruthy()
     expect(e.message.includes('requestId')).toBeTruthy()
     expect(e.message.includes('transferId')).toBeTruthy()
+  }
+})
+
+test('Liquidate DTO validation', async () => {
+  const { rpcService, createTx } = globals
+  const invalidData: LiquidateDto = {
+    // @ts-ignore
+    address: false, // invalid
+  }
+  try {
+    await rpcService.handleDockerCall(createTx(104, Operations.liquidate, invalidData))
+  } catch (e) {
+    expect(e.message.includes('address')).toBeTruthy()
   }
 })
