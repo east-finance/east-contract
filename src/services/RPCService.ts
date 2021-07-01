@@ -38,13 +38,14 @@ import { LiquidateDto } from '../dto/liquidate.dto';
 
 const logger = createLogger('GRPC service');
 
-const CONTRACT_PROTO = path.resolve(__dirname, '../protos', 'contract.proto');
-const TRANSACTIONS_PROTO = path.resolve(__dirname, '../protos', 'transactions.proto')
+const CONTRACT_PROTO = path.resolve(__dirname, '../protos', 'contract', 'contract_contract_service.proto');
+const TRANSACTIONS_PROTO = path.resolve(__dirname, '../protos', 'contract', 'contract_transaction_service.proto');
+const ADDRESS_PROTO = path.resolve(__dirname, '../protos', 'contract', 'contract_address_service.proto');
 const PROTO_DIR = path.join(__dirname, '../protos')
 
 
 const definitions = loadSync(
-  [TRANSACTIONS_PROTO, CONTRACT_PROTO],
+  [TRANSACTIONS_PROTO, CONTRACT_PROTO, ADDRESS_PROTO],
   {
     keepCase: true,
     longs: String,
@@ -58,6 +59,8 @@ const definitions = loadSync(
 const proto = loadPackageDefinition(definitions).wavesenterprise as GrpcObject;
 const ContractService = proto.ContractService as ServiceClientConstructor;
 const TransactionService = proto.TransactionService as ServiceClientConstructor;
+const AddressService = proto.AddressService as ServiceClientConstructor;
+
 
 
 // CONSTS
@@ -84,6 +87,7 @@ export class RPCService {
   // eslint-disable-next-line
   client: any;
   txClient: any;
+  addressService: any;
   private stateService: StateService;
 
   constructor() {
@@ -97,8 +101,9 @@ export class RPCService {
     `);
     this.client = new ContractService(`${NODE}:${NODE_PORT}`, credentials.createInsecure());
     this.txClient = new TransactionService(`${NODE}:${NODE_PORT}`, credentials.createInsecure());
+    this.addressService = new AddressService(`${NODE}:${NODE_PORT}`, credentials.createInsecure());
 
-    this.stateService = new StateService(this.client, this.txClient);
+    this.stateService = new StateService(this.client, this.txClient, this.addressService);
   }
 
   async validate(dtoClass: any, obj: Record<string, any>) {
@@ -108,7 +113,7 @@ export class RPCService {
     }
   }
 
-  async validateConfig(config: ConfigDto) {
+  validateConfig(config: ConfigDto) {
     return this.validate(ConfigDto, config)
   }
 
