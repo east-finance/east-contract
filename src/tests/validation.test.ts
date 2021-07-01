@@ -1,3 +1,5 @@
+import { plainToClass } from "class-transformer"
+import { validate } from "class-validator"
 import { ClaimOverpayInitDto } from "../dto/claim-overpay-init.dto"
 import { ClaimOverpayDto } from "../dto/claim-overpay.dto"
 import { CloseDto } from "../dto/close.dto"
@@ -175,4 +177,20 @@ test('UpdateConfig DTO validation', async () => {
     expect(e.message.includes('rwaPart')).toBeTruthy()
     expect(e.message.includes('issueEnabled')).toBeTruthy()
   }
+})
+
+test('Decimal test', async () => {
+  const data1: TransferDto = {
+    to: '',
+    amount: 1.12345678,
+  }
+  const errors1 = await validate(plainToClass(TransferDto, data1))
+  expect(errors1.length).toBe(0)
+
+  const data2: TransferDto = {
+    to: '',
+    amount: 1.123456789,
+  }
+  const errors2 = await validate(plainToClass(TransferDto, data2))
+  expect(errors2.length).toBe(1)
 })
