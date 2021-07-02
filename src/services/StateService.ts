@@ -208,7 +208,9 @@ export class StateService {
         this.auth,
         function (error: Error, response: any) {
           if (error) {
-            reject(error);
+            const { metadata } = error as any;
+            const { internalRepr } = metadata
+            reject(new Error(`Error: ${internalRepr.get('errorCode')}: ${internalRepr.get('errorMessage')}`));
             return
           }
           resolve({
