@@ -24,7 +24,7 @@ class Logger {
     this.name = name;
   }
   
-  info(message: string) {
+  info(message: string | number | boolean) {
     if (IS_TESTING_ENV) {
       return
     }
