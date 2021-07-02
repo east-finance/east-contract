@@ -112,7 +112,7 @@ export class RPCService {
     const parsedAmount = parseValue(amount, decimals)
     const diff = parsedAmount - rwaAmount + totalRwa
     if (diff < 0) {
-      throw new Error(`Insufficient funds on RWA token account(${adminAddress}). Required amount: ${Math.abs(diff)}, on balance: ${parsedAmount} tokens.`)
+      throw new Error('Insufficient RWA balance in protocol to mint new EAST. Please try again later or contact technical support.')
     }
   }
 
@@ -391,6 +391,7 @@ export class RPCService {
 
     let totalSupply = await this.stateService.getTotalSupply();
     let totalRwa = await this.stateService.getTotalRwa();
+    await this.checkAdminBalance(newVault.rwaAmount - oldVault.rwaAmount, totalRwa);
     let balance = await this.stateService.getBalance(tx.sender);
     const diff = newVault.eastAmount - oldVault.eastAmount;
     newVault.updatedAt = Date.now();
