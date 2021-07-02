@@ -79,8 +79,8 @@ function roundValue(num: number) {
   return +num.toFixed(WEST_DECIMALS);
 }
 
-function parseValue(num: number) {
-  return parseFloat(num + '') / Math.pow(10, WEST_DECIMALS)
+function parseValue(num: number, decimalPlaces: number = WEST_DECIMALS) {
+  return parseFloat(num + '') / Math.pow(10, decimalPlaces)
 }
 
 export class RPCService {
@@ -104,6 +104,16 @@ export class RPCService {
     this.addressService = new AddressService(`${NODE}:${NODE_PORT}`, credentials.createInsecure());
 
     this.stateService = new StateService(this.client, this.txClient, this.addressService);
+  }
+
+  async checkAdminBalance(rwaAmount: number, totalRwa: number) {
+    const { adminAddress, rwaTokenId } = await this.stateService.getConfig()
+    const { amount, decimals } = await this.stateService.getAssetBalance(adminAddress, rwaTokenId)
+    const parsedAmount = parseValue(amount, decimals)
+    const diff = parsedAmount - rwaAmount + totalRwa
+    if (diff < 0) {
+      throw new Error(`Insufficient funds on RWA token account(${adminAddress}). Required amount: ${Math.abs(diff)}, on balance: ${parsedAmount} tokens.`)
+    }
   }
 
   async validate(dtoClass: any, obj: Record<string, any>) {
@@ -321,10 +331,11 @@ export class RPCService {
     const transferAmount = await this.checkTransfer(tx, transferId)
     const parsedTransferAmount = parseFloat(transferAmount + '') / Math.pow(10, WEST_DECIMALS)
     const vault = await this.calculateVault(parsedTransferAmount) as Vault
-    vault.updatedAt = Date.now();
 
+    vault.updatedAt = Date.now();
     let totalSupply = await this.stateService.getTotalSupply();
     let totalRwa = await this.stateService.getTotalRwa();
+    await this.checkAdminBalance(vault.rwaAmount, totalRwa);
     let balance = await this.stateService.getBalance(tx.sender);
     balance += vault.eastAmount;
     totalSupply += vault.eastAmount;
