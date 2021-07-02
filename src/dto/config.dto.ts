@@ -1,4 +1,4 @@
-import { IsBoolean, IsPositive, IsString } from "class-validator"
+import { IsBoolean, IsPositive, IsString, IsOptional } from "class-validator"
 import { ConfigParam } from "../interfaces"
 
 export class ConfigDto implements Omit<ConfigParam, 'adminAddress' | 'adminPublicKey'> {
@@ -23,6 +23,7 @@ export class ConfigDto implements Omit<ConfigParam, 'adminAddress' | 'adminPubli
   @IsString()
   rwaTokenId!: string
 
+  @IsOptional()
   @IsBoolean()
   issueEnabled!: boolean
 }
