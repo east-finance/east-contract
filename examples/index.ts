@@ -36,14 +36,14 @@ const sleep = (timeout: number): Promise<void>=> {
 
 Promise.resolve().then(async () => {
   const imageName = 'east-contract:1.111';
-  // console.log(`Building docker image ${imageName}, HOST_NETWORK=${hostIp}`);
-  // await execute(`docker build --build-arg HOST_NETWORK=${hostIp} -t ${imageName} .`);
-  // console.log('Build image done');
+  console.log(`Building docker image ${imageName}, HOST_NETWORK=${hostIp}`);
+  await execute(`docker build --build-arg HOST_NETWORK=${hostIp} -t ${imageName} .`);
+  console.log('Build image done');
   
-  // const inspectResult = await execute(`docker inspect ${imageName}`);
-  // const inspectData = JSON.parse(inspectResult)[0];
-  // const imageHash = inspectData.Id.replace('sha256:', '');
-  // console.log('imageHash', imageHash);
+  const inspectResult = await execute(`docker inspect ${imageName}`);
+  const inspectData = JSON.parse(inspectResult)[0];
+  const imageHash = inspectData.Id.replace('sha256:', '');
+  console.log('imageHash', imageHash);
   
   // @ts-ignore
   const { chainId, minimumFee } = await (await fetch(`${nodeAddress}/node/config`)).json();
