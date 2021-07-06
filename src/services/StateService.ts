@@ -11,10 +11,12 @@ export class StateService {
   private contractId = '';
   private contractClient: any;
   private txClient: any;
+  private addressService: any;
 
-  constructor(contractClient: any, txClient: any) {
+  constructor(contractClient: any, txClient: any, addressService: any) {
     this.contractClient = contractClient;
     this.txClient = txClient;
+    this.addressService = addressService
   }
 
   setAuthData(auth: Metadata, contractId: string): void {
@@ -192,5 +194,32 @@ export class StateService {
     } catch (e) {
       return false
     }
+  }
+
+  async getAssetBalance(address: string, assetId: string): Promise<{ assetId: string, amount: number, decimals: number }> {
+    return new Promise((resolve, reject) => {
+      this.addressService.getAssetBalance(
+        {
+          address: Base58.decode(address),
+          assetId: {
+            value: Base58.decode(assetId)
+          }
+        },
+        this.auth,
+        function (error: Error, response: any) {
+          if (error) {
+            const { metadata } = error as any;
+            const { internalRepr } = metadata
+            reject(new Error(`Error: ${internalRepr.get('errorCode')}: ${internalRepr.get('errorMessage')}`));
+            return
+          }
+          resolve({
+            assetId: response.assetId ? Base58.encode(response.assetId.value || response.asset_id) : '',
+            amount: response.amount,
+            decimals: response.decimals,
+          })        
+        }
+      )
+    })
   }
 }

@@ -14,6 +14,7 @@
 // };
 
 import nodeFetch from 'node-fetch';
+import { IS_TESTING_ENV } from '../config';
 const { HOST_NETWORK } = process.env;
 
 class Logger {
@@ -22,7 +23,11 @@ class Logger {
   constructor(name: string) {
     this.name = name;
   }
-  info(message: string) {
+  
+  info(message: string | number | boolean) {
+    if (IS_TESTING_ENV) {
+      return
+    }
     console.log(`${this.name}: ${message}`);
     if (HOST_NETWORK) {
       nodeFetch(`http://${HOST_NETWORK}:5050`, {

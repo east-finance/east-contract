@@ -24,17 +24,28 @@ import {
 } from '../interfaces';
 import { CONNECTION_ID, CONNECTION_TOKEN, NODE, NODE_PORT, HOST_NETWORK } from '../config';
 import { StateService } from './StateService';
+import { ConfigDto } from '../dto/config.dto';
+import { validate } from 'class-validator';
+import { plainToClass } from 'class-transformer';
+import { MintDto } from '../dto/mint.dto';
+import { TransferDto } from '../dto/transfer.dto';
+import { CloseDto } from '../dto/close.dto';
+import { ReissueDto } from '../dto/reissue.dto';
+import { SupplyDto } from '../dto/supply.dto';
+import { ClaimOverpayDto } from '../dto/claim-overpay.dto';
+import { LiquidateDto } from '../dto/liquidate.dto';
 
 
 const logger = createLogger('GRPC service');
 
-const CONTRACT_PROTO = path.resolve(__dirname, '../protos', 'contract.proto');
-const TRANSACTIONS_PROTO = path.resolve(__dirname, '../protos', 'transactions.proto')
+const CONTRACT_PROTO = path.resolve(__dirname, '../protos', 'contract', 'contract_contract_service.proto');
+const TRANSACTIONS_PROTO = path.resolve(__dirname, '../protos', 'contract', 'contract_transaction_service.proto');
+const ADDRESS_PROTO = path.resolve(__dirname, '../protos', 'contract', 'contract_address_service.proto');
 const PROTO_DIR = path.join(__dirname, '../protos')
 
 
 const definitions = loadSync(
-  [TRANSACTIONS_PROTO, CONTRACT_PROTO],
+  [TRANSACTIONS_PROTO, CONTRACT_PROTO, ADDRESS_PROTO],
   {
     keepCase: true,
     longs: String,
@@ -48,6 +59,8 @@ const definitions = loadSync(
 const proto = loadPackageDefinition(definitions).wavesenterprise as GrpcObject;
 const ContractService = proto.ContractService as ServiceClientConstructor;
 const TransactionService = proto.TransactionService as ServiceClientConstructor;
+const AddressService = proto.AddressService as ServiceClientConstructor;
+
 
 
 // CONSTS
@@ -66,14 +79,15 @@ function roundValue(num: number) {
   return +num.toFixed(WEST_DECIMALS);
 }
 
-function parseValue(num: number) {
-  return parseFloat(num + '') / Math.pow(10, WEST_DECIMALS)
+function parseValue(num: number, decimalPlaces: number = WEST_DECIMALS) {
+  return parseFloat(num + '') / Math.pow(10, decimalPlaces)
 }
 
 export class RPCService {
   // eslint-disable-next-line
   client: any;
   txClient: any;
+  addressService: any;
   private stateService: StateService;
 
   constructor() {
@@ -87,27 +101,30 @@ export class RPCService {
     `);
     this.client = new ContractService(`${NODE}:${NODE_PORT}`, credentials.createInsecure());
     this.txClient = new TransactionService(`${NODE}:${NODE_PORT}`, credentials.createInsecure());
+    this.addressService = new AddressService(`${NODE}:${NODE_PORT}`, credentials.createInsecure());
 
-    this.stateService = new StateService(this.client, this.txClient);
+    this.stateService = new StateService(this.client, this.txClient, this.addressService);
   }
 
-  checkConfigFieldType(config: any, field: string, type: string) {
-    if (!config[field] && typeof config[field] !== type)  {
-      throw new Error(`Config error: ${field} expected to be a ${type}, received: ${config[field]}`);
+  async checkAdminBalance(rwaAmount: number, totalRwa: number) {
+    const { adminAddress, rwaTokenId } = await this.stateService.getConfig()
+    const { amount, decimals } = await this.stateService.getAssetBalance(adminAddress, rwaTokenId)
+    const parsedAmount = parseValue(amount, decimals)
+    const diff = parsedAmount - rwaAmount + totalRwa
+    if (diff < 0) {
+      throw new Error('Insufficient RWA balance in protocol to mint new EAST. Please try again later or contact technical support.')
     }
   }
 
-  checkConfig(config: ConfigParam)  {
-    if (!config) {
-      throw new Error(`Config error: confid undefined: ${config}`);
+  async validate(dtoClass: any, obj: Record<string, any>) {
+    const errors = await validate(plainToClass(dtoClass, obj))
+    if (errors.length > 0) {
+      throw new Error(`Validation error: ${errors.map(error => Object.values(error.constraints as Object)).join(', ')}`)
     }
-    this.checkConfigFieldType(config, 'oracleContractId', 'string');
-    this.checkConfigFieldType(config, 'oracleTimestampMaxDiff', 'number');
-    this.checkConfigFieldType(config, 'rwaPart', 'number');
-    this.checkConfigFieldType(config, 'westCollateral', 'number');
-    this.checkConfigFieldType(config, 'liquidationCollateral', 'number');
-    this.checkConfigFieldType(config, 'minHoldTime', 'number');
-    this.checkConfigFieldType(config, 'rwaTokenId', 'string');
+  }
+
+  validateConfig(config: ConfigDto) {
+    return this.validate(ConfigDto, config)
   }
 
   async handleDockerCreate(tx: Transaction): Promise<void> {
@@ -116,7 +133,7 @@ export class RPCService {
     }
     const paramConfig = tx.params[0];
     const config = JSON.parse(paramConfig.string_value || '{}');
-    this.checkConfig(config);
+    await this.validateConfig(config)
     config.adminAddress = tx.sender;
     config.adminPublicKey = tx.sender_public_key;
     await this.stateService.commitSuccess(tx.id, [
@@ -303,7 +320,9 @@ export class RPCService {
     return transferAmount
   }
 
-  async mint(tx: Transaction, { transferId }: MintParam): Promise<DataEntryRequest[]> {
+  async mint(tx: Transaction, param: MintParam): Promise<DataEntryRequest[]> {
+    await this.validate(MintDto, param)
+    const { transferId } = param
     const vaultExists = await this.stateService.isVaultExists(tx.sender)
     if (vaultExists) {
       throw new Error(`Vault for user ${tx.sender} alreasy exist, use methods supply and reissue`);
@@ -312,10 +331,11 @@ export class RPCService {
     const transferAmount = await this.checkTransfer(tx, transferId)
     const parsedTransferAmount = parseFloat(transferAmount + '') / Math.pow(10, WEST_DECIMALS)
     const vault = await this.calculateVault(parsedTransferAmount) as Vault
-    vault.updatedAt = Date.now();
 
+    vault.updatedAt = Date.now();
     let totalSupply = await this.stateService.getTotalSupply();
     let totalRwa = await this.stateService.getTotalRwa();
+    await this.checkAdminBalance(vault.rwaAmount, totalRwa);
     let balance = await this.stateService.getBalance(tx.sender);
     balance += vault.eastAmount;
     totalSupply += vault.eastAmount;
@@ -344,7 +364,9 @@ export class RPCService {
     ];
   }
 
-  async reissue(tx: Transaction, { maxWestToExchange }: ReissueParam): Promise<DataEntryRequest[]> {
+  async reissue(tx: Transaction, param: ReissueParam): Promise<DataEntryRequest[]> {
+    await this.validate(ReissueDto, param)
+    const { maxWestToExchange } = param
     const oldVault = await this.stateService.getVault(tx.sender);
 
     let newVault: Vault = await this.recalculateVault(oldVault) as Vault
@@ -369,6 +391,7 @@ export class RPCService {
 
     let totalSupply = await this.stateService.getTotalSupply();
     let totalRwa = await this.stateService.getTotalRwa();
+    await this.checkAdminBalance(newVault.rwaAmount - oldVault.rwaAmount, totalRwa);
     let balance = await this.stateService.getBalance(tx.sender);
     const diff = newVault.eastAmount - oldVault.eastAmount;
     newVault.updatedAt = Date.now();
@@ -408,8 +431,10 @@ export class RPCService {
     return []
   }
 
-  async close(tx: Transaction, { address, rwaTransferId, westTransferId }: CloseParam): Promise<DataEntryRequest[]> {
+  async close(tx: Transaction, param: CloseParam): Promise<DataEntryRequest[]> {
+    await this.validate(CloseDto, param)
     // only contract creator allowed
+    const { address, rwaTransferId, westTransferId } = param
     await this.checkAdminPermissions(tx);
     const { rwaTokenId } = await this.stateService.getConfig();
 
@@ -498,6 +523,7 @@ export class RPCService {
   }
 
   async transfer(tx: Transaction, value: TransferParam): Promise<DataEntryRequest[]> {
+    await this.validate(TransferDto, value)
     const { to, amount } = value
     const from = tx.sender
 
@@ -518,7 +544,9 @@ export class RPCService {
     }];
   }
 
-  async liquidate(tx: Transaction, { address }: LiquidateParam): Promise<DataEntryRequest[]> {
+  async liquidate(tx: Transaction, param: LiquidateParam): Promise<DataEntryRequest[]> {
+    await this.validate(LiquidateDto, param)
+    const { address } = param
     // only contract creator allowed
     await this.checkAdminPermissions(tx);
     const { eastAmount, westAmount, rwaAmount, liquidationCollateral } = await this.stateService.getVault(address);
@@ -566,7 +594,9 @@ export class RPCService {
     ];
   }
 
-  async supply(tx: Transaction, { transferId }: SupplyParam): Promise<DataEntryRequest[]> {
+  async supply(tx: Transaction, param: SupplyParam): Promise<DataEntryRequest[]> {
+    await this.validate(SupplyDto, param)
+    const { transferId } = param
     const vault = await this.stateService.getVault(tx.sender);
     const transferAmount = await this.checkTransfer(tx, transferId);
     vault.westAmount = vault.westAmount + (Number(transferAmount) / Math.pow(10, WEST_DECIMALS));
@@ -584,9 +614,11 @@ export class RPCService {
   }
 
 
-  async claimOverpay(tx: Transaction, { address, transferId, requestId }: ClaimOverpayParam) {
+  async claimOverpay(tx: Transaction, param: ClaimOverpayParam) {
+    await this.validate(ClaimOverpayDto, param)
     await this.checkAdminPermissions(tx);
 
+    const { address, transferId, requestId } = param
     const vault = await this.stateService.getVault(address);
     const {
       sender_public_key: senderPubKey,
@@ -656,7 +688,7 @@ export class RPCService {
       ...oldConfig,
       ...newConfig
     }
-    this.checkConfig(config);
+    await this.validateConfig(config);
 
     return [
       {

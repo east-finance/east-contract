@@ -69,7 +69,7 @@ Promise.resolve().then(async () => {
   
   const txBody = {
     image: imageName,
-    imageHash,
+    imageHash: 'bed9ee88949f060042071cfe9c7173f1354c8098f2343ef26579cdbfe1d6cd62',
     contractName: 'GRPC contract',
     timestamp: Date.now(),
     params: [
@@ -83,7 +83,7 @@ Promise.resolve().then(async () => {
           westCollateral: 2.5,
           liquidationCollateral: 1.3,
           minHoldTime: 1000 * 60 * 60,
-          rwaTokenId: '6Cc3dePRVFwn4VX6NZuwS2R9wDHU6z2eoKhZ7MdJ1fkR',
+          rwaTokenId: 'juLBtauprCVuoYVWLm6a8Fd8C6dwaVSaXa7gTdsZ9gT',
         })
       }
     ],
