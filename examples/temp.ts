@@ -99,10 +99,17 @@ Promise.resolve().then(async () => {
   await sleep(30);
   */
 
-  const response = await createContractV4(imageName, 'a65670913a8a8cb838728254fd2572eb8f9de056720f74b527bbe458b38b83c7')
-  const { id: contractId } = await response.json()
+  const contractImageHash = '4f6fd382b2ea3023ce3d487ebe06d46d783e1be4c78d2e03cabbea6ba7414c23';
+  const response = await createContractV4(imageName, contractImageHash)
+  const parsedResponse = await response.json()
+  const { id: contractId } = parsedResponse
+  console.log('Tx 103: ', parsedResponse);
+  console.log('Waiting 30 seconds...');
   await sleep(30);
-  await setAdminForContract(imageName, 'a65670913a8a8cb838728254fd2572eb8f9de056720f74b527bbe458b38b83c7', contractId)
+  const response2 = await setAdminForContract(imageName, contractImageHash, contractId);
+  const parsedResponse2 = await response2.json();
+  console.log('Tx 104 update_config: ', parsedResponse2);
+  console.log('Waiting 30 seconds...');
   await sleep(30);
 
   /**
@@ -148,7 +155,7 @@ Promise.resolve().then(async () => {
     user1Seed.keyPair
   );
     
-  console.log(`Atomic mint call: ${JSON.stringify(mint1Atomic)}`);
+  console.log(`Atomic mint call: ${JSON.stringify(mint1Atomic, null, 2)}`);
   console.log('Waiting 15 seconds...');
   await sleep(15);
     
