@@ -89,6 +89,7 @@ export class RPCService {
   txClient: any;
   addressService: any;
   private stateService: StateService;
+  private txTimestamp!: number;
 
   constructor() {
     logger.info(`
@@ -169,8 +170,8 @@ export class RPCService {
     const westRate = JSON.parse(await this.stateService.getContractKeyValue(WEST_ORACLE_STREAM, oracleContractId))
     const rwaRate = JSON.parse(await this.stateService.getContractKeyValue(RWA_ORACLE_STREAM, oracleContractId))
 
-    const westTimeDiff = Date.now() - westRate.timestamp
-    const rwaTimeDiff = Date.now() - rwaRate.timestamp
+    const westTimeDiff = this.txTimestamp - westRate.timestamp;
+    const rwaTimeDiff = this.txTimestamp - rwaRate.timestamp;
 
     if (westTimeDiff > oracleTimestampMaxDiff || rwaTimeDiff > oracleTimestampMaxDiff) {
       throw new Error(`Too big difference in milliseconds between oracle_data.timestamp and current timestamp: 
@@ -332,7 +333,7 @@ export class RPCService {
     const parsedTransferAmount = parseFloat(transferAmount + '') / Math.pow(10, WEST_DECIMALS)
     const vault = await this.calculateVault(parsedTransferAmount) as Vault
 
-    vault.updatedAt = Date.now();
+    vault.updatedAt = this.txTimestamp;
     let totalSupply = await this.stateService.getTotalSupply();
     let totalRwa = await this.stateService.getTotalRwa();
     await this.checkAdminBalance(vault.rwaAmount, totalRwa);
@@ -394,7 +395,7 @@ export class RPCService {
     await this.checkAdminBalance(newVault.rwaAmount - oldVault.rwaAmount, totalRwa);
     let balance = await this.stateService.getBalance(tx.sender);
     const diff = newVault.eastAmount - oldVault.eastAmount;
-    newVault.updatedAt = Date.now();
+    newVault.updatedAt = this.txTimestamp;
 
     balance += diff;
     totalSupply += diff;
@@ -424,7 +425,7 @@ export class RPCService {
     const { updatedAt } = await this.stateService.getVault(tx.sender);
     const { minHoldTime } = await this.stateService.getConfig();
 
-    const holdTime = Date.now() - updatedAt;
+    const holdTime = this.txTimestamp - updatedAt;
     if (holdTime < minHoldTime) {
       throw new Error(`minHoldTime more than holdTime: ${holdTime}`);
     }
@@ -588,7 +589,7 @@ export class RPCService {
         string_value: ''
       },
       {
-        key: `${StateKeys.liquidatedVault}_${address}_${Date.now()}`,
+        key: `${StateKeys.liquidatedVault}_${address}_${this.txTimestamp}`,
         string_value: JSON.stringify(liquidatedVault)
       }
     ];
@@ -764,7 +765,7 @@ export class RPCService {
 
     logger.info(`Transaction ${tx.type} income: ${tx.id}, data: ${JSON.stringify(tx)}`);
     const start = Date.now();
-
+    this.txTimestamp = tx.timestamp;
     try {
       switch(tx.type) {
         case TxType.DockerCreate:
