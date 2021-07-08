@@ -36,14 +36,14 @@ const sleep = (timeout: number): Promise<void>=> {
 
 Promise.resolve().then(async () => {
   const imageName = 'east-contract:1.111';
-  console.log(`Building docker image ${imageName}, HOST_NETWORK=${hostIp}`);
-  await execute(`docker build --build-arg HOST_NETWORK=${hostIp} -t ${imageName} .`);
-  console.log('Build image done');
+  // console.log(`Building docker image ${imageName}, HOST_NETWORK=${hostIp}`);
+  // await execute(`docker build --build-arg HOST_NETWORK=${hostIp} -t ${imageName} .`);
+  // console.log('Build image done');
   
-  const inspectResult = await execute(`docker inspect ${imageName}`);
-  const inspectData = JSON.parse(inspectResult)[0];
-  const imageHash = inspectData.Id.replace('sha256:', '');
-  console.log('imageHash', imageHash);
+  // const inspectResult = await execute(`docker inspect ${imageName}`);
+  // const inspectData = JSON.parse(inspectResult)[0];
+  // const imageHash = inspectData.Id.replace('sha256:', '');
+  // console.log('imageHash', imageHash);
   
   // @ts-ignore
   const { chainId, minimumFee } = await (await fetch(`${nodeAddress}/node/config`)).json();
@@ -69,7 +69,7 @@ Promise.resolve().then(async () => {
   
   const txBody = {
     image: imageName,
-    imageHash: 'bed9ee88949f060042071cfe9c7173f1354c8098f2343ef26579cdbfe1d6cd62',
+    imageHash: '6a84ffaf4db9a3b6d5e677ab408e44e4bd59a18148d590ca7d1d6bd936f22364',
     contractName: 'GRPC contract',
     timestamp: Date.now(),
     params: [
@@ -77,8 +77,8 @@ Promise.resolve().then(async () => {
         type: 'string',
         key: 'config',
         value: JSON.stringify({
-          oracleContractId: 'some oracle',
-          oracleTimestampMaxDiff: 1000 * 10,
+          oracleContractId: '4z1Psfwpdp3qTrrFcrEr76Z7MqzR7JbLAvtd9mjfNyGe',
+          oracleTimestampMaxDiff: 100000000000,
           rwaPart:  0.5,
           westCollateral: 2.5,
           liquidationCollateral: 1.3,
