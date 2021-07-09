@@ -30,32 +30,34 @@ export class StateService {
         tx_id: txId,
       }, this.auth, function (error: Error, response: any) {
         if (error) {
-          reject(error);
-        } else {
-          try {
-            const transactionFiled = response.transaction.transaction
-            const transactionFromRequest = response.transaction[transactionFiled]
-            if (!transactionFromRequest) {
-              throw new Error('Unknown transaction')
-            }
-            logger.info(`getTransactionInfoOrFail raw:`)
-            logger.info(Base58.encode(transactionFromRequest.id))
-            logger.info(JSON.stringify(transactionFiled))
-            logger.info(JSON.stringify(transactionFromRequest))
-
-            const transaction = {
-              ...transactionFromRequest,
-              id: Base58.encode(transactionFromRequest.id),
-              contract_id: transactionFromRequest.contract_id ? Base58.encode(transactionFromRequest.contract_id) : '',
-              sender_public_key: Base58.encode(transactionFromRequest.sender_public_key),
-              recipient: transactionFromRequest.recipient ? Base58.encode(transactionFromRequest.recipient) : '',
-              asset_id: transactionFromRequest.asset_id ? Base58.encode(transactionFromRequest.asset_id.value || transactionFromRequest.asset_id) : '',
-              attachment: transactionFromRequest.attachment ? Base58.encode(transactionFromRequest.attachment) : ''
-            }
-            resolve(transaction)
-          } catch (err) {
-            reject(err)
+          const { metadata } = error as any;
+          const { internalRepr } = metadata
+          reject(new Error(`Error: ${internalRepr.get('errorCode')}: ${internalRepr.get('errorMessage')}`));
+          return
+        }
+        try {
+          const transactionFiled = response.transaction.transaction
+          const transactionFromRequest = response.transaction[transactionFiled]
+          if (!transactionFromRequest) {
+            throw new Error('Unknown transaction')
           }
+          logger.info(`getTransactionInfoOrFail raw:`)
+          logger.info(Base58.encode(transactionFromRequest.id))
+          logger.info(JSON.stringify(transactionFiled))
+          logger.info(JSON.stringify(transactionFromRequest))
+
+          const transaction = {
+            ...transactionFromRequest,
+            id: Base58.encode(transactionFromRequest.id),
+            contract_id: transactionFromRequest.contract_id ? Base58.encode(transactionFromRequest.contract_id) : '',
+            sender_public_key: Base58.encode(transactionFromRequest.sender_public_key),
+            recipient: transactionFromRequest.recipient ? Base58.encode(transactionFromRequest.recipient) : '',
+            asset_id: transactionFromRequest.asset_id ? Base58.encode(transactionFromRequest.asset_id.value || transactionFromRequest.asset_id) : '',
+            attachment: transactionFromRequest.attachment ? Base58.encode(transactionFromRequest.attachment) : ''
+          }
+          resolve(transaction)
+        } catch (err) {
+          reject(err)
         }
       })
     })
@@ -67,12 +69,16 @@ export class StateService {
       this.contractClient.commitExecutionError({
         tx_id: txId,
         message,
-      }, this.auth, function (error: Error) {
+      },
+      this.auth,
+      function (error: Error) {
         if (error) {
-          reject(error);
-        } else {
-          resolve();
+          const { metadata } = error as any;
+          const { internalRepr } = metadata
+          reject(new Error(`Error: ${internalRepr.get('errorCode')}: ${internalRepr.get('errorMessage')}`));
+          return
         }
+        resolve();
       });
     });
   }
@@ -82,12 +88,16 @@ export class StateService {
       this.contractClient.commitExecutionSuccess({
         tx_id: txId,
         results,
-      }, this.auth, function (error: Error) {
+      },
+      this.auth,
+      function (error: Error) {
         if (error) {
-          reject(error);
-        } else {
-          resolve();
+          const { metadata } = error as any;
+          const { internalRepr } = metadata
+          reject(new Error(`Error: ${internalRepr.get('errorCode')}: ${internalRepr.get('errorMessage')}`));
+          return
         }
+        resolve();
       });
     });
   };
@@ -101,10 +111,12 @@ export class StateService {
       this.auth,
       function (error: Error, response: { entry: DataEntryResponse }) {
         if (error) {
-          reject(error);
-        } else {
-          resolve(response);
+          const { metadata } = error as any;
+          const { internalRepr } = metadata
+          reject(new Error(`Error: ${internalRepr.get('errorCode')}: ${internalRepr.get('errorMessage')}`));
+          return
         }
+        resolve(response);
       });
     });
   }
