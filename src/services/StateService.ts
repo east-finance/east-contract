@@ -112,21 +112,21 @@ export class StateService {
     return entry[entry.value] as R;
   }
 
-  async getTotalSupply (): Promise<number> {
+  async getTotalSupply(): Promise<number> {
     const value = await this.getContractKeyValue(StateKeys.totalSupply);
     return value ? Number(value) : 0;
   }
 
-  async getTotalRwa (): Promise<number> {
+  async getTotalRwa(): Promise<number> {
     const value = await this.getContractKeyValue(StateKeys.totalRwa);
     return value ? Number(value) : 0;
   }
 
-  async getBalance (address: string): Promise<number> {
+  async getBalance(address: string): Promise<number> {
     try {
       const value = await this.getContractKeyValue(`${StateKeys.balance}_${address}`);
       return Number(value);
-    } catch(e) {
+    } catch (e) {
       return 0;
     }
   }
@@ -135,7 +135,7 @@ export class StateService {
     try {
       const value = await this.getContractKeyValue(`${StateKeys.exchange}_${transferId}`);
       return !!value
-    } catch(e) {
+    } catch (e) {
       return false
     }
   }
@@ -171,7 +171,7 @@ export class StateService {
     }
   }
 
-  async getVault (vaultId: string): Promise<Vault> {
+  async getVault(vaultId: string): Promise<Vault> {
     const value = await this.getContractKeyValue(`${StateKeys.vault}_${vaultId}`);
     const vault = JSON.parse(value as string) as Vault;
     if (!vault) {
@@ -183,7 +183,7 @@ export class StateService {
     return vault;
   }
 
-  async isVaultExists (vaultId: string): Promise<boolean> {
+  async isVaultExists(vaultId: string): Promise<boolean> {
     try {
       const value = await this.getContractKeyValue(`${StateKeys.vault}_${vaultId}`);
       const vault = JSON.parse(value as string) as Vault;
@@ -217,7 +217,7 @@ export class StateService {
             assetId: response.assetId ? Base58.encode(response.assetId.value || response.asset_id) : '',
             amount: response.amount,
             decimals: response.decimals,
-          })        
+          })
         }
       )
     })
