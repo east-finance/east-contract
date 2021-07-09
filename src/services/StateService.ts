@@ -97,7 +97,9 @@ export class StateService {
       this.contractClient.getContractKey({
         contract_id: contractId,
         key,
-      }, this.auth, function (error: Error, response: { entry: DataEntryResponse }) {
+      },
+      this.auth,
+      function (error: Error, response: { entry: DataEntryResponse }) {
         if (error) {
           reject(error);
         } else {
