@@ -42,7 +42,7 @@ export async function createContractV4(imageName: string, imageHash: string) {
             "rwaPart": 0.5,
             "westCollateral": 2.5,
             "liquidationCollateral": 1.3,
-            "minHoldTime": 3600000,
+            "minHoldTime": 1,
           })
         }
       ],
