@@ -113,7 +113,11 @@ export class StateService {
         if (error) {
           const { metadata } = error as any;
           const { internalRepr } = metadata
-          reject(new Error(`Error: ${internalRepr.get('errorCode')}: ${internalRepr.get('errorMessage')}`));
+          const internalReprKeysAndValues = []
+          for (let [key, value] of internalRepr.entries()) {
+            internalReprKeysAndValues.push(`${key}: ${value}`)            
+          }
+          reject(new Error(`GRPC Node error. Key - ${key}. ${internalReprKeysAndValues.join(', ')}`));
           return
         }
         resolve(response);
