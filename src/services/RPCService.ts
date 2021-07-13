@@ -69,7 +69,7 @@ const ContractUtilService = proto.UtilService as ServiceClientConstructor;
 const WEST_DECIMALS = 8
 const WEST_ORACLE_STREAM = '000003_latest'
 const RWA_ORACLE_STREAM = '000010_latest'
-const MINIMUM_TRANSFER = 0.1
+const MINIMUM_EAST_AMOUNT_TO_BUY = 1
 const CLAIN_OVERPAY_COMISSION = 0.2
 const CLOSE_COMISSION = 0.3
 const CLAIM_OVERPAY_INACCURACY = 1.05
@@ -184,6 +184,14 @@ export class RPCService {
     return { westRate, rwaRate }
   }
 
+  async calculateEastAmount(namedArgs: { transferAmount: number, rwaPart: number, westCollateral: number, westRate: Oracle }) {
+    const { transferAmount, rwaPart, westCollateral, westRate } = namedArgs
+    const rwaPartInPosition = rwaPart / ((1 - rwaPart) * westCollateral + rwaPart)
+    const westToRwaAmount = rwaPartInPosition * transferAmount
+    const eastAmount = (westToRwaAmount * westRate.value) / rwaPart
+    return roundValue(eastAmount)
+  }
+
   async calculateVault(transferAmount: number): Promise<{
     eastAmount: number,
     rwaAmount: number,
@@ -205,11 +213,14 @@ export class RPCService {
     const { westRate, rwaRate } = await this.getLastOracles(oracleTimestampMaxDiff, oracleContractId);
     const rwaPartInPosition = rwaPart / ((1 - rwaPart) * westCollateral + rwaPart)
     const westToRwaAmount = rwaPartInPosition * transferAmount
-    const eastAmount = (westToRwaAmount * westRate.value) / rwaPart
     const rwaAmount = westToRwaAmount * westRate.value / rwaRate.value
-
     return {
-      eastAmount: roundValue(eastAmount),
+      eastAmount: await this.calculateEastAmount({
+        transferAmount,
+        rwaPart,
+        westCollateral,
+        westRate,
+      }),
       rwaAmount: roundValue(rwaAmount),
       westAmount: roundValue(transferAmount - westToRwaAmount),
       westRate,
@@ -300,10 +311,18 @@ export class RPCService {
       throw new Error(`Expected transfer asset to be WEST, got: ${assetId}`);
     }
 
-    if (transferAmount < MINIMUM_TRANSFER * Math.pow(10, WEST_DECIMALS)) {
-      throw new Error(`Minimum transfer amount is: ${MINIMUM_TRANSFER * Math.pow(10, WEST_DECIMALS)}, got: ${transferAmount}`);
+    const { oracleContractId, oracleTimestampMaxDiff, rwaPart, westCollateral } = await this.stateService.getConfig();
+    const { westRate } = await this.getLastOracles(oracleTimestampMaxDiff, oracleContractId);
+    const eastAmount = await this.calculateEastAmount({
+      transferAmount: parseValue(transferAmount),
+      rwaPart,
+      westCollateral,
+      westRate,
+    })
+    if (eastAmount < MINIMUM_EAST_AMOUNT_TO_BUY) {
+      throw new Error(`Minimum EAST amount to buy is: ${MINIMUM_EAST_AMOUNT_TO_BUY}, got: ${eastAmount}`);
     }
-
+    
     const { adminAddress } = await this.stateService.getConfig();
     if (!adminAddress) {
       throw new Error('Admin public key is missing in state');
