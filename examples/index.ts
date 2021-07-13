@@ -1,4 +1,4 @@
-import { create, MAINNET_CONFIG } from '@wavesenterprise/js-sdk';
+import { create, MAINNET_CONFIG, ValidationPolicyType } from '@wavesenterprise/js-sdk';
 import nodeFetch from 'node-fetch';
 import { exec } from 'child_process';
 import os from 'os';
@@ -67,9 +67,9 @@ Promise.resolve().then(async () => {
   
   const ownerSeed = Waves.Seed.fromExistingPhrase(seedPhrase);
   
-  const txBody = {
+  const txBody: Parameters<typeof Waves.API.Transactions.CreateContract.V4>[0] = {
     image: imageName,
-    imageHash: '6a84ffaf4db9a3b6d5e677ab408e44e4bd59a18148d590ca7d1d6bd936f22364',
+    imageHash: '74f4c0d5febd81e6c317b108421a0c719d6726ba989da25f4a3351b758884226',
     contractName: 'GRPC contract',
     timestamp: Date.now(),
     params: [
@@ -87,9 +87,13 @@ Promise.resolve().then(async () => {
         })
       }
     ],
+    validationPolicy: {
+      type: 'majority' as unknown as ValidationPolicyType.majority,
+    },
+    apiVersion: "1.0",
   };
   
-  const tx = Waves.API.Transactions.CreateContract.V2(txBody);
+  const tx = Waves.API.Transactions.CreateContract.V4(txBody);
   await tx.broadcast(ownerSeed.keyPair);
   
   console.log('Tx 103: ', tx.getBody());
