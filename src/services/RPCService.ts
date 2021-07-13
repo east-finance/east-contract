@@ -41,11 +41,12 @@ const logger = createLogger('GRPC service');
 const CONTRACT_PROTO = path.resolve(__dirname, '../protos', 'contract', 'contract_contract_service.proto');
 const TRANSACTIONS_PROTO = path.resolve(__dirname, '../protos', 'contract', 'contract_transaction_service.proto');
 const ADDRESS_PROTO = path.resolve(__dirname, '../protos', 'contract', 'contract_address_service.proto');
+const CONTRACT_UTIL_PROTO = path.resolve(__dirname, '../protos', 'contract', 'contract_util_service.proto');
 const PROTO_DIR = path.join(__dirname, '../protos')
 
 
 const definitions = loadSync(
-  [TRANSACTIONS_PROTO, CONTRACT_PROTO, ADDRESS_PROTO],
+  [TRANSACTIONS_PROTO, CONTRACT_PROTO, ADDRESS_PROTO, CONTRACT_UTIL_PROTO],
   {
     keepCase: true,
     longs: String,
@@ -60,6 +61,7 @@ const proto = loadPackageDefinition(definitions).wavesenterprise as GrpcObject;
 const ContractService = proto.ContractService as ServiceClientConstructor;
 const TransactionService = proto.TransactionService as ServiceClientConstructor;
 const AddressService = proto.AddressService as ServiceClientConstructor;
+const ContractUtilService = proto.UtilService as ServiceClientConstructor;
 
 
 
@@ -88,6 +90,7 @@ export class RPCService {
   client: any;
   txClient: any;
   addressService: any;
+  private readonly contractUtilService: any;
   private stateService: StateService;
   private txTimestamp!: number;
 
@@ -103,8 +106,9 @@ export class RPCService {
     this.client = new ContractService(`${NODE}:${NODE_PORT}`, credentials.createInsecure());
     this.txClient = new TransactionService(`${NODE}:${NODE_PORT}`, credentials.createInsecure());
     this.addressService = new AddressService(`${NODE}:${NODE_PORT}`, credentials.createInsecure());
+    this.contractUtilService = new ContractUtilService(`${NODE}:${NODE_PORT}`, credentials.createInsecure());
 
-    this.stateService = new StateService(this.client, this.txClient, this.addressService);
+    this.stateService = new StateService(this.client, this.txClient, this.addressService, this.contractUtilService);
   }
 
   async checkAdminBalance(rwaAmount: number, totalRwa: number) {

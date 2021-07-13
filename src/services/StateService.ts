@@ -12,11 +12,13 @@ export class StateService {
   private contractClient: any;
   private txClient: any;
   private addressService: any;
+  private readonly contractUtilService: any;
 
-  constructor(contractClient: any, txClient: any, addressService: any) {
+  constructor(contractClient: any, txClient: any, addressService: any, contractUtilService: any) {
     this.contractClient = contractClient;
     this.txClient = txClient;
     this.addressService = addressService
+    this.contractUtilService = contractUtilService
   }
 
   setAuthData(auth: Metadata, contractId: string): void {
@@ -235,6 +237,32 @@ export class StateService {
             assetId: response.assetId ? Base58.encode(response.assetId.value || response.asset_id) : '',
             amount: response.amount,
             decimals: response.decimals,
+          })
+        }
+      )
+    })
+  }
+
+  async getNodeTime(): Promise<{system: number, ntp: number}> {
+    return new Promise((resolve, reject) => {
+      this.contractUtilService.getNodeTime(
+        {},
+        this.auth,
+        function (error: Error, response: any) {
+          if (error) {
+            const { metadata } = error as any;
+            const { internalRepr } = metadata
+            const internalReprKeysAndValues = []
+            for (let [key, value] of internalRepr.entries()) {
+              internalReprKeysAndValues.push(`${key}: ${value}`)            
+            }
+            reject(new Error(`GRPC Node error. UtilService.GetNodeTime: ${internalReprKeysAndValues.join(', ')}`));
+            return
+          }
+          const { ntp, system } = response;
+          resolve({
+            ntp,
+            system,
           })
         }
       )
