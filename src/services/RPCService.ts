@@ -769,8 +769,8 @@ export class RPCService {
 
     logger.info(`Transaction ${tx.type} income: ${tx.id}, data: ${JSON.stringify(tx)}`);
     const start = Date.now();
-    this.txTimestamp = tx.timestamp;
     try {
+      await this.setTxTimestamp(tx.timestamp);
       switch(tx.type) {
         case TxType.DockerCreate:
           await this.handleDockerCreate(tx);
@@ -815,5 +815,21 @@ export class RPCService {
       logger.info('Connection stream resumed');
     });
     logger.info('Connection created');
+  }
+
+  private async validateTxTimestamp(timestamp: number): Promise<number> {
+    const { ntp } = await this.stateService.getNodeTime();
+    const validationLimit = 1000 * 60 * 5;
+    const validationCaseMin = ntp - validationLimit;
+    const validationCaseMax = ntp + validationLimit;
+    if (!(timestamp >= validationCaseMin && timestamp <= validationCaseMax)) {
+      throw new Error('Transaction timestamp is invalid.');
+    }
+    return timestamp
+  }
+
+  private async setTxTimestamp(value: number): Promise<void> {
+    const validatedTimestamp = await this.validateTxTimestamp(value);    
+    this.txTimestamp = validatedTimestamp;
   }
 }
