@@ -69,7 +69,7 @@ Promise.resolve().then(async () => {
   
   const txBody: Parameters<typeof Waves.API.Transactions.CreateContract.V4>[0] = {
     image: imageName,
-    imageHash: '74f4c0d5febd81e6c317b108421a0c719d6726ba989da25f4a3351b758884226',
+    imageHash: '8636c49a47733d806d0d06738dc552aee0961606f7c0b1e661d828352dfbd8b6',
     contractName: 'GRPC contract',
     timestamp: Date.now(),
     params: [
@@ -77,13 +77,13 @@ Promise.resolve().then(async () => {
         type: 'string',
         key: 'config',
         value: JSON.stringify({
-          oracleContractId: '4z1Psfwpdp3qTrrFcrEr76Z7MqzR7JbLAvtd9mjfNyGe',
+          oracleContractId: '8BTtjyn1yr2zt6yCygDUtYJbeRbL1GgWSwxV8yeB9cjZ',
           oracleTimestampMaxDiff: 100000000000,
           rwaPart:  0.5,
           westCollateral: 2.5,
           liquidationCollateral: 1.3,
           minHoldTime: 1000 * 60 * 60,
-          rwaTokenId: 'juLBtauprCVuoYVWLm6a8Fd8C6dwaVSaXa7gTdsZ9gT',
+          rwaTokenId: '9v1RL1YQNpsqhKHYQAsLzmhmipkrarYumSonfkRxw5i5',
         })
       }
     ],

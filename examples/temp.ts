@@ -1,8 +1,7 @@
-import { create, MAINNET_CONFIG } from '@wavesenterprise/js-sdk';
+import { create, MAINNET_CONFIG, ValidationPolicyType } from '@wavesenterprise/js-sdk';
 import nodeFetch from 'node-fetch';
 import { exec } from 'child_process';
 import os from 'os';
-import { createContractV4, setAdminForContract } from './create-contract-v4';
 
 const network = os.networkInterfaces();
 const local = network?.en0?.filter(({ family }) => family === 'IPv4') ?? [];
@@ -68,10 +67,9 @@ Promise.resolve().then(async () => {
   
   const ownerSeed = Waves.Seed.fromExistingPhrase(seedPhrase);
   
-  /*
-  const txBody = {
+  const txBody: Parameters<typeof Waves.API.Transactions.CreateContract.V4>[0] = {
     image: imageName,
-    imageHash: 'e8dea5efdf88649ad40aefaaacefb3e32c6afd96b98cfcc80d4f0386ccb526d8',
+    imageHash: '8636c49a47733d806d0d06738dc552aee0961606f7c0b1e661d828352dfbd8b6',
     contractName: 'GRPC contract',
     timestamp: Date.now(),
     params: [
@@ -79,42 +77,34 @@ Promise.resolve().then(async () => {
         type: 'string',
         key: 'config',
         value: JSON.stringify({
-          oracleContractId: '4z1Psfwpdp3qTrrFcrEr76Z7MqzR7JbLAvtd9mjfNyGe',
-          oracleTimestampMaxDiff: 1000 * 1000000,
+          oracleContractId: '8BTtjyn1yr2zt6yCygDUtYJbeRbL1GgWSwxV8yeB9cjZ',
+          oracleTimestampMaxDiff: 100000000000,
           rwaPart:  0.5,
           westCollateral: 2.5,
           liquidationCollateral: 1.3,
           minHoldTime: 1000 * 60 * 60,
-          rwaTokenId: 'juLBtauprCVuoYVWLm6a8Fd8C6dwaVSaXa7gTdsZ9gT',
+          rwaTokenId: '9v1RL1YQNpsqhKHYQAsLzmhmipkrarYumSonfkRxw5i5',
         })
       }
     ],
+    validationPolicy: {
+      type: 'majority' as unknown as ValidationPolicyType.majority,
+    },
+    apiVersion: "1.0",
   };
   
-  const tx = Waves.API.Transactions.CreateContract.V2(txBody);
+  const tx = Waves.API.Transactions.CreateContract.V4(txBody);
   await tx.broadcast(ownerSeed.keyPair);
   
   console.log('Tx 103: ', tx.getBody());
   console.log('Waiting 30 seconds...');
   await sleep(30);
-  */
-
-  const contractImageHash = '4f6fd382b2ea3023ce3d487ebe06d46d783e1be4c78d2e03cabbea6ba7414c23';
-  const response = await createContractV4(imageName, contractImageHash)
-  const parsedResponse = await response.json()
-  const { id: contractId } = parsedResponse
-  console.log('Tx 103: ', parsedResponse);
-  console.log('Waiting 30 seconds...');
-  await sleep(30);
-  const response2 = await setAdminForContract(imageName, contractImageHash, contractId);
-  const parsedResponse2 = await response2.json();
-  console.log('Tx 104 update_config: ', parsedResponse2);
-  console.log('Waiting 30 seconds...');
-  await sleep(30);
-
+  
   /**
   * User1 - Mint (buy EAST)
   */
+  
+  const contractId = await tx.getId();
   const user1Seed = Waves.Seed.fromExistingPhrase('examples seed phrase another one');
   
   const mintTransfer = Waves.API.Transactions.Transfer.V3({
@@ -155,11 +145,14 @@ Promise.resolve().then(async () => {
     user1Seed.keyPair
   );
     
-  console.log(`Atomic mint call: ${JSON.stringify(mint1Atomic, null, 2)}`);
+  console.log(`Atomic mint call: ${JSON.stringify(mint1Atomic)}`);
   console.log('Waiting 15 seconds...');
   await sleep(15);
     
-  /*
+  /**
+  * Transfer from User1 to User2
+  */
+  
   const user2Seed = Waves.Seed.fromExistingPhrase('examples seed phrase another two');
   
   const transferCall = Waves.API.Transactions.CallContract.V4({
@@ -181,9 +174,11 @@ Promise.resolve().then(async () => {
   console.log(`transfer call: ${JSON.stringify(transferCall.getBody())}`);
   console.log('Waiting 15 seconds...');
   await sleep(15);
-  */
   
-  /* 
+  /**
+  *  User1 supply vault
+  */
+
   const supplyTransfer = Waves.API.Transactions.Transfer.V3({
     recipient: ownerSeed.address,
     assetId: '',
@@ -224,6 +219,10 @@ Promise.resolve().then(async () => {
   console.log('Waiting 15 seconds...');
   await sleep(15);
   
+  /**
+  * User1 - Recalculate
+  */
+  
   const reissueCall = await Waves.API.Transactions.CallContract.V4({
     contractId,
     contractVersion: 1,
@@ -240,7 +239,12 @@ Promise.resolve().then(async () => {
   console.log(`recalculate call: ${JSON.stringify(reissueCall.getBody())}`);
   console.log('Waiting 15 seconds...');
   await sleep(15);
-    
+  
+
+  /**
+  * Owner - liquidate first vault
+  */
+  
    const liquidateCall = await Waves.API.Transactions.CallContract.V4({
     contractId,
     contractVersion: 1,
@@ -257,5 +261,5 @@ Promise.resolve().then(async () => {
   console.log(`Liquidate call: ${JSON.stringify(liquidateCall.getBody())}`);
   console.log('Waiting 15 seconds...');
   await sleep(15);
-  */
+
 });
