@@ -1,7 +1,8 @@
-import { IsNumber, IsPositive } from "class-validator";
+import { IsNumber, IsPositive, IsOptional } from "class-validator";
 import { ReissueParam } from "../interfaces";
 
 export class ReissueDto implements ReissueParam {
+  @IsOptional()
   @IsNumber(
     {
       allowInfinity: false,
