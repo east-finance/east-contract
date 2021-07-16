@@ -370,15 +370,15 @@ export class RPCService {
     return [
       {
         key: StateKeys.totalSupply,
-        string_value: '' + totalSupply
+        string_value: '' + roundValue(totalSupply)
       },
       {
         key: StateKeys.totalRwa,
-        string_value: '' + totalRwa
+        string_value: '' + roundValue(totalRwa)
       },
       {
         key: `${StateKeys.balance}_${tx.sender}`,
-        string_value: '' + balance
+        string_value: '' + roundValue(balance)
       },
       {
         key: `${StateKeys.vault}_${tx.sender}`,
@@ -408,9 +408,9 @@ export class RPCService {
       const exchange = await this.exchangeWest(maxWestToExchange);
       newVault = {
         ...oldVault,
-        eastAmount: oldVault.eastAmount + exchange.eastAmount,
-        westAmount: oldVault.westAmount - maxWestToExchange,
-        rwaAmount: oldVault.rwaAmount + exchange.rwaAmount,
+        eastAmount: roundValue(oldVault.eastAmount + exchange.eastAmount),
+        westAmount: roundValue(oldVault.westAmount - maxWestToExchange),
+        rwaAmount: roundValue(oldVault.rwaAmount + exchange.rwaAmount),
         westRate: exchange.westRate,
         rwaRate: exchange.rwaRate
       }
@@ -430,15 +430,15 @@ export class RPCService {
     return [
       {
         key: StateKeys.totalSupply,
-        string_value: '' + totalSupply
+        string_value: '' + roundValue(totalSupply)
       },
       {
         key: StateKeys.totalRwa,
-        string_value: '' + totalRwa
+        string_value: '' + roundValue(totalRwa)
       },
       {
         key: `${StateKeys.balance}_${tx.sender}`,
-        string_value: '' + balance
+        string_value: '' + roundValue(balance)
       },
       {
         key: `${StateKeys.vault}_${tx.sender}`,
@@ -532,15 +532,15 @@ export class RPCService {
     return [
       {
         key: StateKeys.totalSupply,
-        string_value: '' + Math.max(totalSupply, 0)
+        string_value: '' + roundValue(Math.max(totalSupply, 0))
       }, 
       {
         key: StateKeys.totalRwa,
-        string_value: '' + totalRwa
+        string_value: '' + roundValue(totalRwa)
       }, 
       {
         key: `${StateKeys.balance}_${address}`,
-        string_value: '' + Math.max(balance, 0)
+        string_value: '' + roundValue(Math.max(balance, 0))
       },
       {
         key: `${StateKeys.vault}_${address}`,
@@ -564,10 +564,10 @@ export class RPCService {
     toBalance += amount;
     return [{
       key: `${StateKeys.balance}_${from}`,
-      string_value: '' + fromBalance
+      string_value: '' + roundValue(fromBalance)
     }, {
       key: `${StateKeys.balance}_${to}`,
-      string_value: '' + toBalance
+      string_value: '' + roundValue(toBalance)
     }];
   }
 
@@ -594,8 +594,8 @@ export class RPCService {
     }
 
     const liquidatedVault = {
-      eastAmount,
-      rwaAmount: eastAmount,
+      eastAmount: roundValue(eastAmount),
+      rwaAmount: roundValue(eastAmount),
       address,
       liquidated: true,
       westRate,
@@ -608,7 +608,7 @@ export class RPCService {
     return [
       {
         key: StateKeys.totalRwa,
-        string_value: '' + totalRwa
+        string_value: '' + roundValue(totalRwa)
       },
       {
         key: `${StateKeys.vault}_${address}`,
@@ -626,7 +626,7 @@ export class RPCService {
     const { transferId } = param
     const vault = await this.stateService.getVault(tx.sender);
     const transferAmount = await this.checkTransfer(tx, transferId);
-    vault.westAmount = vault.westAmount + (Number(transferAmount) / Math.pow(10, WEST_DECIMALS));
+    vault.westAmount = roundValue(vault.westAmount + (Number(transferAmount) / Math.pow(10, WEST_DECIMALS)));
 
     return [
       {
