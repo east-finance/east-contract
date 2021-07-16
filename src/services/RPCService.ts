@@ -298,6 +298,20 @@ export class RPCService {
     }
   }
 
+  async checkTransferAmount(transferAmount: number) {
+    const { oracleContractId, oracleTimestampMaxDiff, rwaPart, westCollateral } = await this.stateService.getConfig();
+    const { westRate } = await this.getLastOracles(oracleTimestampMaxDiff, oracleContractId);
+    const eastAmount = await this.calculateEastAmount({
+      transferAmount,
+      rwaPart,
+      westCollateral,
+      westRate,
+    })
+    if (eastAmount < MINIMUM_EAST_AMOUNT_TO_BUY) {
+      throw new Error(`Minimum EAST amount to buy is: ${MINIMUM_EAST_AMOUNT_TO_BUY}, got: ${eastAmount}`);
+    }
+  }
+
   // returns amount
   async checkTransfer(tx: Transaction, transferId: string): Promise<number> {
     const {
@@ -309,18 +323,6 @@ export class RPCService {
 
     if (assetId) {
       throw new Error(`Expected transfer asset to be WEST, got: ${assetId}`);
-    }
-
-    const { oracleContractId, oracleTimestampMaxDiff, rwaPart, westCollateral } = await this.stateService.getConfig();
-    const { westRate } = await this.getLastOracles(oracleTimestampMaxDiff, oracleContractId);
-    const eastAmount = await this.calculateEastAmount({
-      transferAmount: parseValue(transferAmount),
-      rwaPart,
-      westCollateral,
-      westRate,
-    })
-    if (eastAmount < MINIMUM_EAST_AMOUNT_TO_BUY) {
-      throw new Error(`Minimum EAST amount to buy is: ${MINIMUM_EAST_AMOUNT_TO_BUY}, got: ${eastAmount}`);
     }
     
     const { adminAddress } = await this.stateService.getConfig();
@@ -354,6 +356,7 @@ export class RPCService {
 
     const transferAmount = await this.checkTransfer(tx, transferId)
     const parsedTransferAmount = parseFloat(transferAmount + '') / Math.pow(10, WEST_DECIMALS)
+    await this.checkTransferAmount(parsedTransferAmount)
     const vault = await this.calculateVault(parsedTransferAmount) as Vault
 
     vault.updatedAt = this.txTimestamp;
