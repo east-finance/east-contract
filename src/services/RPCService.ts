@@ -134,7 +134,7 @@ export class RPCService {
 
   async handleDockerCreate(tx: Transaction): Promise<void> {
     const defaultVals = {
-      issueEnabled: true
+      isContractEnabled: true
     }
     const paramConfig = tx.params[0];
     const config = JSON.parse(paramConfig.string_value || '{}');
@@ -725,14 +725,15 @@ export class RPCService {
     ];
   }
 
-  async checkIssueEnabled(): Promise<void> {
-    const { issueEnabled } = await this.stateService.getConfig();
-    if (!issueEnabled) {
-      throw new Error('EAST issue disabled, check config params');
+  async checkIsContractEnabled(): Promise<void> {
+    const { isContractEnabled } = await this.stateService.getConfig();
+    if (!isContractEnabled) {
+      throw new Error('EAST contract disabled.');
     }
   }
 
   async handleDockerCall(tx: Transaction): Promise<void> {
+    await this.checkIsContractEnabled();
     const { params } = tx;
     let results: DataEntryRequest[] = [];
 
@@ -745,14 +746,12 @@ export class RPCService {
           results = await this.updateConfig(tx, value);
           break;
         case Operations.mint:
-          await this.checkIssueEnabled();
           results = await this.mint(tx, value);
           break;
         case Operations.transfer:
           results = await this.transfer(tx, value);
           break;
         case Operations.reissue:
-          await this.checkIssueEnabled();
           results = await this.reissue(tx, value);
           break;
         case Operations.close_init:

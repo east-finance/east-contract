@@ -134,7 +134,7 @@ export interface ConfigParam {
   liquidationCollateral: number,
   minHoldTime: number,
   rwaTokenId: string,
-  issueEnabled: boolean,
+  isContractEnabled: boolean,
   adminAddress: string,
   adminPublicKey: string
 }

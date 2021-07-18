@@ -29,15 +29,15 @@ test('Config dto validation', async () => {
     minHoldTime: 1000 * 60 * 60,
     rwaTokenId: 'Rwa token id',
     // @ts-ignore
-    issueEnabled: 'yes', // invalid
+    isContractEnabled: 'yes', // invalid
   }
   try {
     await rpcService.handleDockerCreate(createTx(103, 'config', invalidConfig))
   } catch (error) {
     expect(error.message.includes('oracleTimestampMaxDiff')).toBeTruthy()
     expect(error.message.includes('rwaPart')).toBeTruthy()
-    expect(error.message.includes('issueEnabled')).toBeTruthy()
-    expect(error.message).toBe('Validation error: oracleTimestampMaxDiff must be a positive number, rwaPart must be a positive number, issueEnabled must be a boolean value')
+    expect(error.message.includes('isContractEnabled')).toBeTruthy()
+    expect(error.message).toBe('Validation error: oracleTimestampMaxDiff must be a positive number, rwaPart must be a positive number, isContractEnabled must be a boolean value')
   }
 })
 
@@ -168,14 +168,14 @@ test('UpdateConfig DTO validation', async () => {
     minHoldTime: 1000 * 60 * 60,
     rwaTokenId: 'Rwa token id',
     // @ts-ignore
-    issueEnabled: 'yes', // invalid
+    isContractEnabled: 'yes', // invalid
   }
   try {
     await rpcService.handleDockerCall(createTx(104, Operations.update_config, invalidConfig))
   } catch (e) {
     expect(e.message.includes('oracleTimestampMaxDiff')).toBeTruthy()
     expect(e.message.includes('rwaPart')).toBeTruthy()
-    expect(e.message.includes('issueEnabled')).toBeTruthy()
+    expect(e.message.includes('isContractEnabled')).toBeTruthy()
   }
 })
 

@@ -171,7 +171,7 @@ export class StateService {
       minHoldTime,
       adminAddress,
       adminPublicKey,
-      issueEnabled,
+      isContractEnabled,
       rwaTokenId
     } = JSON.parse(value as string)
     if (!oracleContractId || !oracleTimestampMaxDiff || !rwaPart || !westCollateral || !liquidationCollateral) {
@@ -186,7 +186,7 @@ export class StateService {
       minHoldTime,
       adminAddress,
       adminPublicKey,
-      issueEnabled,
+      isContractEnabled,
       rwaTokenId
     }
   }

@@ -28,7 +28,7 @@
     liquidationCollateral: 1.3,
     minHoldTime: 1000 * 60 * 60,
     rwaTokenId: 'Rwa token id',
-    issueEnabled: true
+    isContractEnabled: true
   })
 }
 ```
@@ -41,7 +41,7 @@
 - liquidationCollateral - границе обеспечения WEST токенами после которой возможна ликвидация позици (продажа WEST токенов и переход к 100% обеспечению RWA)
 - minHoldTime - минимальное время удержания позиции до возможности её закрытия пользователем
 - rwaTokenId - пользовательский токен, аналог RWA в блокчейне WE. Decimals = 8
-- issueEnabled - если стоит false то методы mint и recalculate недоступны
+- isContractEnabled - если стоит false, то все операции с контрактом будут заблокированы.
 
 ### Методы контракта:
 Метод = ключ параметра вызова контракта.  
@@ -193,7 +193,7 @@ maxWestToExchange - максимальное колличество west для 
   liquidationCollateral: number,
   minHoldTime: number,
   rwaTokenId: string,
-  issueEnabled: boolean
+  isContractEnabled: boolean
 ```  
 <b>Результат выполнения: </b>
 - обновляет ключ `config` хранящего в себе информацию о параметрах контракта
