@@ -34,7 +34,11 @@ export class StateService {
         if (error) {
           const { metadata } = error as any;
           const { internalRepr } = metadata
-          reject(new Error(`Error: ${internalRepr.get('errorCode')}: ${internalRepr.get('errorMessage')}`));
+          const internalReprKeysAndValues = []
+          for (let [key, value] of internalRepr.entries()) {
+            internalReprKeysAndValues.push(`${key}: ${value}`)            
+          }
+          reject(new Error(`GRPC Node error. TransactionPublicService.TransactionInfo: ${internalReprKeysAndValues.join(', ')}`));
           return
         }
         try {
@@ -77,7 +81,11 @@ export class StateService {
         if (error) {
           const { metadata } = error as any;
           const { internalRepr } = metadata
-          reject(new Error(`Error: ${internalRepr.get('errorCode')}: ${internalRepr.get('errorMessage')}`));
+          const internalReprKeysAndValues = []
+          for (let [key, value] of internalRepr.entries()) {
+            internalReprKeysAndValues.push(`${key}: ${value}`)            
+          }
+          reject(new Error(`GRPC Node error. ContractService.CommitExecutionError: ${internalReprKeysAndValues.join(', ')}`));
           return
         }
         resolve();
@@ -96,7 +104,11 @@ export class StateService {
         if (error) {
           const { metadata } = error as any;
           const { internalRepr } = metadata
-          reject(new Error(`Error: ${internalRepr.get('errorCode')}: ${internalRepr.get('errorMessage')}`));
+          const internalReprKeysAndValues = []
+          for (let [key, value] of internalRepr.entries()) {
+            internalReprKeysAndValues.push(`${key}: ${value}`)            
+          }
+          reject(new Error(`GRPC Node error. ContractService.CommitExecutionSuccess: ${internalReprKeysAndValues.join(', ')}`));
           return
         }
         resolve();
@@ -119,7 +131,7 @@ export class StateService {
           for (let [key, value] of internalRepr.entries()) {
             internalReprKeysAndValues.push(`${key}: ${value}`)            
           }
-          reject(new Error(`GRPC Node error. Key - ${key}. ${internalReprKeysAndValues.join(', ')}`));
+          reject(new Error(`GRPC Node error. ContractService.GetContractKey. Key - ${key}. ${internalReprKeysAndValues.join(', ')}`));
           return
         }
         resolve(response);
@@ -230,7 +242,11 @@ export class StateService {
           if (error) {
             const { metadata } = error as any;
             const { internalRepr } = metadata
-            reject(new Error(`Error: ${internalRepr.get('errorCode')}: ${internalRepr.get('errorMessage')}`));
+            const internalReprKeysAndValues = []
+            for (let [key, value] of internalRepr.entries()) {
+              internalReprKeysAndValues.push(`${key}: ${value}`)            
+            }
+            reject(new Error(`GRPC Node error. AddressService.GetAssetBalance: ${internalReprKeysAndValues.join(', ')}`));
             return
           }
           resolve({
