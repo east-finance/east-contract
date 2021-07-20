@@ -136,7 +136,8 @@ export interface ConfigParam {
   rwaTokenId: string,
   isContractEnabled: boolean,
   adminAddress: string,
-  adminPublicKey: string
+  adminPublicKey: string,
+  txTimestampMaxDiff: number
 }
 
 export type TransferTx = {

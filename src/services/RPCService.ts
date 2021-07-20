@@ -134,7 +134,8 @@ export class RPCService {
 
   async handleDockerCreate(tx: Transaction): Promise<void> {
     const defaultVals = {
-      isContractEnabled: true
+      isContractEnabled: true,
+      txTimestampMaxDiff: 1000 * 60 * 5
     }
     const paramConfig = tx.params[0];
     const config = JSON.parse(paramConfig.string_value || '{}');
@@ -148,11 +149,11 @@ export class RPCService {
           ...defaultVals,
           ...config
         })
-      }, 
+      },
       {
         key: StateKeys.totalSupply,
         string_value: '0'
-      }, 
+      },
       {
         key: StateKeys.totalRwa,
         string_value: '0'
@@ -207,7 +208,7 @@ export class RPCService {
       westCollateral,
       liquidationCollateral
     } = await this.stateService.getConfig()
-    
+
     // mock
     // const westRate = {value: 0.34, timestamp: Date.now()}, rwaRate = {value: 1, timestamp: Date.now()}
     const { westRate, rwaRate } = await this.getLastOracles(oracleTimestampMaxDiff, oracleContractId);
@@ -240,7 +241,7 @@ export class RPCService {
       oracleTimestampMaxDiff,
       rwaPart
     } = await this.stateService.getConfig()
-    
+
     // mock
     // const westRate = {value: 0.34, timestamp: Date.now()}, rwaRate = {value: 1, timestamp: Date.now()}
     const { westRate, rwaRate } = await this.getLastOracles(oracleTimestampMaxDiff, oracleContractId);
@@ -268,7 +269,7 @@ export class RPCService {
       rwaPart,
       westCollateral
     } = await this.stateService.getConfig();
-    
+
     // mock
     // const westRate = {value: 0.68, timestamp: Date.now()}, usdpRate = {value: 1, timestamp: Date.now()}
     const { westRate, rwaRate } = await this.getLastOracles(oracleTimestampMaxDiff, oracleContractId);
@@ -324,7 +325,7 @@ export class RPCService {
     if (assetId) {
       throw new Error(`Expected transfer asset to be WEST, got: ${assetId}`);
     }
-    
+
     const { adminAddress } = await this.stateService.getConfig();
     if (!adminAddress) {
       throw new Error('Admin public key is missing in state');
@@ -533,11 +534,11 @@ export class RPCService {
       {
         key: StateKeys.totalSupply,
         string_value: '' + roundValue(Math.max(totalSupply, 0))
-      }, 
+      },
       {
         key: StateKeys.totalRwa,
         string_value: '' + roundValue(totalRwa)
-      }, 
+      },
       {
         key: `${StateKeys.balance}_${address}`,
         string_value: '' + roundValue(Math.max(balance, 0))
@@ -577,11 +578,11 @@ export class RPCService {
     // only contract creator allowed
     await this.checkAdminPermissions(tx);
     const { eastAmount, westAmount, rwaAmount, liquidationCollateral } = await this.stateService.getVault(address);
-    const { 
+    const {
       oracleContractId,
       rwaPart
     } = await this.stateService.getConfig();
-    
+
     const westRate = JSON.parse(await this.stateService.getContractKeyValue(WEST_ORACLE_STREAM, oracleContractId));
     // mock
     // const westRate = { value: 0.1, timestamp: Date.now() }
@@ -791,12 +792,12 @@ export class RPCService {
     logger.info(`Transaction ${tx.type} income: ${tx.id}, data: ${JSON.stringify(tx)}`);
     const start = Date.now();
     try {
-      await this.setTxTimestamp(tx.timestamp);
       switch(tx.type) {
         case TxType.DockerCreate:
           await this.handleDockerCreate(tx);
           break;
         case TxType.DockerCall:
+          await this.setTxTimestamp(tx.timestamp);
           await this.handleDockerCall(tx);
           break;
       }
@@ -839,10 +840,10 @@ export class RPCService {
   }
 
   private async validateTxTimestamp(timestamp: number): Promise<number> {
+    const { txTimestampMaxDiff } = await this.stateService.getConfig();
     const { ntp } = await this.stateService.getNodeTime();
-    const validationLimit = 1000 * 60 * 5;
-    const validationCaseMin = ntp - validationLimit;
-    const validationCaseMax = ntp + validationLimit;
+    const validationCaseMin = ntp - txTimestampMaxDiff;
+    const validationCaseMax = ntp + txTimestampMaxDiff;
     if (!(timestamp >= validationCaseMin && timestamp <= validationCaseMax)) {
       throw new Error('Transaction timestamp is invalid.');
     }
@@ -850,7 +851,7 @@ export class RPCService {
   }
 
   private async setTxTimestamp(value: number): Promise<void> {
-    const validatedTimestamp = await this.validateTxTimestamp(value);    
+    const validatedTimestamp = await this.validateTxTimestamp(value);
     this.txTimestamp = validatedTimestamp;
   }
 }
