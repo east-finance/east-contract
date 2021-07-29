@@ -1,14 +1,13 @@
 import { Operations } from "../interfaces"
-import { Globals, initGlobals } from "./utils"
+import { initGlobals } from "./utils"
+import { createTx } from "./utils/create-tx-mock";
+import { Globals } from "./utils/interfaces";
 
 let globals: Required<Globals>
 
 beforeAll(async () => {
-  globals = await initGlobals()
-})
-
-test('Exceeding the limit on the admin balance', async () => {
-  const { rpcService, createTx } = globals;
+  globals = await initGlobals();
+  const { rpcService } = globals;
   (rpcService as any).stateService.isVaultExists = () => false;
   (rpcService as any).stateService.getTotalSupply = () => 0;
   (rpcService as any).stateService.getBalance = () => 0;
@@ -28,6 +27,10 @@ test('Exceeding the limit on the admin balance', async () => {
     amount: 10_000_000_000_000,
     decimals: 8,
   });
+})
+
+test('Exceeding the limit on the admin balance', async () => {
+  const { rpcService } = globals;
   try {
     await rpcService.handleDockerCall(createTx(104, Operations.mint, { transferId: 'FXrPghoPDvGryyXuJAY6S4DPyKT6HBnELa3KSeVT79m2' }))
   } catch (err) {

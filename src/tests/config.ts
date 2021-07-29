@@ -6,11 +6,17 @@ const REQUIRED_ENVS = {
   SEED_PHRASE: '',
   IMAGE_NAME: '',
   IMAGE_HASH: '',
+  ORACLE_CONTRACT_ID: '',
+  RWA_TOKEN_ID: '',
 }
 
-type Envs = Omit<DotenvConfigOutput, 'parsed'> & { parsed: typeof REQUIRED_ENVS }
+interface OptionalEnvs {
+  EAST_SERVICE_ADDRESS?: string,
+}
 
-const envs = config({ path: path.resolve(process.cwd(), '.env.test') }) as Envs
+type Envs = Omit<DotenvConfigOutput, 'parsed'> & { parsed: typeof REQUIRED_ENVS & OptionalEnvs }
+
+const envs = config({ path: path.resolve(process.cwd(), '.env.test') }) as unknown as Envs
 
 function validateEnvs() {
   const missingVariables = []
@@ -26,4 +32,4 @@ function validateEnvs() {
 }
 validateEnvs()
 
-export const { NODE_ADDRESS, SEED_PHRASE, IMAGE_NAME, IMAGE_HASH } = envs.parsed
+export const { NODE_ADDRESS, SEED_PHRASE, IMAGE_NAME, IMAGE_HASH, ORACLE_CONTRACT_ID, RWA_TOKEN_ID, EAST_SERVICE_ADDRESS } = envs.parsed

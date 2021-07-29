@@ -249,5 +249,10 @@ docker tag east-contract:0.6-RC1 registry.wvservices.com/vostok-sc/east-contract
 docker push registry.wvservices.com/vostok-sc/east-contract:0.6-RC1 
 ```
 
+
+```
+docker build --build-arg HOST_NETWORK=192.168.1.3 -t vostok-sc/east-contract:0.8-RC6 .
+```
+
 ##### Get image hash
 `docker inspect east-contract:0.1` -> "Id"

@@ -9,16 +9,23 @@ import { ReissueDto } from "../dto/reissue.dto"
 import { SupplyDto } from "../dto/supply.dto"
 import { TransferDto } from "../dto/transfer.dto"
 import { Operations } from "../interfaces"
-import { Globals, initGlobals } from "./utils"
+import { initGlobals } from "./utils"
+import { createTx } from "./utils/create-tx-mock"
+import { Globals } from "./utils/interfaces"
 
 let globals: Required<Globals>
 
 beforeAll(async () => {
-  globals = await initGlobals()
+  globals = await initGlobals();
+  (globals.rpcService as any).stateService.commitSuccess = () => {};
+  (globals.rpcService as any).stateService.getConfig = () => ({
+    isContractEnabled: true
+  });
+  (globals.rpcService as any).checkAdminPermissions = () => {}
 })
 
 test('Config dto validation', async () => {
-  const { rpcService, createTx } = globals
+  const { rpcService } = globals
   const invalidConfig: ConfigDto = {
     oracleContractId: 'oracleContractId',
     oracleTimestampMaxDiff: -1, // invalid
@@ -42,7 +49,7 @@ test('Config dto validation', async () => {
 })
 
 test('Mint DTO validation', async () => {
-  const { rpcService, createTx } = globals
+  const { rpcService } = globals
   const invalidData = {
     transferId: 1 // invalid
   }
@@ -54,7 +61,7 @@ test('Mint DTO validation', async () => {
 })
 
 test('Transfer DTO validation', async () => {
-  const { rpcService, createTx } = globals
+  const { rpcService } = globals
   const invalidData: TransferDto = {
     // @ts-ignore
     to: true, // invalid
@@ -69,7 +76,7 @@ test('Transfer DTO validation', async () => {
 })
 
 test('Close DTO validation', async () => {
-  const { rpcService, createTx } = globals
+  const { rpcService } = globals
   const invalidData: CloseDto = {
     // @ts-ignore
     address: 0, // invalid
@@ -88,7 +95,7 @@ test('Close DTO validation', async () => {
 })
 
 test('Reissue DTO validation', async () => {
-  const { rpcService, createTx } = globals
+  const { rpcService } = globals
   const invalidData: ReissueDto = {
     maxWestToExchange: -1,
   }
@@ -100,7 +107,7 @@ test('Reissue DTO validation', async () => {
 })
 
 test('Supply DTO validation', async () => {
-  const { rpcService, createTx } = globals
+  const { rpcService } = globals
   const invalidData: SupplyDto = {
     // @ts-ignore
     transferId: 0,
@@ -113,7 +120,7 @@ test('Supply DTO validation', async () => {
 })
 
 test('ClaimOverpayInit DTO validation', async () => {
-  const { rpcService, createTx } = globals
+  const { rpcService } = globals
   const invalidData: ClaimOverpayInitDto = {
     amount: -1, // invalid
   }
@@ -125,7 +132,7 @@ test('ClaimOverpayInit DTO validation', async () => {
 })
 
 test('ClaimOverpay DTO validation', async () => {
-  const { rpcService, createTx } = globals
+  const { rpcService } = globals
   const invalidData: ClaimOverpayDto = {
     // @ts-ignore
     address: false, // invalid
@@ -144,7 +151,7 @@ test('ClaimOverpay DTO validation', async () => {
 })
 
 test('Liquidate DTO validation', async () => {
-  const { rpcService, createTx } = globals
+  const { rpcService } = globals
   const invalidData: LiquidateDto = {
     // @ts-ignore
     address: false, // invalid
@@ -157,7 +164,7 @@ test('Liquidate DTO validation', async () => {
 })
 
 test('UpdateConfig DTO validation', async () => {
-  const { rpcService, createTx } = globals
+  const { rpcService } = globals
   const invalidConfig: ConfigDto = {
     oracleContractId: 'oracleContractId',
     oracleTimestampMaxDiff: -1, // invalid
