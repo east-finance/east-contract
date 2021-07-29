@@ -1,5 +1,5 @@
 import { Seed, WeSdk } from "@wavesenterprise/js-sdk";
-import { ContractId, MinimumFee } from "./interfaces";
+import { ContractId, MinimumFee } from "../interfaces";
 
 export async function mint(namedArgs: { weSdk: WeSdk, ownerSeed: Seed, userSeed: Seed, minimumFee: MinimumFee, contractId: ContractId }) {
   const { weSdk, ownerSeed, userSeed, minimumFee, contractId } = namedArgs;

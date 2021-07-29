@@ -2,7 +2,7 @@ import { create, MAINNET_CONFIG, WeSdk } from '@wavesenterprise/js-sdk';
 import nodeFetch from 'node-fetch';
 import { RPCService } from '../../services/RPCService';
 import { NODE_ADDRESS, SEED_PHRASE } from '../config';
-import { createEastContract } from './create-east-contract';
+import { createEastContract } from './contract-api/create-east-contract';
 import { trackTx, TrackTxRequest } from './east-service-api/track-tx';
 import { Globals } from './interfaces';
 

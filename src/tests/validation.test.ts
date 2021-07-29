@@ -10,7 +10,7 @@ import { SupplyDto } from "../dto/supply.dto"
 import { TransferDto } from "../dto/transfer.dto"
 import { Operations } from "../interfaces"
 import { initGlobals } from "./utils"
-import { createTx } from "./utils/create-tx-mock"
+import { createTx } from "./utils/create-fake-tx"
 import { Globals } from "./utils/interfaces"
 
 let globals: Required<Globals>
