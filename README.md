@@ -28,7 +28,8 @@
     liquidationCollateral: 1.3,
     minHoldTime: 1000 * 60 * 60,
     rwaTokenId: 'Rwa token id',
-    isContractEnabled: true
+    isContractEnabled: true,
+    txTimestampMaxDiff: 1000 * 60 * 5
   })
 }
 ```
@@ -42,6 +43,7 @@
 - minHoldTime - минимальное время удержания позиции до возможности её закрытия пользователем
 - rwaTokenId - пользовательский токен, аналог RWA в блокчейне WE. Decimals = 8
 - isContractEnabled - если стоит false, то все операции с контрактом будут заблокированы.
+- txTimestampMaxDiff - **опциональный параметр**, по  умолчанию равен `1000 * 60 * 5` мс (5 минут). Максимальное различие времени DockerCall транзакции от текущего времени ноды.
 
 ### Методы контракта:
 Метод = ключ параметра вызова контракта.  

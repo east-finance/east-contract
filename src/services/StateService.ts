@@ -36,7 +36,7 @@ export class StateService {
           const { internalRepr } = metadata
           const internalReprKeysAndValues = []
           for (let [key, value] of internalRepr.entries()) {
-            internalReprKeysAndValues.push(`${key}: ${value}`)            
+            internalReprKeysAndValues.push(`${key}: ${value}`)
           }
           reject(new Error(`GRPC Node error. TransactionPublicService.TransactionInfo: ${internalReprKeysAndValues.join(', ')}`));
           return
@@ -83,7 +83,7 @@ export class StateService {
           const { internalRepr } = metadata
           const internalReprKeysAndValues = []
           for (let [key, value] of internalRepr.entries()) {
-            internalReprKeysAndValues.push(`${key}: ${value}`)            
+            internalReprKeysAndValues.push(`${key}: ${value}`)
           }
           reject(new Error(`GRPC Node error. ContractService.CommitExecutionError: ${internalReprKeysAndValues.join(', ')}`));
           return
@@ -106,7 +106,7 @@ export class StateService {
           const { internalRepr } = metadata
           const internalReprKeysAndValues = []
           for (let [key, value] of internalRepr.entries()) {
-            internalReprKeysAndValues.push(`${key}: ${value}`)            
+            internalReprKeysAndValues.push(`${key}: ${value}`)
           }
           reject(new Error(`GRPC Node error. ContractService.CommitExecutionSuccess: ${internalReprKeysAndValues.join(', ')}`));
           return
@@ -129,7 +129,7 @@ export class StateService {
           const { internalRepr } = metadata
           const internalReprKeysAndValues = []
           for (let [key, value] of internalRepr.entries()) {
-            internalReprKeysAndValues.push(`${key}: ${value}`)            
+            internalReprKeysAndValues.push(`${key}: ${value}`)
           }
           reject(new Error(`GRPC Node error. ContractService.GetContractKey. Key - ${key}. ${internalReprKeysAndValues.join(', ')}`));
           return
@@ -184,7 +184,8 @@ export class StateService {
       adminAddress,
       adminPublicKey,
       isContractEnabled,
-      rwaTokenId
+      rwaTokenId,
+      txTimestampMaxDiff
     } = JSON.parse(value as string)
     if (!oracleContractId || !oracleTimestampMaxDiff || !rwaPart || !westCollateral || !liquidationCollateral) {
       throw new Error('Wrong config contract param')
@@ -199,7 +200,8 @@ export class StateService {
       adminAddress,
       adminPublicKey,
       isContractEnabled,
-      rwaTokenId
+      rwaTokenId,
+      txTimestampMaxDiff
     }
   }
 
@@ -244,7 +246,7 @@ export class StateService {
             const { internalRepr } = metadata
             const internalReprKeysAndValues = []
             for (let [key, value] of internalRepr.entries()) {
-              internalReprKeysAndValues.push(`${key}: ${value}`)            
+              internalReprKeysAndValues.push(`${key}: ${value}`)
             }
             reject(new Error(`GRPC Node error. AddressService.GetAssetBalance: ${internalReprKeysAndValues.join(', ')}`));
             return
@@ -270,7 +272,7 @@ export class StateService {
             const { internalRepr } = metadata
             const internalReprKeysAndValues = []
             for (let [key, value] of internalRepr.entries()) {
-              internalReprKeysAndValues.push(`${key}: ${value}`)            
+              internalReprKeysAndValues.push(`${key}: ${value}`)
             }
             reject(new Error(`GRPC Node error. UtilService.GetNodeTime: ${internalReprKeysAndValues.join(', ')}`));
             return

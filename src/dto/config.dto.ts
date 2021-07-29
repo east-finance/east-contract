@@ -26,4 +26,8 @@ export class ConfigDto implements Omit<ConfigParam, 'adminAddress' | 'adminPubli
   @IsOptional()
   @IsBoolean()
   isContractEnabled!: boolean
+
+  @IsOptional()
+  @IsPositive()
+  txTimestampMaxDiff!: number
 }
