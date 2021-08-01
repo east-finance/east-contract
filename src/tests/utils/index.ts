@@ -1,8 +1,9 @@
-import { create, MAINNET_CONFIG, WeSdk } from '@wavesenterprise/js-sdk';
+import { create, MAINNET_CONFIG, Seed } from '@wavesenterprise/js-sdk';
 import nodeFetch from 'node-fetch';
 import { RPCService } from '../../services/RPCService';
-import { NODE_ADDRESS, SEED_PHRASE } from '../config';
+import { CONTRACT_ID, NODE_ADDRESS, SEED_PHRASE } from '../config';
 import { createEastContract } from './contract-api/create-east-contract';
+import { mint } from './contract-api/mint';
 import { trackTx, TrackTxRequest } from './east-service-api/track-tx';
 import { Globals } from './interfaces';
 
@@ -38,9 +39,21 @@ export async function initGlobals(): Promise<Required<Globals>> {
   const seed = globals.weSdk.Seed.fromExistingPhrase(SEED_PHRASE)
   globals.address = seed.address
   globals.keyPair = seed.keyPair
-  globals.createEastContract = () => {
-    return createEastContract(weSdk, seed)
+  const contractApi = {
+    createEastContract: () => {
+      return createEastContract(weSdk, seed)
+    },
+    mint: (userSeed: Seed) => {
+      return mint({
+        contractId: CONTRACT_ID!,
+        minimumFee,
+        ownerSeed: seed,
+        userSeed,
+        weSdk,
+      })
+    }
   }
+  globals.contractApi = contractApi
   globals.trackTx = (request: TrackTxRequest) => {
     return trackTx(fetch, request)
   }

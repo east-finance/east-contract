@@ -1,9 +1,9 @@
 import nodeFetch from 'node-fetch'
-import { WeSdk } from "@wavesenterprise/js-sdk";
+import { Seed, WeSdk } from "@wavesenterprise/js-sdk";
 import { RPCService } from "../../services/RPCService";
 import { TrackTxRequest } from './east-service-api/track-tx';
 
-export type ContractId = string;
+export type TxId = string;
 
 export interface Globals {
   rpcService: RPCService,
@@ -11,7 +11,10 @@ export interface Globals {
   weSdk?: WeSdk,
   keyPair?: { publicKey: string, privateKey: string },
   address?: string,
-  createEastContract?(): Promise<ContractId>,
+  contractApi?: {
+    createEastContract(): Promise<TxId>,
+    mint(userSeed: Seed): Promise<TxId>,
+  }
   trackTx?(request: TrackTxRequest): Promise<void>,
 }
 

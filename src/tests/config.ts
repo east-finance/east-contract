@@ -12,6 +12,8 @@ const REQUIRED_ENVS = {
 
 interface OptionalEnvs {
   EAST_SERVICE_ADDRESS?: string,
+  CONTRACT_ID?: string,
+  PATH_TO_USER_SEEDS?: string,
 }
 
 type Envs = Omit<DotenvConfigOutput, 'parsed'> & { parsed: typeof REQUIRED_ENVS & OptionalEnvs }
@@ -32,4 +34,14 @@ function validateEnvs() {
 }
 validateEnvs()
 
-export const { NODE_ADDRESS, SEED_PHRASE, IMAGE_NAME, IMAGE_HASH, ORACLE_CONTRACT_ID, RWA_TOKEN_ID, EAST_SERVICE_ADDRESS } = envs.parsed
+export const {
+  NODE_ADDRESS,
+  SEED_PHRASE,
+  IMAGE_NAME,
+  IMAGE_HASH,
+  ORACLE_CONTRACT_ID,
+  RWA_TOKEN_ID,
+  EAST_SERVICE_ADDRESS,
+  CONTRACT_ID,
+  PATH_TO_USER_SEEDS
+} = envs.parsed
