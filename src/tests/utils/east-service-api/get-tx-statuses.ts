@@ -1,8 +1,8 @@
 import nodeFetch from 'node-fetch'
 import { EAST_SERVICE_ADDRESS } from '../../config';
 
-export async function getTxStatuses(fetch: typeof nodeFetch) {
-  const { status, json } = await fetch(`${EAST_SERVICE_ADDRESS}/transactions/statuses`, {
+export async function getTxStatuses(fetch: typeof nodeFetch, address: string, limit: number, offset: number) {
+  const { status, json } = await fetch(`${EAST_SERVICE_ADDRESS}/transactions/statuses?address=${address}&limit=${limit}`, {
     method: 'GET',
     headers: {
       'Content-Type': 'application/json',

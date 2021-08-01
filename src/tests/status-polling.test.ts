@@ -1,4 +1,5 @@
-import { EAST_SERVICE_ADDRESS } from "./config";
+import { readFileSync } from "fs";
+import { PATH_TO_USER_SEEDS } from "./config";
 import { initGlobals } from "./utils";
 import { Globals } from "./utils/interfaces";
 
@@ -9,5 +10,6 @@ beforeAll(async () => {
 })
 
 test('mint', () => {
-  
+  const result = readFileSync(PATH_TO_USER_SEEDS!)
+  console.log(JSON.parse(result.toString()))
 })

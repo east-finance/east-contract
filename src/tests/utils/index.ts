@@ -4,6 +4,7 @@ import { RPCService } from '../../services/RPCService';
 import { CONTRACT_ID, NODE_ADDRESS, SEED_PHRASE } from '../config';
 import { createEastContract } from './contract-api/create-east-contract';
 import { mint } from './contract-api/mint';
+import { getTxStatuses } from './east-service-api/get-tx-statuses';
 import { trackTx, TrackTxRequest } from './east-service-api/track-tx';
 import { Globals } from './interfaces';
 
@@ -54,8 +55,14 @@ export async function initGlobals(): Promise<Required<Globals>> {
     }
   }
   globals.contractApi = contractApi
-  globals.trackTx = (request: TrackTxRequest) => {
-    return trackTx(fetch, request)
+  const eastServiceApi = {
+    trackTx: (request: TrackTxRequest) => {
+      return trackTx(fetch, request)
+    },
+    getTxStatuses: (address: string, limit: number, offset: number) => {
+      return getTxStatuses(fetch, address, limit, offset)
+    }
   }
+  globals.eastServiceApi = eastServiceApi
   return globals as Required<Globals>
 }
