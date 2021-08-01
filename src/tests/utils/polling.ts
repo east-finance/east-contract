@@ -24,7 +24,6 @@ export async function runPolling(namedArgs: RunPollingArgs): Promise<string | nu
 
     async function temp() {
       const result = await sourceFn();
-      console.log(result, 'inner fn')
       if (predicateFn(result)) {
         clearTimeout(errorTimeoutId)
         resolve(result)
