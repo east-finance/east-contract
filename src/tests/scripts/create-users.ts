@@ -65,6 +65,6 @@ async function main(count: number = 1, westAmount = 3) {
 
 const count: number | undefined = process.env.COUNT === undefined ? undefined : parseInt(process.env.COUNT, 10)
 
-const westAmount: number | undefined = process.env.WEST === undefined ? undefined : parseInt(process.env.WEST, 10)
+const westAmount: number | undefined = process.env.WEST === undefined ? undefined : parseFloat(process.env.WEST)
 
 main(count, westAmount)
