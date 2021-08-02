@@ -280,7 +280,7 @@ export class RPCService {
     const rwaPartInPosition = rwaPart / ((1 - rwaPart) * westCollateral + rwaPart)
     const usdToRwaAmount = rwaPartInPosition * usdTotal
     const rwaAmount = usdToRwaAmount / rwaRate.value
-    const eastAmount = roundValue(rwaAmount / rwaPart)
+    const eastAmount = rwaPart > 0 ? roundValue(rwaAmount / rwaPart) : 0
     const westAmount = (usdTotal - usdToRwaAmount) / westRate.value
 
     if (eastAmount > oldEastAmount) {
