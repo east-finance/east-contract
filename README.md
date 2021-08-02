@@ -253,6 +253,7 @@ docker push registry.wvservices.com/vostok-sc/east-contract:0.6-RC1
 
 
 ```
+ipconfig getifaddr en0
 docker build --build-arg HOST_NETWORK=192.168.1.3 -t vostok-sc/east-contract:0.8-RC6 .
 ```
 
