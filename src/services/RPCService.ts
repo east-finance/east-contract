@@ -186,10 +186,9 @@ export class RPCService {
   }
 
   async calculateEastAmount(namedArgs: { transferAmount: number, rwaPart: number, westCollateral: number, westRate: Oracle }) {
-    const { transferAmount, rwaPart, westCollateral, westRate } = namedArgs
-    const rwaPartInPosition = rwaPart / ((1 - rwaPart) * westCollateral + rwaPart)
-    const westToRwaAmount = rwaPartInPosition * transferAmount
-    const eastAmount = (westToRwaAmount * westRate.value) / rwaPart
+    const { rwaPart, westCollateral, westRate, transferAmount } = namedArgs
+    const eastPriceInWest = (rwaPart / westRate.value) + ((1 - rwaPart) / westRate.value * westCollateral)
+    const eastAmount = transferAmount / eastPriceInWest
     return roundValue(eastAmount)
   }
 
@@ -234,20 +233,18 @@ export class RPCService {
     eastAmount: number,
     rwaAmount: number,
     westRate: Oracle,
-    rwaRate: Oracle
+    rwaRate: Oracle,
   }> {
     const {
       oracleContractId,
       oracleTimestampMaxDiff,
-      rwaPart
+      rwaPart,
+      westCollateral,
     } = await this.stateService.getConfig()
-
-    // mock
-    // const westRate = {value: 0.34, timestamp: Date.now()}, rwaRate = {value: 1, timestamp: Date.now()}
     const { westRate, rwaRate } = await this.getLastOracles(oracleTimestampMaxDiff, oracleContractId);
-    const eastAmount = (westToRwaAmount * westRate.value) / rwaPart
+    const eastPriceInWest = (rwaPart / westRate.value) + ((1 - rwaPart) / westRate.value * westCollateral)
+    const eastAmount = westToRwaAmount / eastPriceInWest
     const rwaAmount = westToRwaAmount * westRate.value / rwaRate.value
-
     return {
       eastAmount: roundValue(eastAmount),
       rwaAmount: roundValue(rwaAmount),
