@@ -70,7 +70,7 @@ const WEST_DECIMALS = 8
 const WEST_ORACLE_STREAM = '000003_latest'
 const RWA_ORACLE_STREAM = '000010_latest'
 const MINIMUM_EAST_AMOUNT_TO_BUY = 1
-const CLAIN_OVERPAY_COMISSION = 0.2
+const CLAIM_OVERPAY_COMISSION = 0.2
 const CLOSE_COMISSION = 0.3
 const CLAIM_OVERPAY_INACCURACY = 1.05
 
@@ -686,7 +686,7 @@ export class RPCService {
       throw new Error(`Maximum allowable withdrawal: ${expectedTransferAmount * CLAIM_OVERPAY_INACCURACY}, received: ${amountParsed}`);
     }
 
-    const newWestAmount = roundValue(vault.westAmount - amountParsed - CLAIN_OVERPAY_COMISSION);
+    const newWestAmount = roundValue(vault.westAmount - amountParsed - CLAIM_OVERPAY_COMISSION);
     if (newWestAmount <= 0) {
       throw new Error(`newWestAmount less than 0, newWestAmount: ${newWestAmount}, amountParsed: ${amountParsed}`);
     }
