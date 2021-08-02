@@ -14,7 +14,8 @@
     "lint": "eslint '*/**/*.{ts}' --quiet --fix",
     "test": "jest",
     "test:cc": "ts-node src/tests/scripts/create-contract.ts",
-    "test:cu": "ts-node src/tests/scripts/create-users.ts"
+    "test:cu": "ts-node src/tests/scripts/create-users.ts",
+    "test:status": "ts-node src/tests/status-polling.test.ts"
   },
   "author": "Aleksandr Kuvakin",
   "license": "ISC",
