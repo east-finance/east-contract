@@ -44,13 +44,11 @@ async function main(count: number = 1, westAmount = 3) {
     await transferCall.broadcast(keyPair)
     const pollingResult = await runPolling({
       sourceFn: async () => {
-        const { json } = await fetch(`${NODE_ADDRESS}/transactions/info/${txId}`)
-        return json()
+        const data = await fetch(`${NODE_ADDRESS}/transactions/info/${txId}`)
+        return data.json()
       },
       predicateFn: (result: any) => {
-        console.log(result)
-        // return result.id !== undefined && result.id === txId
-        return false
+        return result.id !== undefined && result.id === txId
       },
       pollInterval: 1000,
       timeout: 30000,
