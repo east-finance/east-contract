@@ -16,7 +16,7 @@ export async function trackTx(fetch: typeof nodeFetch, request: TrackTxRequest) 
     },
     body: JSON.stringify(request)
   });
-  if (status !== 200) {
+  if (status !== 201) {
     throw new Error('Failed to fetch.')
   }
   return json()
