@@ -1,6 +1,7 @@
 import { writeFileSync } from "fs";
-import { PATH_TO_USER_SEEDS } from "../config";
+import { NODE_ADDRESS, PATH_TO_USER_SEEDS } from "../config";
 import { initGlobals } from "../utils";
+import { PollingTimeoutError, runPolling } from "../utils/polling";
 
 function generateWord(length: number) {
   var result = '';
@@ -22,7 +23,7 @@ function generateUserSeedPhrase() {
 }
 
 async function main(count: number = 1, westAmount = 3) {
-  const { weSdk, minimumFee, keyPair } = await initGlobals()
+  const { weSdk, minimumFee, keyPair, fetch } = await initGlobals()
   const result: any = {
     seeds: []
   }
@@ -39,8 +40,25 @@ async function main(count: number = 1, westAmount = 3) {
       fee: minimumFee[4],
       senderPublicKey: keyPair.publicKey,
     });
+    const txId = await transferCall.getId(keyPair.publicKey)
     await transferCall.broadcast(keyPair)
-    console.log(await transferCall.getId(keyPair.publicKey))
+    const pollingResult = await runPolling({
+      sourceFn: async () => {
+        const { json } = await fetch(`${NODE_ADDRESS}/transactions/info/${txId}`)
+        return json()
+      },
+      predicateFn: (result: any) => {
+        console.log(result)
+        return false
+      },
+      pollInterval: 1000,
+      timeout: 30000,
+    })
+    if (pollingResult instanceof PollingTimeoutError) {
+      console.log('Timeout error')
+      return
+    }
+    console.log(pollingResult)
   }
   writeFileSync(PATH_TO_USER_SEEDS!, JSON.stringify(result))
 }
