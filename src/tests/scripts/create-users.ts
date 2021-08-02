@@ -49,6 +49,7 @@ async function main(count: number = 1, westAmount = 3) {
       },
       predicateFn: (result: any) => {
         console.log(result)
+        // return result.id !== undefined && result.id === txId
         return false
       },
       pollInterval: 1000,
