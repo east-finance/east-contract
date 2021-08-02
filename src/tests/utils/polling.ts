@@ -1,4 +1,4 @@
-type SourceFn = (...args: any[]) => any
+type SourceFn = () => any
 
 type RunPollingArgs = {
   sourceFn: SourceFn, 
