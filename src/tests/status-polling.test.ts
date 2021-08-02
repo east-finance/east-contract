@@ -23,7 +23,7 @@ async function main() {
         return false
       },
       pollInterval: 1000,
-      timeout: 15000,
+      timeout: 1000 * 120,
     })
     if (result instanceof PollingTimeoutError) {
       console.log('Timeout error')
