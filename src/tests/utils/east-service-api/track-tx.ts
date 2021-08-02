@@ -9,7 +9,7 @@ export interface TrackTxRequest {
 }
 
 export async function trackTx(fetch: typeof nodeFetch, request: TrackTxRequest) {
-  const { status, json } = await fetch(`${EAST_SERVICE_ADDRESS}/v1/user/transactions/statuses`, {
+  const { status, text } = await fetch(`${EAST_SERVICE_ADDRESS}/v1/user/transactions/statuses`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -19,5 +19,5 @@ export async function trackTx(fetch: typeof nodeFetch, request: TrackTxRequest) 
   if (status !== 201) {
     throw new Error('Failed to fetch.')
   }
-  return json()
+  return
 }

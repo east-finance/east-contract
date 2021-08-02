@@ -11,12 +11,12 @@ async function main() {
     const parsedUserSeedsResult = JSON.parse(userSeedsResult.toString())
     const userSeed = weSdk.Seed.fromExistingPhrase(parsedUserSeedsResult.seeds[0])
     const mintTxId = await contractApi.mint(userSeed, 4)
-    eastServiceApi.trackTx({
+    await eastServiceApi.trackTx({
       address: userSeed.address,
       txId: mintTxId,
       type: TxTypes.mint,
     })
-    const result = runPolling({
+    const result = await runPolling({
       sourceFn: () => eastServiceApi.getTxStatuses(userSeed.address, 100, 0),
       predicateFn: (result: any) => {
         console.log(result)
