@@ -9,7 +9,7 @@ export interface TrackTxRequest {
 }
 
 export async function trackTx(fetch: typeof nodeFetch, request: TrackTxRequest) {
-  const { status, json } = await fetch(`${EAST_SERVICE_ADDRESS}/transactions/statuses`, {
+  const { status, json } = await fetch(`${EAST_SERVICE_ADDRESS}/v1/user/transactions/statuses`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
