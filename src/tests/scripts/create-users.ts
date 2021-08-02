@@ -13,25 +13,39 @@ function generateWord(length: number) {
   return result;
 }
 
-function generateUserSeed() {
+function generateUserSeedPhrase() {
   let result = ''
-  for (let i = 0; i < 15; i++) {
+  for (let i = 0; i < 5; i++) {
     result = result + generateWord(5) + ' '
   }
   return result
 }
 
-async function main(count: number = 1) {
-  const globals = await initGlobals()
+async function main(count: number = 1, westAmount = 3) {
+  const { weSdk, minimumFee, keyPair } = await initGlobals()
   const result: any = {
     seeds: []
   }
   for (let i = 0; i < count; i++) {
-    result.seeds.push(generateUserSeed())
+    const seedPhrase = generateUserSeedPhrase()
+    result.seeds.push(seedPhrase)
+    const seed = weSdk.Seed.fromExistingPhrase(seedPhrase)
+    const transferCall = weSdk.API.Transactions.Transfer.V3({
+      recipient: seed.address,
+      assetId: '',
+      amount: westAmount * 100000000,
+      timestamp: Date.now(),
+      attachment: '',
+      fee: minimumFee[4],
+      senderPublicKey: keyPair.publicKey,
+    });
+    transferCall.broadcast(keyPair)
   }
   writeFileSync(PATH_TO_USER_SEEDS!, JSON.stringify(result))
 }
 
 const count: number | undefined = process.env.COUNT === undefined ? undefined : parseInt(process.env.COUNT, 10)
 
-main(count)
+const westAmount: number | undefined = process.env.WEST === undefined ? undefined : parseInt(process.env.WEST, 10)
+
+main(count, westAmount)

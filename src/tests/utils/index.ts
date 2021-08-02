@@ -32,6 +32,7 @@ export async function initGlobals(): Promise<Required<Globals>> {
     networkByte: chainId.charCodeAt(0),
     minimumFee
   };
+  globals.minimumFee = minimumFee;
   const weSdk = create({
     initialConfiguration: wavesApiConfig,
     fetchInstance: globals.fetch,
@@ -44,13 +45,14 @@ export async function initGlobals(): Promise<Required<Globals>> {
     createEastContract: () => {
       return createEastContract(weSdk, seed)
     },
-    mint: (userSeed: Seed) => {
+    mint: (userSeed: Seed, westAmount: number) => {
       return mint({
         contractId: CONTRACT_ID!,
         minimumFee,
         ownerSeed: seed,
         userSeed,
         weSdk,
+        westAmount,
       })
     }
   }

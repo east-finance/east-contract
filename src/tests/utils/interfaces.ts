@@ -11,9 +11,10 @@ export interface Globals {
   weSdk?: WeSdk,
   keyPair?: { publicKey: string, privateKey: string },
   address?: string,
+  minimumFee?: Record<string, number>,
   contractApi?: {
     createEastContract(): Promise<TxId>,
-    mint(userSeed: Seed): Promise<TxId>,
+    mint(userSeed: Seed, westAmount: number): Promise<TxId>,
   },
   eastServiceApi?: {
     trackTx(request: TrackTxRequest): Promise<void>,

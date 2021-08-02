@@ -9,7 +9,10 @@ beforeAll(async () => {
   globals = await initGlobals();
 })
 
-test('mint', () => {
+test('mint', async () => {
+  const { weSdk, contractApi, eastServiceApi } = globals
   const result = readFileSync(PATH_TO_USER_SEEDS!)
-  console.log(JSON.parse(result.toString()))
+  const parsedResult = JSON.parse(result.toString())
+  const userSeed = weSdk.Seed.fromExistingPhrase(parsedResult.seeds[0])
+  console.log(await contractApi.mint(userSeed, 3))
 })
