@@ -14,5 +14,5 @@ test('mint', async () => {
   const result = readFileSync(PATH_TO_USER_SEEDS!)
   const parsedResult = JSON.parse(result.toString())
   const userSeed = weSdk.Seed.fromExistingPhrase(parsedResult.seeds[0])
-  console.log(await contractApi.mint(userSeed, 3))
+  console.log(await contractApi.mint(userSeed, 10))
 })

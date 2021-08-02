@@ -18,7 +18,7 @@ function generateUserSeedPhrase() {
   for (let i = 0; i < 5; i++) {
     result = result + generateWord(5) + ' '
   }
-  return result
+  return result.slice(0, -1)
 }
 
 async function main(count: number = 1, westAmount = 3) {
