@@ -39,7 +39,8 @@ async function main(count: number = 1, westAmount = 3) {
       fee: minimumFee[4],
       senderPublicKey: keyPair.publicKey,
     });
-    transferCall.broadcast(keyPair)
+    await transferCall.broadcast(keyPair)
+    console.log(await transferCall.getId(keyPair.publicKey))
   }
   writeFileSync(PATH_TO_USER_SEEDS!, JSON.stringify(result))
 }
