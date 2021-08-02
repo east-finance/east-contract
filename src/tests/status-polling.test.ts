@@ -27,6 +27,7 @@ async function main() {
     })
     if (result instanceof PollingTimeoutError) {
       console.log('Timeout error')
+      return
     }
   } catch (err) {
     console.log(err.message)
