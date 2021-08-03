@@ -12,6 +12,15 @@ export type GetTxStatusResponse = {
   signature: string,
 }[]
 
+export class GetTxStatusError extends Error {
+  response: GetTxStatusResponse;
+
+  constructor(message: string, response: GetTxStatusResponse) {
+    super(message)
+    this.response = response
+  }
+}
+
 export async function getTxStatus(fetch: typeof nodeFetch, txId: string): Promise<GetTxStatusResponse> {
   const data = await fetch(`${NODE_ADDRESS}/contracts/status/${txId}`, {
     method: 'GET',
@@ -20,7 +29,7 @@ export async function getTxStatus(fetch: typeof nodeFetch, txId: string): Promis
     },
   });
   if (data.status !== 200) {
-    throw new Error('Failed to fetch.')
+    throw new GetTxStatusError('Failed to fetch.', await data.json())
   }
   return data.json()
 }

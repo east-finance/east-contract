@@ -9,7 +9,7 @@ type RunPollingArgs = {
 
 export class PollingTimeoutError extends Error {}
 
-export async function runPolling(namedArgs: RunPollingArgs): Promise<string | number | boolean | PollingTimeoutError> {
+export async function runPolling<T>(namedArgs: RunPollingArgs): Promise<T | PollingTimeoutError> {
   const { sourceFn, predicateFn, pollInterval, timeout } = namedArgs
   return new Promise(resolve => {
     let pollTimerId: NodeJS.Timeout
