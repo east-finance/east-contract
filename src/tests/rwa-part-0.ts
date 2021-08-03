@@ -6,7 +6,7 @@ import { PollingTimeoutError, runPolling } from "./utils/polling";
 
 async function main() {
   const globals = await initGlobals();
-  const { contractApi, nodeApi, weSdk } = globals
+  const { contractApi, weSdk } = globals
   const userSeedsResult = readFileSync(PATH_TO_USER_SEEDS!)
   const parsedUserSeedsResult = JSON.parse(userSeedsResult.toString())
   const userSeed = weSdk.Seed.fromExistingPhrase(parsedUserSeedsResult.seeds[0])
