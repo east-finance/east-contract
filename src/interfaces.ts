@@ -55,8 +55,8 @@ export interface Oracle {
 
 export interface CloseParam {
   address: string,
-  westTransferId: string,
-  rwaTransferId: string
+  westTransferId?: string,
+  rwaTransferId?: string,
 }
 
 export interface ClaimOverpayParam {

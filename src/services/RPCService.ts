@@ -467,52 +467,57 @@ export class RPCService {
      * check transfers
      */
     const { eastAmount, rwaAmount, westAmount } = await this.stateService.getVault(address);
-    const {
-      sender_public_key: westSenderPubKey,
-      amount: westTransferAmount,
-      recipient: westRecipient,
-      asset_id: westAssetId,
-    } = await this.stateService.getTransactionInfoOrFail<TransferTx>(westTransferId);
 
-    const {
-      sender_public_key: rwaSenderPubKey,
-      amount: rwaTransferAmount,
-      recipient: rwaRecipient,
-      asset_id: rwaAssetId,
-    } = await this.stateService.getTransactionInfoOrFail<TransferTx>(rwaTransferId);
+    if (westTransferId !== undefined) {  
+      const {
+        sender_public_key: westSenderPubKey,
+        amount: westTransferAmount,
+        recipient: westRecipient,
+        asset_id: westAssetId,
+      } = await this.stateService.getTransactionInfoOrFail<TransferTx>(westTransferId);
 
-    // check recipients
-    if (address !== westRecipient) {
-      throw new Error(`Expected westRecipient to be equal to ${address}, got: ${westRecipient}`);
-    }
-    if (address !== rwaRecipient) {
-      throw new Error(`Expected rwaRecipient to be equal to ${address}, got: ${rwaRecipient}`);
-    }
+      if (address !== westRecipient) {
+        throw new Error(`Expected westRecipient to be equal to ${address}, got: ${westRecipient}`);
+      }
 
-    // check sender_public_key
-    if (tx.sender_public_key !== westSenderPubKey) {
-      throw new Error(`Expected westSenderPubKey to be equal to ${tx.sender_public_key}, got: ${westSenderPubKey}`);
-    }
-    if (tx.sender_public_key !== rwaSenderPubKey) {
-      throw new Error(`Expected rwaSenderPubKey to be equal to ${tx.sender_public_key}, got: ${rwaSenderPubKey}`);
+      if (tx.sender_public_key !== westSenderPubKey) {
+        throw new Error(`Expected westSenderPubKey to be equal to ${tx.sender_public_key}, got: ${westSenderPubKey}`);
+      }
+
+      if (westAssetId) {
+        throw new Error(`Expected transfer asset to be WEST, now: ${westAssetId}`);
+      }
+
+      if (roundValue(parseValue(westTransferAmount)) !== roundValue(westAmount - CLOSE_COMISSION)) {
+        throw new Error(`west transfer amount must be more or equal vault amount, 
+          westAmount: ${westAmount}, westTransferAmount: ${westTransferAmount}`)
+      }
     }
 
-    // check assets id
-    if (westAssetId) {
-      throw new Error(`Expected transfer asset to be WEST, now: ${westAssetId}`);
-    }
-    if (rwaAssetId !== rwaTokenId) {
-      throw new Error(`Expected transfer asset to be ${rwaTokenId}, got: ${rwaAssetId}`);
-    }
+    if (rwaTransferId !== undefined) {      
+      const {
+        sender_public_key: rwaSenderPubKey,
+        amount: rwaTransferAmount,
+        recipient: rwaRecipient,
+        asset_id: rwaAssetId,
+      } = await this.stateService.getTransactionInfoOrFail<TransferTx>(rwaTransferId);
 
-    // check transfers amounts
-    if (roundValue(parseValue(westTransferAmount)) !== roundValue(westAmount - CLOSE_COMISSION)) {
-      throw new Error(`west transfer amount must be more or equal vault amount, 
-        westAmount: ${westAmount}, westTransferAmount: ${westTransferAmount}`)
-    }
-    if (roundValue(parseValue(rwaTransferAmount)) !== roundValue(rwaAmount)) {
-      throw new Error(`rwa transfer amount not equal to vault amount, 
-        rwaAmount: ${rwaAmount}, rwaTransferAmount: ${rwaTransferAmount}`)
+      if (address !== rwaRecipient) {
+        throw new Error(`Expected rwaRecipient to be equal to ${address}, got: ${rwaRecipient}`);
+      }
+  
+      if (tx.sender_public_key !== rwaSenderPubKey) {
+        throw new Error(`Expected rwaSenderPubKey to be equal to ${tx.sender_public_key}, got: ${rwaSenderPubKey}`);
+      }
+  
+      if (rwaAssetId !== rwaTokenId) {
+        throw new Error(`Expected transfer asset to be ${rwaTokenId}, got: ${rwaAssetId}`);
+      }
+  
+      if (roundValue(parseValue(rwaTransferAmount)) !== roundValue(rwaAmount)) {
+        throw new Error(`rwa transfer amount not equal to vault amount, 
+          rwaAmount: ${rwaAmount}, rwaTransferAmount: ${rwaTransferAmount}`)
+      }
     }
 
     let totalSupply = await this.stateService.getTotalSupply();

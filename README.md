@@ -100,8 +100,8 @@
 <b>Тело метода: </b>
 ```js
   address: string, // vault id
-  westTransferId: string,
-  rwaTransferId: string
+  westTransferId?: string, // optional
+  rwaTransferId?: string // optional
 ```  
 <b>Результат выполнения: </b>
 - обновляет значениe ключа `balance_${address}`, если баланса EAST меньше чем vault.eastAmount то операция не выполняется 
