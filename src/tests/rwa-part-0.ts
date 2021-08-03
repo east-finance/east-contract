@@ -1,7 +1,6 @@
 import { readFileSync } from "fs";
 import { PATH_TO_USER_SEEDS } from "./config";
 import { initGlobals } from "./utils";
-import { Globals } from "./utils/interfaces";
 import { GetTxStatusError, GetTxStatusResponse } from "./utils/node-api/get-tx-status";
 import { PollingTimeoutError, runPolling } from "./utils/polling";
 
