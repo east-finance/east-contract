@@ -7,6 +7,7 @@ import { mint } from './contract-api/mint';
 import { getTxStatuses } from './east-service-api/get-tx-statuses';
 import { trackTx, TrackTxRequest } from './east-service-api/track-tx';
 import { Globals } from './interfaces';
+import { getTxStatus } from './node-api/get-tx-status';
 
 export async function initGlobals(): Promise<Required<Globals>> {
   const globals: Globals = {
@@ -66,5 +67,11 @@ export async function initGlobals(): Promise<Required<Globals>> {
     }
   }
   globals.eastServiceApi = eastServiceApi
+  const nodeApi = {
+    getTxStatus: (txId: string) => {
+      return getTxStatus(fetch, txId)
+    }
+  }
+  globals.nodeApi = nodeApi;
   return globals as Required<Globals>
 }
