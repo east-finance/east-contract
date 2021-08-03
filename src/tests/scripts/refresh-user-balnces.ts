@@ -8,7 +8,7 @@ async function main(westAmount = 3) {
   const userSeedsResult = readFileSync(PATH_TO_USER_SEEDS!)
   const parsedUserSeedsResult = JSON.parse(userSeedsResult.toString())
   let pollingResults: any[] = []
-  parsedUserSeedsResult.seeds.forEach(async (seedPhrase: string) => {
+  for (let seedPhrase of parsedUserSeedsResult.seeds) {
     const seed = weSdk.Seed.fromExistingPhrase(seedPhrase)
     const transferCall = weSdk.API.Transactions.Transfer.V3({
       recipient: seed.address,
@@ -34,7 +34,7 @@ async function main(westAmount = 3) {
       })
     )
     transferCall.broadcast(keyPair)
-  });
+  }
   pollingResults = await Promise.all(pollingResults)
   console.log(pollingResults)
 }
