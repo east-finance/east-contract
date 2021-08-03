@@ -13,9 +13,15 @@ export type GetTxStatusResponse = {
 }[]
 
 export class GetTxStatusError extends Error {
-  response: GetTxStatusResponse;
+  response: {
+    error: number,
+    message: string,
+  };
 
-  constructor(message: string, response: GetTxStatusResponse) {
+  constructor(message: string, response: {
+    error: number,
+    message: string,
+  }) {
     super(message)
     this.response = response
   }

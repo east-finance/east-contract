@@ -18,24 +18,28 @@ async function main() {
         return await globals.nodeApi.getTxStatus(mintTxId)
       } catch (err) {
         if (err instanceof GetTxStatusError) {
-          return err.response
+          return err
         }
       }
     },
-    predicateFn: (result: GetTxStatusResponse | undefined) => {
+    predicateFn: (result: GetTxStatusResponse | GetTxStatusError | undefined) => {
       if (result === undefined) {
+        return false
+      }
+      if (result instanceof GetTxStatusError) {
+        console.log(`${Date.now()}: ${JSON.stringify(result.response)}`)
         return false
       }
       return result.every(nodeResponse => nodeResponse.status === 'Success')
     },
     pollInterval: 1000,
-    timeout: 60000,
+    timeout: 60000 * 5,
   })
   if (pollingResult instanceof PollingTimeoutError) {
     return
   }
-  console.log(pollingResult)
   pollingResult.every(nodeResponse => nodeResponse.status === 'Success')
+  console.log(pollingResult)
 }
 
 main()
