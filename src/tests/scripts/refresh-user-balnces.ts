@@ -4,7 +4,7 @@ import { initGlobals } from "../utils";
 import { runPolling } from "../utils/polling";
 
 async function main(westAmount = 3) {
-  const { weSdk, minimumFee, seed, fetch } = await initGlobals()
+  const { weSdk, minimumFee, seed: ownerSeed, fetch } = await initGlobals()
   const userSeedsResult = readFileSync(PATH_TO_USER_SEEDS!)
   const parsedUserSeedsResult = JSON.parse(userSeedsResult.toString())
   let pollingResults: any[] = []
@@ -17,9 +17,9 @@ async function main(westAmount = 3) {
       timestamp: Date.now(),
       attachment: '',
       fee: minimumFee[4],
-      senderPublicKey: seed.keyPair.publicKey,
+      senderPublicKey: ownerSeed.keyPair.publicKey,
     });
-    const txId = await transferCall.getId(seed.keyPair.publicKey)
+    const txId = await transferCall.getId(ownerSeed.keyPair.publicKey)
     pollingResults.push(
       runPolling({
         sourceFn: async () => {
@@ -33,7 +33,7 @@ async function main(westAmount = 3) {
         timeout: 30000,
       })
     )
-    transferCall.broadcast(seed.keyPair)
+    transferCall.broadcast(ownerSeed.keyPair)
   }
   pollingResults = await Promise.all(pollingResults)
   console.log(pollingResults)
