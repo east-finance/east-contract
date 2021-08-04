@@ -33,7 +33,7 @@ async function main() {
    * MINT
    */
   (async () => {
-    const mintTxId = await contractApi.mint(userSeed, 4)
+    const mintTxId = await contractApi.mint(userSeed, 5)
     const pollingResult = await runPolling<GetTxStatusResponse>({
       sourceFn: async () => {
         return getTxStatus(mintTxId)
