@@ -2,7 +2,13 @@ import { Seed, WeSdk } from "@wavesenterprise/js-sdk";
 import { TxId, MinimumFee } from "../interfaces";
 
 export type MintArgs = {
-  weSdk: WeSdk, ownerSeed: Seed, userSeed: Seed, minimumFee: MinimumFee, contractId: TxId, westAmount: number }
+  weSdk: WeSdk,
+  ownerSeed: Seed,
+  userSeed: Seed,
+  minimumFee: MinimumFee,
+  contractId: TxId,
+  westAmount: number,
+}
 
 export async function mint(namedArgs: MintArgs) {
   const { weSdk, ownerSeed, userSeed, minimumFee, contractId, westAmount } = namedArgs;
