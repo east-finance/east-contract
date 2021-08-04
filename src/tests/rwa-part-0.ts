@@ -9,36 +9,44 @@ async function main() {
   const { contractApi, weSdk } = globals
   const userSeedsResult = readFileSync(PATH_TO_USER_SEEDS!)
   const parsedUserSeedsResult = JSON.parse(userSeedsResult.toString())
-  const userSeed = weSdk.Seed.fromExistingPhrase(parsedUserSeedsResult.seeds[0])
-  const mintTxId = await contractApi.mint(userSeed, 4)
-  const pollingResult = await runPolling<GetTxStatusResponse>({
-    sourceFn: async () => {
-      try {
-        return await globals.nodeApi.getTxStatus(mintTxId)
-      } catch (err) {
-        if (err instanceof GetTxStatusError) {
-          return err
+  const userSeed = weSdk.Seed.fromExistingPhrase(parsedUserSeedsResult.seeds[0]);
+  /**
+   * MINT
+   */
+  (async () => {
+    const mintTxId = await contractApi.mint(userSeed, 4)
+    const pollingResult = await runPolling<GetTxStatusResponse>({
+      sourceFn: async () => {
+        try {
+          return await globals.nodeApi.getTxStatus(mintTxId)
+        } catch (err) {
+          if (err instanceof GetTxStatusError) {
+            return err
+          }
         }
-      }
-    },
-    predicateFn: (result: GetTxStatusResponse | GetTxStatusError | undefined) => {
-      if (result === undefined) {
-        return false
-      }
-      if (result instanceof GetTxStatusError) {
-        console.log(`${Date.now()}: ${JSON.stringify(result.response)}`)
-        return false
-      }
-      return result.every(nodeResponse => nodeResponse.status === 'Success')
-    },
-    pollInterval: 1000,
-    timeout: 60000 * 5,
-  })
-  if (pollingResult instanceof PollingTimeoutError) {
-    return
-  }
-  pollingResult.every(nodeResponse => nodeResponse.status === 'Success')
-  console.log(pollingResult)
+      },
+      predicateFn: (result: GetTxStatusResponse | GetTxStatusError | undefined) => {
+        if (result === undefined) {
+          return false
+        }
+        if (result instanceof GetTxStatusError) {
+          console.log(`${Date.now()}: ${JSON.stringify(result.response)}`)
+          return false
+        }
+        return result.every(nodeResponse => nodeResponse.status === 'Success')
+      },
+      pollInterval: 1000,
+      timeout: 60000 * 5,
+    })
+    if (pollingResult instanceof PollingTimeoutError) {
+      return
+    }
+    pollingResult.every(nodeResponse => nodeResponse.status === 'Success')
+  })()
+
+  /**
+   * SUPPLY + REISSUE
+   */
 }
 
 main()

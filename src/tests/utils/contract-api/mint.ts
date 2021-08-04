@@ -1,7 +1,8 @@
 import { Seed, WeSdk } from "@wavesenterprise/js-sdk";
 import { TxId, MinimumFee } from "../interfaces";
 
-export type MintArgs = { weSdk: WeSdk, ownerSeed: Seed, userSeed: Seed, minimumFee: MinimumFee, contractId: TxId, westAmount: number }
+export type MintArgs = {
+  weSdk: WeSdk, ownerSeed: Seed, userSeed: Seed, minimumFee: MinimumFee, contractId: TxId, westAmount: number }
 
 export async function mint(namedArgs: MintArgs) {
   const { weSdk, ownerSeed, userSeed, minimumFee, contractId, westAmount } = namedArgs;
@@ -17,7 +18,7 @@ export async function mint(namedArgs: MintArgs) {
       trustedSender: userSeed.address
     }
   });
-  
+
   const mintCall = weSdk.API.Transactions.CallContract.V4({
     contractId,
     contractVersion: 1,
@@ -35,11 +36,11 @@ export async function mint(namedArgs: MintArgs) {
       trustedSender: userSeed.address
     }
   });
-  
+
   const transactions = [mintTransfer, mintCall]
-  
+
   const mint1Atomic = await weSdk.API.Transactions.broadcastAtomic(
-    weSdk.API.Transactions.Atomic.V1({transactions}),
+    weSdk.API.Transactions.Atomic.V1({ transactions }),
     userSeed.keyPair
   );
 
