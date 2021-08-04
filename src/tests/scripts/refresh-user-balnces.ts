@@ -1,10 +1,10 @@
 import { readFileSync } from "fs";
 import { NODE_ADDRESS, PATH_TO_USER_SEEDS } from "../config";
 import { initGlobals } from "../utils";
-import { PollingTimeoutError, runPolling } from "../utils/polling";
+import { runPolling } from "../utils/polling";
 
 async function main(westAmount = 3) {
-  const { weSdk, minimumFee, keyPair, fetch } = await initGlobals()
+  const { weSdk, minimumFee, seed, fetch } = await initGlobals()
   const userSeedsResult = readFileSync(PATH_TO_USER_SEEDS!)
   const parsedUserSeedsResult = JSON.parse(userSeedsResult.toString())
   let pollingResults: any[] = []
@@ -17,9 +17,9 @@ async function main(westAmount = 3) {
       timestamp: Date.now(),
       attachment: '',
       fee: minimumFee[4],
-      senderPublicKey: keyPair.publicKey,
+      senderPublicKey: seed.keyPair.publicKey,
     });
-    const txId = await transferCall.getId(keyPair.publicKey)
+    const txId = await transferCall.getId(seed.keyPair.publicKey)
     pollingResults.push(
       runPolling({
         sourceFn: async () => {
@@ -33,7 +33,7 @@ async function main(westAmount = 3) {
         timeout: 30000,
       })
     )
-    transferCall.broadcast(keyPair)
+    transferCall.broadcast(seed.keyPair)
   }
   pollingResults = await Promise.all(pollingResults)
   console.log(pollingResults)

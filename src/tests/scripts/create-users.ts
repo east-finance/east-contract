@@ -23,7 +23,7 @@ function generateUserSeedPhrase() {
 }
 
 async function main(count: number = 1, westAmount = 3) {
-  const { weSdk, minimumFee, keyPair, fetch } = await initGlobals()
+  const { weSdk, minimumFee, seed, fetch } = await initGlobals()
   let pollingResults = []
   const result: any = {
     seeds: []
@@ -39,9 +39,9 @@ async function main(count: number = 1, westAmount = 3) {
       timestamp: Date.now(),
       attachment: '',
       fee: minimumFee[4],
-      senderPublicKey: keyPair.publicKey,
+      senderPublicKey: seed.keyPair.publicKey,
     });
-    const txId = await transferCall.getId(keyPair.publicKey)
+    const txId = await transferCall.getId(seed.keyPair.publicKey)
     pollingResults.push(
       runPolling({
         sourceFn: async () => {
@@ -55,7 +55,7 @@ async function main(count: number = 1, westAmount = 3) {
         timeout: 30000,
       })
     )
-    transferCall.broadcast(keyPair)
+    transferCall.broadcast(seed.keyPair)
   }
   pollingResults = await Promise.all(pollingResults)
   console.log(pollingResults)

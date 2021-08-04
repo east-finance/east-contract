@@ -1,6 +1,6 @@
 import { Seed, ValidationPolicyType, WeSdk } from "@wavesenterprise/js-sdk";
 import { ConfigParam } from "../../../interfaces";
-import { IMAGE_HASH, IMAGE_NAME, ORACLE_CONTRACT_ID, RWA_TOKEN_ID } from "../../config";
+import { IMAGE_HASH, IMAGE_NAME } from "../../config";
 
 export async function createEastContract(weSdk: WeSdk, ownerSeed: Seed, config: ConfigParam) {
   const txBody: Parameters<WeSdk['API']['Transactions']['CreateContract']['V4']>[0] = {
