@@ -9,10 +9,11 @@ import { ReissueDto } from "../dto/reissue.dto"
 import { SupplyDto } from "../dto/supply.dto"
 import { TransferDto } from "../dto/transfer.dto"
 import { Operations } from "../interfaces"
+import { UnboxPromise } from "../utils/interfaces"
 import { initGlobals } from "./utils"
 import { createTx } from "./utils/create-fake-tx"
 
-let globals: ReturnType<typeof initGlobals>
+let globals: UnboxPromise<ReturnType<typeof initGlobals>>
 
 beforeAll(async () => {
   globals = await initGlobals();
