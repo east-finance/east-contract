@@ -3,6 +3,7 @@ import { Seed, WeSdk } from "@wavesenterprise/js-sdk";
 import { RPCService } from "../../services/RPCService";
 import { TrackTxRequest } from './east-service-api/track-tx';
 import { GetTxStatusResponse } from './node-api/get-tx-status';
+import { ConfigParam } from '../../interfaces';
 
 export type TxId = string;
 
@@ -14,7 +15,7 @@ export interface Globals {
   address?: string,
   minimumFee?: Record<string, number>,
   contractApi?: {
-    createEastContract(): Promise<TxId>,
+    createEastContract(config: ConfigParam): Promise<TxId>,
     mint(userSeed: Seed, westAmount: number): Promise<TxId>,
     supply(userSeed: Seed, westAmount: number): Promise<TxId>,
   },

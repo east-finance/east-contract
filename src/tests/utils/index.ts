@@ -1,5 +1,6 @@
 import { create, MAINNET_CONFIG, Seed } from '@wavesenterprise/js-sdk';
 import nodeFetch from 'node-fetch';
+import { ConfigParam } from '../../interfaces';
 import { RPCService } from '../../services/RPCService';
 import { CONTRACT_ID, NODE_ADDRESS, SEED_PHRASE } from '../config';
 import { createEastContract } from './contract-api/create-east-contract';
@@ -44,8 +45,8 @@ export async function initGlobals(): Promise<Required<Globals>> {
   globals.address = seed.address
   globals.keyPair = seed.keyPair
   const contractApi: Globals['contractApi'] = {
-    createEastContract: () => {
-      return createEastContract(weSdk, seed)
+    createEastContract: (config: ConfigParam) => {
+      return createEastContract(weSdk, seed, config)
     },
     mint: (userSeed: Seed, westAmount: number) => {
       return mint({

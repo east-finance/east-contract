@@ -1,7 +1,8 @@
 import { Seed, ValidationPolicyType, WeSdk } from "@wavesenterprise/js-sdk";
+import { ConfigParam } from "../../../interfaces";
 import { IMAGE_HASH, IMAGE_NAME, ORACLE_CONTRACT_ID, RWA_TOKEN_ID } from "../../config";
 
-export async function createEastContract(weSdk: WeSdk, ownerSeed: Seed) {
+export async function createEastContract(weSdk: WeSdk, ownerSeed: Seed, config: ConfigParam) {
   const txBody: Parameters<WeSdk['API']['Transactions']['CreateContract']['V4']>[0] = {
     image: IMAGE_NAME,
     imageHash: IMAGE_HASH,
@@ -11,15 +12,7 @@ export async function createEastContract(weSdk: WeSdk, ownerSeed: Seed) {
       {
         type: 'string',
         key: 'config',
-        value: JSON.stringify({
-          oracleContractId: ORACLE_CONTRACT_ID,
-          oracleTimestampMaxDiff: 100000000000,
-          rwaPart: 0.5,
-          westCollateral: 2.5,
-          liquidationCollateral: 1.3,
-          minHoldTime: 1000 * 60 * 60,
-          rwaTokenId: RWA_TOKEN_ID,
-        })
+        value: JSON.stringify(config)
       }
     ],
     validationPolicy: {
