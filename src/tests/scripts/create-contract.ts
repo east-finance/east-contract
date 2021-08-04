@@ -20,7 +20,6 @@ async function main() {
         return false
       }
       if (result instanceof GetTxStatusError) {
-        console.log(`${Date.now()}: ${JSON.stringify(result.response)}`)
         return false
       }
       return result.every(nodeResponse => nodeResponse.status === 'Success')

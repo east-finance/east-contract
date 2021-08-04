@@ -1,4 +1,4 @@
-import { IsBoolean, IsPositive, IsString, IsOptional } from "class-validator"
+import { IsBoolean, IsPositive, IsString, IsOptional, IsNumber } from "class-validator"
 import { ConfigParam } from "../interfaces"
 
 export class ConfigDto implements Omit<ConfigParam, 'adminAddress' | 'adminPublicKey'> {
@@ -8,10 +8,28 @@ export class ConfigDto implements Omit<ConfigParam, 'adminAddress' | 'adminPubli
   @IsPositive()
   oracleTimestampMaxDiff!: number
 
-  @IsPositive()
+  @IsNumber(
+    {
+      allowInfinity: false,
+      allowNaN: false,
+      maxDecimalPlaces: 8,
+    },
+    {
+      message: '$property must be a number (decimal) with no more than 8 decimal places'
+    }
+  )
   rwaPart!:  number
 
-  @IsPositive()
+  @IsNumber(
+    {
+      allowInfinity: false,
+      allowNaN: false,
+      maxDecimalPlaces: 8,
+    },
+    {
+      message: '$property must be a number (decimal) with no more than 8 decimal places'
+    }
+  )
   westCollateral!: number
 
   @IsPositive()
