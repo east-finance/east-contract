@@ -1,4 +1,4 @@
-import { readFileSync } from "node:fs";
+import { readFileSync } from "fs";
 import { ORACLE_CONTRACT_ID, RWA_TOKEN_ID } from "../config";
 import { initGlobals } from "../utils";
 import { GetTxStatusError, GetTxStatusResponse } from "../utils/node-api/get-tx-status";
