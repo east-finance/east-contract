@@ -76,20 +76,20 @@ export class StateService {
         tx_id: txId,
         message,
       },
-      this.auth,
-      function (error: Error) {
-        if (error) {
-          const { metadata } = error as any;
-          const { internalRepr } = metadata
-          const internalReprKeysAndValues = []
-          for (let [key, value] of internalRepr.entries()) {
-            internalReprKeysAndValues.push(`${key}: ${value}`)
+        this.auth,
+        function (error: Error) {
+          if (error) {
+            const { metadata } = error as any;
+            const { internalRepr } = metadata
+            const internalReprKeysAndValues = []
+            for (let [key, value] of internalRepr.entries()) {
+              internalReprKeysAndValues.push(`${key}: ${value}`)
+            }
+            reject(new Error(`GRPC Node error. ContractService.CommitExecutionError: ${internalReprKeysAndValues.join(', ')}`));
+            return
           }
-          reject(new Error(`GRPC Node error. ContractService.CommitExecutionError: ${internalReprKeysAndValues.join(', ')}`));
-          return
-        }
-        resolve();
-      });
+          resolve();
+        });
     });
   }
 
@@ -99,20 +99,20 @@ export class StateService {
         tx_id: txId,
         results,
       },
-      this.auth,
-      function (error: Error) {
-        if (error) {
-          const { metadata } = error as any;
-          const { internalRepr } = metadata
-          const internalReprKeysAndValues = []
-          for (let [key, value] of internalRepr.entries()) {
-            internalReprKeysAndValues.push(`${key}: ${value}`)
+        this.auth,
+        function (error: Error) {
+          if (error) {
+            const { metadata } = error as any;
+            const { internalRepr } = metadata
+            const internalReprKeysAndValues = []
+            for (let [key, value] of internalRepr.entries()) {
+              internalReprKeysAndValues.push(`${key}: ${value}`)
+            }
+            reject(new Error(`GRPC Node error. ContractService.CommitExecutionSuccess: ${internalReprKeysAndValues.join(', ')}`));
+            return
           }
-          reject(new Error(`GRPC Node error. ContractService.CommitExecutionSuccess: ${internalReprKeysAndValues.join(', ')}`));
-          return
-        }
-        resolve();
-      });
+          resolve();
+        });
     });
   };
 
@@ -122,20 +122,20 @@ export class StateService {
         contract_id: contractId,
         key,
       },
-      this.auth,
-      function (error: Error, response: { entry: DataEntryResponse }) {
-        if (error) {
-          const { metadata } = error as any;
-          const { internalRepr } = metadata
-          const internalReprKeysAndValues = []
-          for (let [key, value] of internalRepr.entries()) {
-            internalReprKeysAndValues.push(`${key}: ${value}`)
+        this.auth,
+        function (error: Error, response: { entry: DataEntryResponse }) {
+          if (error) {
+            const { metadata } = error as any;
+            const { internalRepr } = metadata
+            const internalReprKeysAndValues = []
+            for (let [key, value] of internalRepr.entries()) {
+              internalReprKeysAndValues.push(`${key}: ${value}`)
+            }
+            reject(new Error(`GRPC Node error. ContractService.GetContractKey. Key - ${key}. ${internalReprKeysAndValues.join(', ')}`));
+            return
           }
-          reject(new Error(`GRPC Node error. ContractService.GetContractKey. Key - ${key}. ${internalReprKeysAndValues.join(', ')}`));
-          return
-        }
-        resolve(response);
-      });
+          resolve(response);
+        });
     });
   }
 
@@ -187,7 +187,13 @@ export class StateService {
       rwaTokenId,
       txTimestampMaxDiff
     } = JSON.parse(value as string)
-    if (!oracleContractId || !oracleTimestampMaxDiff || !rwaPart || !westCollateral || !liquidationCollateral) {
+    if (
+      oracleContractId === undefined ||
+      oracleTimestampMaxDiff === undefined ||
+      rwaPart === undefined ||
+      westCollateral === undefined ||
+      liquidationCollateral === undefined
+    ) {
       throw new Error('Wrong config contract param')
     }
     return {
@@ -261,7 +267,7 @@ export class StateService {
     })
   }
 
-  async getNodeTime(): Promise<{system: number, ntp: number}> {
+  async getNodeTime(): Promise<{ system: number, ntp: number }> {
     return new Promise((resolve, reject) => {
       this.contractUtilService.getNodeTime(
         {},
