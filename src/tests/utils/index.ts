@@ -8,13 +8,10 @@ import { mint } from './contract-api/mint';
 import { supply } from './contract-api/supply';
 import { getTxStatuses } from './east-service-api/get-tx-statuses';
 import { trackTx, TrackTxRequest } from './east-service-api/track-tx';
-import { Globals } from './interfaces';
 import { getTxStatus } from './node-api/get-tx-status';
 
-export async function initGlobals(): Promise<Required<Globals>> {
-  const globals: Globals = {
-    rpcService: new RPCService(),
-  }
+export async function initGlobals() {
+  const rpcService = new RPCService()
   const fetch = ((url: RequestInfo, options?: RequestInit): Promise<Response> => {
     // @ts-ignore
     return nodeFetch(url, {
@@ -26,25 +23,20 @@ export async function initGlobals(): Promise<Required<Globals>> {
       },
     });
   }) as unknown as typeof nodeFetch;
-  globals.fetch = fetch;
-  const { chainId, minimumFee } = await(await globals.fetch(`${NODE_ADDRESS}/node/config`)).json()
+  const { chainId, minimumFee } = await(await fetch(`${NODE_ADDRESS}/node/config`)).json()
   const wavesApiConfig = {
     ...MAINNET_CONFIG,
     nodeAddress: NODE_ADDRESS,
     crypto: 'waves',
     networkByte: chainId.charCodeAt(0),
     minimumFee
-  };
-  globals.minimumFee = minimumFee;
+  }
   const weSdk = create({
     initialConfiguration: wavesApiConfig,
-    fetchInstance: globals.fetch,
+    fetchInstance: fetch,
   })
-  globals.weSdk = weSdk;
-  const seed = globals.weSdk.Seed.fromExistingPhrase(SEED_PHRASE)
-  globals.address = seed.address
-  globals.keyPair = seed.keyPair
-  const contractApi: Globals['contractApi'] = {
+  const seed = weSdk.Seed.fromExistingPhrase(SEED_PHRASE)
+  const contractApi = {
     createEastContract: (config: ConfigParam) => {
       return createEastContract(weSdk, seed, config)
     },
@@ -69,8 +61,7 @@ export async function initGlobals(): Promise<Required<Globals>> {
       })
     }
   }
-  globals.contractApi = contractApi
-  const eastServiceApi: Globals['eastServiceApi'] = {
+  const eastServiceApi = {
     trackTx: (request: TrackTxRequest) => {
       return trackTx(fetch, request)
     },
@@ -78,12 +69,19 @@ export async function initGlobals(): Promise<Required<Globals>> {
       return getTxStatuses(fetch, address, limit, offset)
     }
   }
-  globals.eastServiceApi = eastServiceApi
-  const nodeApi: Globals['nodeApi'] = {
+  const nodeApi = {
     getTxStatus: (txId: string) => {
       return getTxStatus(fetch, txId)
     }
   }
-  globals.nodeApi = nodeApi;
-  return globals as Required<Globals>
+  return {
+    rpcService,
+    fetch,
+    weSdk,
+    contractApi,
+    eastServiceApi,
+    nodeApi,
+    seed,
+    minimumFee,
+  }
 }

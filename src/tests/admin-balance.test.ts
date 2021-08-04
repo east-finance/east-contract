@@ -1,12 +1,11 @@
 import { Operations } from "../interfaces"
 import { initGlobals } from "./utils"
 import { createTx } from "./utils/create-fake-tx";
-import { Globals } from "./utils/interfaces";
 
-let globals: Required<Globals>
+let globals: ReturnType<typeof initGlobals>
 
 beforeAll(async () => {
-  globals = await initGlobals();
+  globals = await initGlobals()
   const { rpcService } = globals;
   (rpcService as any).stateService.isVaultExists = () => false;
   (rpcService as any).stateService.getTotalSupply = () => 0;

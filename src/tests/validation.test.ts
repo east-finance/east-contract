@@ -11,9 +11,8 @@ import { TransferDto } from "../dto/transfer.dto"
 import { Operations } from "../interfaces"
 import { initGlobals } from "./utils"
 import { createTx } from "./utils/create-fake-tx"
-import { Globals } from "./utils/interfaces"
 
-let globals: Required<Globals>
+let globals: ReturnType<typeof initGlobals>
 
 beforeAll(async () => {
   globals = await initGlobals();
