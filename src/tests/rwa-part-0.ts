@@ -32,7 +32,7 @@ async function main() {
   /**
    * MINT
    */
-  (async () => {
+  await (async () => {
     const mintTxId = await contractApi.mint(userSeed, 5)
     const pollingResult = await runPolling<GetTxStatusResponse>({
       sourceFn: async () => {
@@ -45,12 +45,13 @@ async function main() {
     if (pollingResult instanceof PollingTimeoutError) {
       return
     }
+    console.log('MINT')
     console.log(pollingResult)
   })();
   /**
    * SUPPLY
    */
-  (async () => {
+  await (async () => {
     const supplyTxId = await contractApi.supply(userSeed, 10)
     const pollingResult = await runPolling<GetTxStatusResponse>({
       sourceFn: async () => {
@@ -63,12 +64,13 @@ async function main() {
     if (pollingResult instanceof PollingTimeoutError) {
       return
     }
+    console.log('SUPPLY')
     console.log(pollingResult)
   })();
   /** 
    * REISSUE
    */
-  (async () => {
+  await (async () => {
     const reissueTxId = await contractApi.reissue(userSeed)
     const pollingResult = await runPolling<GetTxStatusResponse>({
       sourceFn: async () => {
@@ -81,6 +83,7 @@ async function main() {
     if (pollingResult instanceof PollingTimeoutError) {
       return
     }
+    console.log('REISSUE')
     console.log(pollingResult)
   })();
 }
