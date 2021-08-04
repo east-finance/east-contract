@@ -286,7 +286,7 @@ export class RPCService {
 
     if (eastAmount > oldEastAmount) {
       return {
-        eastAmount,
+        eastAmount: roundValue(eastAmount),
         rwaAmount: roundValue(rwaAmount),
         westAmount: roundValue(westAmount),
         westRate,
