@@ -14,7 +14,7 @@ export async function createEastContract(weSdk: WeSdk, ownerSeed: Seed) {
         value: JSON.stringify({
           oracleContractId: ORACLE_CONTRACT_ID,
           oracleTimestampMaxDiff: 100000000000,
-          rwaPart: 0,
+          rwaPart: 0.5,
           westCollateral: 2.5,
           liquidationCollateral: 1.3,
           minHoldTime: 1000 * 60 * 60,
