@@ -4,6 +4,7 @@ import { RPCService } from '../../services/RPCService';
 import { CONTRACT_ID, NODE_ADDRESS, SEED_PHRASE } from '../config';
 import { createEastContract } from './contract-api/create-east-contract';
 import { mint } from './contract-api/mint';
+import { supply } from './contract-api/supply';
 import { getTxStatuses } from './east-service-api/get-tx-statuses';
 import { trackTx, TrackTxRequest } from './east-service-api/track-tx';
 import { Globals } from './interfaces';
@@ -42,7 +43,7 @@ export async function initGlobals(): Promise<Required<Globals>> {
   const seed = globals.weSdk.Seed.fromExistingPhrase(SEED_PHRASE)
   globals.address = seed.address
   globals.keyPair = seed.keyPair
-  const contractApi = {
+  const contractApi: Globals['contractApi'] = {
     createEastContract: () => {
       return createEastContract(weSdk, seed)
     },
@@ -55,10 +56,20 @@ export async function initGlobals(): Promise<Required<Globals>> {
         weSdk,
         westAmount,
       })
+    },
+    supply: (userSeed: Seed, westAmount: number) => {
+      return supply({
+        contractId: CONTRACT_ID!,
+        minimumFee,
+        ownerAddress: seed.address,
+        userSeed,
+        weSdk,
+        westAmount,
+      })
     }
   }
   globals.contractApi = contractApi
-  const eastServiceApi = {
+  const eastServiceApi: Globals['eastServiceApi'] = {
     trackTx: (request: TrackTxRequest) => {
       return trackTx(fetch, request)
     },
@@ -67,7 +78,7 @@ export async function initGlobals(): Promise<Required<Globals>> {
     }
   }
   globals.eastServiceApi = eastServiceApi
-  const nodeApi = {
+  const nodeApi: Globals['nodeApi'] = {
     getTxStatus: (txId: string) => {
       return getTxStatus(fetch, txId)
     }

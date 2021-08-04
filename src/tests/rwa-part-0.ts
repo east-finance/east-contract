@@ -10,6 +10,25 @@ async function main() {
   const userSeedsResult = readFileSync(PATH_TO_USER_SEEDS!)
   const parsedUserSeedsResult = JSON.parse(userSeedsResult.toString())
   const userSeed = weSdk.Seed.fromExistingPhrase(parsedUserSeedsResult.seeds[0]);
+  const getTxStatus = async (txId: string) => {
+    try {
+      return await globals.nodeApi.getTxStatus(txId)
+    } catch (err) {
+      if (err instanceof GetTxStatusError) {
+        return err
+      }
+    }
+  }
+  const isContractCallSuccess = (result: GetTxStatusResponse | GetTxStatusError | undefined) => {
+    if (result === undefined) {
+      return false
+    }
+    if (result instanceof GetTxStatusError) {
+      console.log(`${Date.now()}: ${JSON.stringify(result.response)}`)
+      return false
+    }
+    return result.every(nodeResponse => nodeResponse.status === 'Success')
+  }
   /**
    * MINT
    */
@@ -17,24 +36,9 @@ async function main() {
     const mintTxId = await contractApi.mint(userSeed, 4)
     const pollingResult = await runPolling<GetTxStatusResponse>({
       sourceFn: async () => {
-        try {
-          return await globals.nodeApi.getTxStatus(mintTxId)
-        } catch (err) {
-          if (err instanceof GetTxStatusError) {
-            return err
-          }
-        }
+        return getTxStatus(mintTxId)
       },
-      predicateFn: (result: GetTxStatusResponse | GetTxStatusError | undefined) => {
-        if (result === undefined) {
-          return false
-        }
-        if (result instanceof GetTxStatusError) {
-          console.log(`${Date.now()}: ${JSON.stringify(result.response)}`)
-          return false
-        }
-        return result.every(nodeResponse => nodeResponse.status === 'Success')
-      },
+      predicateFn: isContractCallSuccess,
       pollInterval: 1000,
       timeout: 60000 * 5,
     })

@@ -16,7 +16,7 @@ export interface Globals {
   contractApi?: {
     createEastContract(): Promise<TxId>,
     mint(userSeed: Seed, westAmount: number): Promise<TxId>,
-    // supply(userSeed: Seed, westAmount: number): Promise<TxId>,
+    supply(userSeed: Seed, westAmount: number): Promise<TxId>,
   },
   eastServiceApi?: {
     trackTx(request: TrackTxRequest): Promise<void>,

@@ -46,5 +46,7 @@ export async function supply(namedArgs: SupplyArgs) {
   const supplyAtomic = await weSdk.API.Transactions.broadcastAtomic(
     weSdk.API.Transactions.Atomic.V1({transactions: [supplyTransfer, supplyCall]}),
     userSeed.keyPair
-  );  
+  );
+
+  return supplyCall.getId(userSeed.keyPair.publicKey)
 }
