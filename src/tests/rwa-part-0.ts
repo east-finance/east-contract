@@ -45,12 +45,44 @@ async function main() {
     if (pollingResult instanceof PollingTimeoutError) {
       return
     }
-    pollingResult.every(nodeResponse => nodeResponse.status === 'Success')
-  })()
-
+    console.log(pollingResult)
+  })();
   /**
-   * SUPPLY + REISSUE
+   * SUPPLY
    */
+  (async () => {
+    const supplyTxId = await contractApi.supply(userSeed, 10)
+    const pollingResult = await runPolling<GetTxStatusResponse>({
+      sourceFn: async () => {
+        return getTxStatus(supplyTxId)
+      },
+      predicateFn: isContractCallSuccess,
+      pollInterval: 1000,
+      timeout: 60000 * 5,
+    })
+    if (pollingResult instanceof PollingTimeoutError) {
+      return
+    }
+    console.log(pollingResult)
+  })();
+  /** 
+   * REISSUE
+   */
+  (async () => {
+    const reissueTxId = await contractApi.reissue(userSeed)
+    const pollingResult = await runPolling<GetTxStatusResponse>({
+      sourceFn: async () => {
+        return getTxStatus(reissueTxId)
+      },
+      predicateFn: isContractCallSuccess,
+      pollInterval: 1000,
+      timeout: 60000 * 5,
+    })
+    if (pollingResult instanceof PollingTimeoutError) {
+      return
+    }
+    console.log(pollingResult)
+  })();
 }
 
 main()

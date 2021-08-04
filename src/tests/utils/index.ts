@@ -5,6 +5,7 @@ import { RPCService } from '../../services/RPCService';
 import { CONTRACT_ID, NODE_ADDRESS, SEED_PHRASE } from '../config';
 import { createEastContract } from './contract-api/create-east-contract';
 import { mint } from './contract-api/mint';
+import { reissue } from './contract-api/reissue';
 import { supply } from './contract-api/supply';
 import { getTxStatuses } from './east-service-api/get-tx-statuses';
 import { trackTx, TrackTxRequest } from './east-service-api/track-tx';
@@ -58,6 +59,14 @@ export async function initGlobals() {
         userSeed,
         weSdk,
         westAmount,
+      })
+    },
+    reissue: (userSeed: Seed) => {
+      return reissue({
+        contractId: CONTRACT_ID!,
+        minimumFee,
+        userSeed,
+        weSdk,
       })
     }
   }
