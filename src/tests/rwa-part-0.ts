@@ -48,12 +48,6 @@ async function main() {
     console.log(pollingResult)
   })();
   /**
-   * Update WEST rate
-   */
-  (async () => {
-    
-  })();
-  /**
    * SUPPLY
    */
   (async () => {

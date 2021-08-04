@@ -6,10 +6,24 @@ type UpdateRatesArgs = {
   contractId: TxId,
   minimumFee: MinimumFee,
   userSeed: Seed,
+  westRate?: number,
+  rwaRate?: number,
+}
+
+type CallParams = {
+  '000003_latest'?: number,
+  '000010_latest'?: number,
 }
 
 export function updateRates(namedArgs: UpdateRatesArgs) {
-  const { contractId, minimumFee, userSeed, weSdk } = namedArgs
+  const { contractId, minimumFee, userSeed, weSdk, westRate, rwaRate } = namedArgs
+  const callParams: CallParams = {}
+  if (westRate !== undefined) {
+    callParams['000003_latest'] = westRate
+  }
+  if (rwaRate !== undefined) {
+    callParams['000010_latest'] = rwaRate
+  }
   const call = weSdk.API.Transactions.CallContract.V4({
     contractId,
     contractVersion: 1,
@@ -19,8 +33,7 @@ export function updateRates(namedArgs: UpdateRatesArgs) {
     params: [{
       type: 'string',
       key: 'supply',
-      value: JSON.stringify({
-      })
+      value: JSON.stringify(callParams)
     }],
     atomicBadge: {
       trustedSender: userSeed.address

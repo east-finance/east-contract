@@ -2,7 +2,7 @@ import { create, MAINNET_CONFIG, Seed } from '@wavesenterprise/js-sdk';
 import nodeFetch from 'node-fetch';
 import { ConfigParam } from '../../interfaces';
 import { RPCService } from '../../services/RPCService';
-import { CONTRACT_ID, NODE_ADDRESS, SEED_PHRASE } from '../config';
+import { CONTRACT_ID, NODE_ADDRESS, ORACLE_CONTRACT_ID, SEED_PHRASE } from '../config';
 import { createEastContract } from './contract-api/create-east-contract';
 import { mint } from './contract-api/mint';
 import { reissue } from './contract-api/reissue';
@@ -10,6 +10,7 @@ import { supply } from './contract-api/supply';
 import { getTxStatuses } from './east-service-api/get-tx-statuses';
 import { trackTx, TrackTxRequest } from './east-service-api/track-tx';
 import { getTxStatus } from './node-api/get-tx-status';
+import { updateRates } from './oracle-contract-api/update-rates';
 
 export async function initGlobals() {
   const rpcService = new RPCService()
@@ -83,12 +84,25 @@ export async function initGlobals() {
       return getTxStatus(fetch, txId)
     }
   }
+  const oracleContractApi = {
+    updateRates: (westRate?: number, rwaRate?: number) => {
+      return updateRates({
+        contractId: ORACLE_CONTRACT_ID,
+        minimumFee,
+        userSeed: seed,
+        weSdk,
+        rwaRate,
+        westRate,
+      })
+    }
+  }
   return {
     rpcService,
     fetch,
     weSdk,
     contractApi,
     eastServiceApi,
+    oracleContractApi,
     nodeApi,
     seed,
     minimumFee,
