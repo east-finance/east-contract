@@ -62,12 +62,13 @@ export async function initGlobals() {
         westAmount,
       })
     },
-    reissue: (userSeed: Seed) => {
+    reissue: (userSeed: Seed, maxWestToExchange?: number) => {
       return reissue({
         contractId: CONTRACT_ID!,
         minimumFee,
         userSeed,
         weSdk,
+        maxWestToExchange,
       })
     }
   }
