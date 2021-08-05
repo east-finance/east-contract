@@ -3,5 +3,5 @@
   "rwaPart": 0,
   "westCollateral": 2.5,
   "liquidationCollateral": 1.3,
-  "minHoldTime": 3600000
+  "minHoldTime": 1
 }
