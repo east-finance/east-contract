@@ -6,7 +6,7 @@ export async function createEastContract(weSdk: WeSdk, ownerSeed: Seed, config: 
   const txBody: Parameters<WeSdk['API']['Transactions']['CreateContract']['V4']>[0] = {
     image: IMAGE_NAME,
     imageHash: IMAGE_HASH,
-    contractName: 'GRPC contract',
+    contractName: 'EAST contract',
     timestamp: Date.now(),
     params: [
       {
