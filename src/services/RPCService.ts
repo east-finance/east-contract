@@ -312,7 +312,7 @@ export class RPCService {
   }
 
   // returns amount
-  async checkTransfer(tx: Transaction, transferId: string): Promise<number> {
+  async checkTransfer(tx: Transaction, transferId: string, transferAssetId?: string): Promise<number> {
     const {
       sender_public_key: senderPubKey,
       amount: transferAmount,
@@ -320,8 +320,14 @@ export class RPCService {
       recipient
     } = await this.stateService.getTransactionInfoOrFail<TransferTx>(transferId);
 
-    if (assetId) {
-      throw new Error(`Expected transfer asset to be WEST, got: ${assetId}`);
+    if(transferAssetId) {
+      if (assetId !== transferAssetId) {
+        throw new Error(`Expected transfer asset to be ${transferAssetId}, got: ${assetId}`);
+      }
+    } else {
+      if (assetId) {
+        throw new Error(`Expected transfer asset to be WEST, got: ${assetId}`);
+      }
     }
 
     const { adminAddress } = await this.stateService.getConfig();
@@ -469,7 +475,7 @@ export class RPCService {
      */
     const { eastAmount, rwaAmount, westAmount } = await this.stateService.getVault(address);
 
-    if (westTransferId !== undefined) {  
+    if (westTransferId !== undefined) {
       const {
         sender_public_key: westSenderPubKey,
         amount: westTransferAmount,
@@ -495,7 +501,7 @@ export class RPCService {
       }
     }
 
-    if (rwaTransferId !== undefined) {      
+    if (rwaTransferId !== undefined) {
       const {
         sender_public_key: rwaSenderPubKey,
         amount: rwaTransferAmount,
@@ -506,15 +512,15 @@ export class RPCService {
       if (address !== rwaRecipient) {
         throw new Error(`Expected rwaRecipient to be equal to ${address}, got: ${rwaRecipient}`);
       }
-  
+
       if (tx.sender_public_key !== rwaSenderPubKey) {
         throw new Error(`Expected rwaSenderPubKey to be equal to ${tx.sender_public_key}, got: ${rwaSenderPubKey}`);
       }
-  
+
       if (rwaAssetId !== rwaTokenId) {
         throw new Error(`Expected transfer asset to be ${rwaTokenId}, got: ${rwaAssetId}`);
       }
-  
+
       if (roundValue(parseValue(rwaTransferAmount)) !== roundValue(rwaAmount)) {
         throw new Error(`rwa transfer amount not equal to vault amount, 
           rwaAmount: ${rwaAmount}, rwaTransferAmount: ${rwaTransferAmount}`)
@@ -576,20 +582,24 @@ export class RPCService {
   }
 
   async liquidate(tx: Transaction, param: LiquidateParam): Promise<DataEntryRequest[]> {
-    await this.validate(LiquidateDto, param)
-    const { address } = param
-    // only contract creator allowed
-    await this.checkAdminPermissions(tx);
-    const { eastAmount, westAmount, rwaAmount, liquidationCollateral } = await this.stateService.getVault(address);
-    const {
-      oracleContractId,
-      rwaPart
-    } = await this.stateService.getConfig();
+    await this.validate(LiquidateDto, param);
+    const { address, transferId } = param;
+
+    const vaultExists = await this.stateService.isVaultExists(address);
+    if (!vaultExists) {
+      throw new Error(`Vault for user ${address} doesn't exist`);
+    }
+
+    const { eastAmount, westAmount, rwaAmount } = await this.stateService.getVault(address);
+    const { rwaTokenId, oracleContractId, rwaPart, liquidationCollateral } = await this.stateService.getConfig();
+    const transferAmount = await this.checkTransfer(tx, transferId, rwaTokenId);
+    const parsedTransferAmount = parseFloat(transferAmount + '') / Math.pow(10, WEST_DECIMALS);
+
+    if (parsedTransferAmount !== eastAmount) {
+      throw new Error(`Cannot liquidate vault ${address}: expected transfer amount: ${eastAmount}, received: ${parsedTransferAmount}`)
+    }
 
     const westRate = JSON.parse(await this.stateService.getContractKeyValue(WEST_ORACLE_STREAM, oracleContractId));
-    // mock
-    // const westRate = { value: 0.1, timestamp: Date.now() }
-
     const westPart = 1 - rwaPart;
     const currentWestCollateral = (westAmount * westRate.value) / (westPart * eastAmount);
 
@@ -603,7 +613,8 @@ export class RPCService {
       address,
       liquidated: true,
       westRate,
-      liquidationCollateral
+      liquidationCollateral,
+      liquidatedWestAmount: westAmount
     }
 
     let totalRwa = await this.stateService.getTotalRwa();
