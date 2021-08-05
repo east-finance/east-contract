@@ -65,10 +65,6 @@ export interface ClaimOverpayParam {
   requestId: string
 }
 
-export interface LiquidateParam {
-  address: string,
-}
-
 export interface TransferParam {
   to: string,
   amount: number
@@ -94,6 +90,11 @@ export interface MintParam {
 }
 
 export interface SupplyParam {
+  transferId: string
+}
+
+export interface LiquidateParam {
+  address: string;
   transferId: string
 }
 

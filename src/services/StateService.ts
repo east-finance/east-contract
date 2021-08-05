@@ -1,6 +1,6 @@
 import { Metadata } from '@grpc/grpc-js';
 import { ConfigParam, DataEntryRequest, DataEntryResponse, StateKeys, Vault } from '../interfaces';
-import { Base58 } from '../utils/base58'
+import { Base58 } from '../utils/base58';
 import { createLogger } from '../utils/logger';
 
 const logger = createLogger('State service');
@@ -227,7 +227,7 @@ export class StateService {
     try {
       const value = await this.getContractKeyValue(`${StateKeys.vault}_${vaultId}`);
       const vault = JSON.parse(value as string) as Vault;
-      if (vault && vault.rwaAmount) {
+      if (vault && (vault.westAmount || vault.rwaAmount)) {
         return true;
       }
       return false;
