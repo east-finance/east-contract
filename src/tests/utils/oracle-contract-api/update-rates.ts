@@ -35,9 +35,6 @@ export function updateRates(namedArgs: UpdateRatesArgs) {
       key: 'supply',
       value: JSON.stringify(callParams)
     }],
-    atomicBadge: {
-      trustedSender: userSeed.address
-    }
   });
   call.broadcast(userSeed.keyPair)
   return call.getId(userSeed.keyPair.publicKey)
