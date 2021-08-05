@@ -86,34 +86,25 @@ async function main() {
     console.log('REISSUE')
     console.log(pollingResult)
   })();
-  // /**
-  //  * UPDATE ORACLE RATE
-  //  */
-  // await (async () => {
-  //   const updateRateId = await oracleContractApi.updateRates({
-  //     key: 'west',
-  //     value: 0.6
-  //   })
-  //   const pollingResult = await runPolling<GetTxStatusResponse>({
-  //     sourceFn: async () => {
-  //       return getTxStatus(updateRateId)
-  //     },
-  //     predicateFn: isContractCallSuccess,
-  //     pollInterval: 1000,
-  //     timeout: 60000 * 5,
-  //   })
-  //   if (pollingResult instanceof PollingTimeoutError) {
-  //     return
-  //   }
-  //   console.log('UPDATE ORACLE RATE')
-  //   console.log(pollingResult)
-  // })()
-  // /**
-  //  * CLAIM OVERPAY INIT
-  //  */
-  // await (async () => {
-
-  // })();
+  /** 
+   * CLOSE INIT
+   */
+  await (async () => {
+    const closeInitTxId = await contractApi.closeInit(userSeed)
+    const pollingResult = await runPolling<GetTxStatusResponse>({
+      sourceFn: async () => {
+        return getTxStatus(closeInitTxId)
+      },
+      predicateFn: isContractCallSuccess,
+      pollInterval: 1000,
+      timeout: 60000 * 5,
+    })
+    if (pollingResult instanceof PollingTimeoutError) {
+      return
+    }
+    console.log('CLOSE INIT')
+    console.log(pollingResult)
+  })()
 }
 
 main()
