@@ -85,15 +85,15 @@ export async function initGlobals() {
     }
   }
   const oracleContractApi = {
-    updateRates: (namedArgs: { westRate?: number, rwaRate?: number }) => {
-      const { rwaRate, westRate } = namedArgs;
+    updateRates: (namedArgs: { key: 'west' | 'rwa', value: number }) => {
+      const { key, value } = namedArgs;
       return updateRates({
         contractId: ORACLE_CONTRACT_ID,
         minimumFee,
         userSeed: seed,
         weSdk,
-        rwaRate,
-        westRate,
+        key,
+        value,
       })
     }
   }
