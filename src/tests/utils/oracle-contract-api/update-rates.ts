@@ -10,11 +10,6 @@ type UpdateRatesArgs = {
   value: number,
 }
 
-type CallParams = {
-  '000003_latest'?: number,
-  '000010_latest'?: number,
-}
-
 export function updateRates(namedArgs: UpdateRatesArgs) {
   const { contractId, minimumFee, userSeed, weSdk, key, value } = namedArgs
   let realKey: '000003_latest' | '000010_latest' | undefined
@@ -33,7 +28,7 @@ export function updateRates(namedArgs: UpdateRatesArgs) {
     params: [{
       type: 'string',
       key: realKey,
-      value: value.toString(),
+      value: JSON.stringify({ timestamp: Date.now(), value: value.toString() }),
     }],
   });
   call.broadcast(userSeed.keyPair)
