@@ -15,7 +15,8 @@
     "test": "jest",
     "cc": "ts-node src/tests/scripts/create-contract.ts",
     "cu": "ts-node src/tests/scripts/create-users.ts",
-    "rb": "ts-node src/tests/scripts/refresh-user-balnces.ts"
+    "rb": "ts-node src/tests/scripts/refresh-user-balnces.ts",
+    "ur": "ts-node src/tests/scripts/update-oracle-contract-rates.ts"
   },
   "author": "Aleksandr Kuvakin",
   "license": "ISC",
