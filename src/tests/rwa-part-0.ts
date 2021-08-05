@@ -6,7 +6,7 @@ import { PollingTimeoutError, runPolling } from "./utils/polling";
 
 async function main() {
   const globals = await initGlobals();
-  const { contractApi, weSdk } = globals
+  const { contractApi, weSdk, oracleContractApi } = globals
   const userSeedsResult = readFileSync(PATH_TO_USER_SEEDS!)
   const parsedUserSeedsResult = JSON.parse(userSeedsResult.toString())
   const userSeed = weSdk.Seed.fromExistingPhrase(parsedUserSeedsResult.seeds[0]);
@@ -85,6 +85,20 @@ async function main() {
     }
     console.log('REISSUE')
     console.log(pollingResult)
+  })();
+  /**
+   * UPDATE ORACLE RATE
+   */
+  await (async () => {
+    oracleContractApi.updateRates({
+      westRate: 0.6
+    })
+  })()
+  /**
+   * CLAIM OVERPAY INIT
+   */
+  await (async () => {
+
   })();
 }
 

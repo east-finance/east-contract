@@ -85,7 +85,8 @@ export async function initGlobals() {
     }
   }
   const oracleContractApi = {
-    updateRates: (westRate?: number, rwaRate?: number) => {
+    updateRates: (namedArgs: { westRate?: number, rwaRate?: number }) => {
+      const { rwaRate, westRate } = namedArgs;
       return updateRates({
         contractId: ORACLE_CONTRACT_ID,
         minimumFee,
