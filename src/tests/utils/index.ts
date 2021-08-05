@@ -3,6 +3,7 @@ import nodeFetch from 'node-fetch';
 import { ConfigParam } from '../../interfaces';
 import { RPCService } from '../../services/RPCService';
 import { CONTRACT_ID, NODE_ADDRESS, ORACLE_CONTRACT_ID, SEED_PHRASE } from '../config';
+import { closeInit } from './contract-api/close-init';
 import { createEastContract } from './contract-api/create-east-contract';
 import { mint } from './contract-api/mint';
 import { reissue } from './contract-api/reissue';
@@ -62,8 +63,17 @@ export async function initGlobals() {
         westAmount,
       })
     },
-    reissue: (userSeed: Seed) => {
+    reissue: (userSeed: Seed, maxWestToExchange?: number) => {
       return reissue({
+        contractId: CONTRACT_ID!,
+        minimumFee,
+        userSeed,
+        weSdk,
+        maxWestToExchange,
+      })
+    },
+    closeInit: (userSeed: Seed) => {
+      return closeInit({
         contractId: CONTRACT_ID!,
         minimumFee,
         userSeed,
@@ -85,14 +95,15 @@ export async function initGlobals() {
     }
   }
   const oracleContractApi = {
-    updateRates: (westRate?: number, rwaRate?: number) => {
+    updateRates: (namedArgs: { key: 'west' | 'rwa', value: number }) => {
+      const { key, value } = namedArgs;
       return updateRates({
         contractId: ORACLE_CONTRACT_ID,
         minimumFee,
         userSeed: seed,
         weSdk,
-        rwaRate,
-        westRate,
+        key,
+        value,
       })
     }
   }

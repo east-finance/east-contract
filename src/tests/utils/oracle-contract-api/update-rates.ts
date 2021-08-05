@@ -6,23 +6,18 @@ type UpdateRatesArgs = {
   contractId: TxId,
   minimumFee: MinimumFee,
   userSeed: Seed,
-  westRate?: number,
-  rwaRate?: number,
-}
-
-type CallParams = {
-  '000003_latest'?: number,
-  '000010_latest'?: number,
+  key: 'west' | 'rwa',
+  value: number,
 }
 
 export function updateRates(namedArgs: UpdateRatesArgs) {
-  const { contractId, minimumFee, userSeed, weSdk, westRate, rwaRate } = namedArgs
-  const callParams: CallParams = {}
-  if (westRate !== undefined) {
-    callParams['000003_latest'] = westRate
+  const { contractId, minimumFee, userSeed, weSdk, key, value } = namedArgs
+  let realKey: '000003_latest' | '000010_latest' | undefined
+  if (key === 'west') {
+    realKey = '000003_latest'
   }
-  if (rwaRate !== undefined) {
-    callParams['000010_latest'] = rwaRate
+  if (key === 'rwa') {
+    realKey = '000010_latest'
   }
   const call = weSdk.API.Transactions.CallContract.V4({
     contractId,
@@ -32,12 +27,9 @@ export function updateRates(namedArgs: UpdateRatesArgs) {
     timestamp: Date.now(),
     params: [{
       type: 'string',
-      key: 'supply',
-      value: JSON.stringify(callParams)
+      key: realKey,
+      value: JSON.stringify({ timestamp: Date.now(), value: value.toString() }),
     }],
-    atomicBadge: {
-      trustedSender: userSeed.address
-    }
   });
   call.broadcast(userSeed.keyPair)
   return call.getId(userSeed.keyPair.publicKey)

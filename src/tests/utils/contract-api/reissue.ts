@@ -6,10 +6,11 @@ type ReissueArgs = {
   minimumFee: Record<string, number>,
   userSeed: Seed,
   contractId: TxId,
+  maxWestToExchange?: number,
 }
 
 export async function reissue(namedArgs: ReissueArgs) {
-  const { weSdk, userSeed, minimumFee, contractId } = namedArgs
+  const { weSdk, userSeed, minimumFee, contractId, maxWestToExchange } = namedArgs
   const reissueCall = await weSdk.API.Transactions.CallContract.V4({
     contractId,
     contractVersion: 1,
@@ -18,7 +19,7 @@ export async function reissue(namedArgs: ReissueArgs) {
     params: [{
       type: 'string',
       key: 'reissue',
-      value: JSON.stringify({ maxWestToExchange: 10 })
+      value: maxWestToExchange ? JSON.stringify({ maxWestToExchange }) : ''
     }]
   })
   reissueCall.broadcast(userSeed.keyPair);

@@ -286,7 +286,7 @@ export class RPCService {
 
     if (eastAmount > oldEastAmount) {
       return {
-        eastAmount,
+        eastAmount: roundValue(eastAmount),
         rwaAmount: roundValue(rwaAmount),
         westAmount: roundValue(westAmount),
         westRate,
@@ -695,7 +695,10 @@ export class RPCService {
     const westRate = JSON.parse(await this.stateService.getContractKeyValue(WEST_ORACLE_STREAM, oracleContractId))
     const rwaRate = JSON.parse(await this.stateService.getContractKeyValue(RWA_ORACLE_STREAM, oracleContractId))
     const westPart = 1 - rwaPart;
-    const westExpectedValue = vault.eastAmount * westPart * rwaRate.value * westCollateral
+    let westExpectedValue = vault.eastAmount * westPart * rwaRate.value * westCollateral
+    if (rwaPart === 0) {
+      westExpectedValue = vault.eastAmount * westPart * westCollateral
+    }
     const expectedWestAmount = westExpectedValue / westRate.value
     const expectedTransferAmount = vault.westAmount - expectedWestAmount
 

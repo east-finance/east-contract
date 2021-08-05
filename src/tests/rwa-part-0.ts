@@ -6,7 +6,7 @@ import { PollingTimeoutError, runPolling } from "./utils/polling";
 
 async function main() {
   const globals = await initGlobals();
-  const { contractApi, weSdk } = globals
+  const { contractApi, weSdk, oracleContractApi } = globals
   const userSeedsResult = readFileSync(PATH_TO_USER_SEEDS!)
   const parsedUserSeedsResult = JSON.parse(userSeedsResult.toString())
   const userSeed = weSdk.Seed.fromExistingPhrase(parsedUserSeedsResult.seeds[0]);
@@ -86,6 +86,25 @@ async function main() {
     console.log('REISSUE')
     console.log(pollingResult)
   })();
+  /** 
+   * CLOSE INIT
+   */
+  await (async () => {
+    const closeInitTxId = await contractApi.closeInit(userSeed)
+    const pollingResult = await runPolling<GetTxStatusResponse>({
+      sourceFn: async () => {
+        return getTxStatus(closeInitTxId)
+      },
+      predicateFn: isContractCallSuccess,
+      pollInterval: 1000,
+      timeout: 60000 * 5,
+    })
+    if (pollingResult instanceof PollingTimeoutError) {
+      return
+    }
+    console.log('CLOSE INIT')
+    console.log(pollingResult)
+  })()
 }
 
 main()
