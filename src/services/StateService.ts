@@ -227,7 +227,7 @@ export class StateService {
     try {
       const value = await this.getContractKeyValue(`${StateKeys.vault}_${vaultId}`);
       const vault = JSON.parse(value as string) as Vault;
-      if (vault && vault.westAmount) {
+      if (vault && (vault.westAmount || vault.rwaAmount)) {
         return true;
       }
       return false;
