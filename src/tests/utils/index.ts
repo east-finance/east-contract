@@ -10,6 +10,7 @@ import { reissue } from './contract-api/reissue';
 import { supply } from './contract-api/supply';
 import { getTxStatuses } from './east-service-api/get-tx-statuses';
 import { trackTx, TrackTxRequest } from './east-service-api/track-tx';
+import { getContractState } from './node-api/get-contract-state';
 import { getTxStatus } from './node-api/get-tx-status';
 import { updateRates } from './oracle-contract-api/update-rates';
 
@@ -92,6 +93,9 @@ export async function initGlobals() {
   const nodeApi = {
     getTxStatus: (txId: string) => {
       return getTxStatus(fetch, txId)
+    },
+    getContractState: (limit: number, offset: number = 0) => {
+      return getContractState(fetch, ORACLE_CONTRACT_ID, limit, offset)
     }
   }
   const oracleContractApi = {

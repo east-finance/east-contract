@@ -22,6 +22,6 @@ export async function createEastContract(weSdk: WeSdk, ownerSeed: Seed, config: 
   };
   
   const tx = weSdk.API.Transactions.CreateContract.V4(txBody);
-  await tx.broadcast(ownerSeed.keyPair);
+  tx.broadcast(ownerSeed.keyPair);
   return tx.getId(ownerSeed.keyPair.publicKey)
 }
