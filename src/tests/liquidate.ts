@@ -55,7 +55,7 @@ async function main() {
     },
     pollInterval: 1000,
     timeout: 30000,
-  })  
+  })
   
   const liquidatorSeedPhrase = generateUserSeedPhrase()
   const liquidator = weSdk.Seed.fromExistingPhrase(liquidatorSeedPhrase)
@@ -180,8 +180,7 @@ async function main() {
     if (liquidatableVaults instanceof PollingTimeoutError) {
       return
     }
-    const liquidatableVault = liquidatableVaults[0]
-
+    const liquidatableVault = liquidatableVaults[liquidatableVaults.length - 1]
     const liquidateTxId = await contractApi.liquidate(
       liquidator,
       liquidatableVault.address,
