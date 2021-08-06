@@ -1,12 +1,13 @@
 import { readFileSync } from "fs";
 import { PATH_TO_USER_SEEDS } from "./config";
 import { initGlobals } from "./utils";
+import { Vault } from "./utils/east-service-api/get-liquidatable-vaults";
 import { GetTxStatusError, GetTxStatusResponse } from "./utils/node-api/get-tx-status";
 import { PollingTimeoutError, runPolling } from "./utils/polling";
 
 async function main() {
   const globals = await initGlobals();
-  const { contractApi, weSdk, oracleContractApi } = globals
+  const { contractApi, weSdk, oracleContractApi, eastServiceApi } = globals
   const userSeedsResult = readFileSync(PATH_TO_USER_SEEDS!)
   const parsedUserSeedsResult = JSON.parse(userSeedsResult.toString())
   const userSeed = weSdk.Seed.fromExistingPhrase(parsedUserSeedsResult.seeds[0]);
@@ -71,13 +72,16 @@ async function main() {
     console.log(pollingResult)
   })();
   /**
-   * SUPPLY
+   * UPDATE ORACLE CONTRACT RATES
    */
   await (async () => {
-    const supplyTxId = await contractApi.supply(userSeed, 10)
+    const updateRatesTxId = await oracleContractApi.updateRates({
+      key: 'west',
+      value: 0.1,
+    })
     const pollingResult = await runPolling<GetTxStatusResponse>({
       sourceFn: async () => {
-        return getTxStatus(supplyTxId)
+        return getTxStatus(updateRatesTxId)
       },
       predicateFn: isContractCallSuccess,
       pollInterval: 1000,
@@ -86,17 +90,31 @@ async function main() {
     if (pollingResult instanceof PollingTimeoutError) {
       return
     }
-    console.log('SUPPLY')
+    console.log('UPDATE ORACLE CONTRACT RATES')
     console.log(pollingResult)
   })();
-  /** 
-   * REISSUE
+  /**
+   * LIQUIDATE
    */
   await (async () => {
-    const reissueTxId = await contractApi.reissue(userSeed)
+    const liquidatableVaults = await runPolling<Vault[]>({
+      sourceFn: eastServiceApi.getLiquidatableVaults,
+      predicateFn: (result: Vault[]) => {
+        return result.length > 0
+      },
+      pollInterval: 1000,
+      timeout: 60000 * 5,
+    })
+    if (liquidatableVaults instanceof PollingTimeoutError) {
+      return
+    }
+    const liquidatableVault = liquidatableVaults[0]
+
+    const liquidatorSeed = weSdk.Seed.fromExistingPhrase(parsedUserSeedsResult.seeds[1])
+    const liquidateTxId = await contractApi.liquidate(liquidatorSeed, userSeed.address, liquidatableVault.east_amount)
     const pollingResult = await runPolling<GetTxStatusResponse>({
       sourceFn: async () => {
-        return getTxStatus(reissueTxId)
+        return getTxStatus(liquidateTxId)
       },
       predicateFn: isContractCallSuccess,
       pollInterval: 1000,
@@ -105,28 +123,9 @@ async function main() {
     if (pollingResult instanceof PollingTimeoutError) {
       return
     }
-    console.log('REISSUE')
+    console.log('LIQUIDATE')
     console.log(pollingResult)
   })();
-  /** 
-   * CLOSE INIT
-   */
-  await (async () => {
-    const closeInitTxId = await contractApi.closeInit(userSeed)
-    const pollingResult = await runPolling<GetTxStatusResponse>({
-      sourceFn: async () => {
-        return getTxStatus(closeInitTxId)
-      },
-      predicateFn: isContractCallSuccess,
-      pollInterval: 1000,
-      timeout: 60000 * 5,
-    })
-    if (pollingResult instanceof PollingTimeoutError) {
-      return
-    }
-    console.log('CLOSE INIT')
-    console.log(pollingResult)
-  })()
 }
 
 main()

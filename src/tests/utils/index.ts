@@ -2,12 +2,14 @@ import { create, MAINNET_CONFIG, Seed } from '@wavesenterprise/js-sdk';
 import nodeFetch from 'node-fetch';
 import { ConfigParam } from '../../interfaces';
 import { RPCService } from '../../services/RPCService';
-import { CONTRACT_ID, NODE_ADDRESS, ORACLE_CONTRACT_ID, SEED_PHRASE } from '../config';
+import { CONTRACT_ID, NODE_ADDRESS, ORACLE_CONTRACT_ID, RWA_TOKEN_ID, SEED_PHRASE } from '../config';
 import { closeInit } from './contract-api/close-init';
 import { createEastContract } from './contract-api/create-east-contract';
+import { liquidate } from './contract-api/liquidate';
 import { mint } from './contract-api/mint';
 import { reissue } from './contract-api/reissue';
 import { supply } from './contract-api/supply';
+import { getLiquidatableVaults } from './east-service-api/get-liquidatable-vaults';
 import { getTxStatuses } from './east-service-api/get-tx-statuses';
 import { trackTx, TrackTxRequest } from './east-service-api/track-tx';
 import { getContractState } from './node-api/get-contract-state';
@@ -80,6 +82,18 @@ export async function initGlobals() {
         userSeed,
         weSdk,
       })
+    },
+    liquidate: (userSeed: Seed, liquidatableVaultAddress: string, rwaAmount: number) => {
+      return liquidate({
+        contractId: CONTRACT_ID!,
+        minimumFee,
+        ownerSeed: seed,
+        rwaTokenId: RWA_TOKEN_ID,
+        weSdk,
+        userSeed,
+        liquidatableVaultAddress,
+        rwaAmount,
+      })
     }
   }
   const eastServiceApi = {
@@ -88,7 +102,10 @@ export async function initGlobals() {
     },
     getTxStatuses: (address: string, limit: number, offset: number) => {
       return getTxStatuses(fetch, address, limit, offset)
-    }
+    },
+    getLiquidatableVaults: () => {
+      return getLiquidatableVaults(fetch)
+    },
   }
   const nodeApi = {
     getTxStatus: (txId: string) => {
