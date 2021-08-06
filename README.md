@@ -171,15 +171,17 @@ maxWestToExchange - максимальное колличество west для 
 
 #### liquidate
 <b> Описание: </b>
-Если в случае падение курса WEST, обеспечение WEST падает менее значения liquidationCollateral из конфига контракта то сервис атоматизации вызывает данный метод, который проверяет по последним данным ораклов действительно ли обеспечение упало ниже liquidationCollateral и записывает в vault значения rwaAmount = eastAmount, westAmount = 0. После этого пользователь больше не может закрыть позицию. В случае если обеспечение WEST больше liquidationCollateral то вызов метода не производится.  
+Если в случае падение курса WEST обеспечение WEST падает менее значения liquidationCollateral из конфига контракта, то любой пользователь может выкупить WEST, хранящиеся в волте. Для этого ему нужно создать атомик с трансфером RWA токена в количестве, равному количестве EAST токенов в волте, на адрес контракта и CallContract с методом liquidate с указанием `transferId` и `address`. Контракт проверяет по последним данным ораклов действительно ли обеспечение упало ниже liquidationCollateral и записывает в vault значения rwaAmount = eastAmount, westAmount = 0, liquidatedWestAmount = vaultWestAmount. После этого пользователь больше не может закрыть позицию. В случае если обеспечение WEST больше liquidationCollateral то вызов метода не производится.  
 <b> Доступ к методу: </b>
 Владелец контракта (сервис автоматизации)  
 <b>Тело метода: </b>
 ```js
-  address: string // vault id
+  address: string // vault address
+  transferId: string // id of RWA transfer transaction
 ```  
 <b>Результат выполнения: </b>
-- обновляет ключ `vault_${address}` хранящего в себе информацию о vault пользователя
+- обновляет значение ключа `vault_${address}` в пустую строку
+- создает ключ `liquidated_vault_${address}_<tx_timestamp>` с данными ликвидированного волта
 
 #### update_config
 <b> Описание: </b>
