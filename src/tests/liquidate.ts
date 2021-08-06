@@ -172,7 +172,8 @@ async function main() {
     const liquidatableVaults = await runPolling<Vault[]>({
       sourceFn: eastServiceApi.getLiquidatableVaults,
       predicateFn: (result: Vault[]) => {
-        return result.length > 0
+        const vault = result.find(vault => vault.address === userSeed.address)
+        return vault !== undefined
       },
       pollInterval: 1000,
       timeout: 60000 * 5,
@@ -180,7 +181,7 @@ async function main() {
     if (liquidatableVaults instanceof PollingTimeoutError) {
       return
     }
-    const liquidatableVault = liquidatableVaults[liquidatableVaults.length - 1]
+    const liquidatableVault = liquidatableVaults.find(vault => vault.address === userSeed.address)!
     const liquidateTxId = await contractApi.liquidate(
       liquidator,
       liquidatableVault.address,
