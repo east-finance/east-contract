@@ -60,7 +60,7 @@ async function main(count: number = 1, westAmount = 3, rwaAmount = 1) {
     const rwaTransferCall = weSdk.API.Transactions.Transfer.V3({
       recipient: seed.address,
       assetId: RWA_TOKEN_ID,
-      amount: westAmount * 100000000,
+      amount: rwaAmount * 100000000,
       timestamp: Date.now(),
       attachment: '',
       fee: minimumFee[4],
