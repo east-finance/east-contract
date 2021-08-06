@@ -111,7 +111,8 @@ async function main() {
     const liquidatableVault = liquidatableVaults[0]
 
     const liquidatorSeed = weSdk.Seed.fromExistingPhrase(parsedUserSeedsResult.seeds[1])
-    const liquidateTxId = await contractApi.liquidate(liquidatorSeed, userSeed.address, liquidatableVault.east_amount)
+    const liquidateTxId = await contractApi
+      .liquidate(liquidatorSeed, userSeed.address, parseFloat(liquidatableVault.east_amount as unknown as string));
     const pollingResult = await runPolling<GetTxStatusResponse>({
       sourceFn: async () => {
         return getTxStatus(liquidateTxId)

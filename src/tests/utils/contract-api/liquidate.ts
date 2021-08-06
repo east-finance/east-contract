@@ -14,6 +14,9 @@ type LiquidateArgs = {
 
 export async function liquidate(namedArgs: LiquidateArgs) {
   const { weSdk, minimumFee, userSeed: liquidatorSeed, ownerSeed, liquidatableVaultAddress, rwaTokenId, contractId, rwaAmount } = namedArgs
+  console.log('========')
+  console.log(rwaAmount)
+  console.log('========')
   const liquidateTransfer = weSdk.API.Transactions.Transfer.V3({
     recipient: ownerSeed.address,
     assetId: rwaTokenId,
