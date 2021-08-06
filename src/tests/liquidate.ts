@@ -1,16 +1,88 @@
-import { readFileSync } from "fs";
-import { PATH_TO_USER_SEEDS } from "./config";
+import { NODE_ADDRESS, RWA_TOKEN_ID } from "./config";
 import { initGlobals } from "./utils";
 import { Vault } from "./utils/east-service-api/get-liquidatable-vaults";
 import { GetTxStatusError, GetTxStatusResponse } from "./utils/node-api/get-tx-status";
 import { PollingTimeoutError, runPolling } from "./utils/polling";
 
+function generateWord(length: number) {
+  var result = '';
+  var characters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+  var charactersLength = characters.length;
+  for (var i = 0; i < length; i++) {
+    result += characters.charAt(Math.floor(Math.random() *
+      charactersLength));
+  }
+  return result;
+}
+
+function generateUserSeedPhrase() {
+  let result = ''
+  for (let i = 0; i < 5; i++) {
+    result = result + generateWord(5) + ' '
+  }
+  return result.slice(0, -1)
+}
+
+const WEST_AMOUNT = 5
+
+const RWA_AMOUNT = 2
+
 async function main() {
   const globals = await initGlobals();
-  const { contractApi, weSdk, oracleContractApi, eastServiceApi } = globals
-  const userSeedsResult = readFileSync(PATH_TO_USER_SEEDS!)
-  const parsedUserSeedsResult = JSON.parse(userSeedsResult.toString())
-  const userSeed = weSdk.Seed.fromExistingPhrase(parsedUserSeedsResult.seeds[0]);
+  const { contractApi, weSdk, oracleContractApi, eastServiceApi, seed: ownerSeed, minimumFee, fetch } = globals
+
+  const userSeedPhrase = generateUserSeedPhrase()
+  const userSeed = weSdk.Seed.fromExistingPhrase(userSeedPhrase)
+  const westTransferCall = weSdk.API.Transactions.Transfer.V3({
+    recipient: userSeed.address,
+    assetId: '',
+    amount: WEST_AMOUNT * 100000000,
+    timestamp: Date.now(),
+    attachment: '',
+    fee: minimumFee[4],
+    senderPublicKey: ownerSeed.keyPair.publicKey,
+  });
+  westTransferCall.broadcast(ownerSeed.keyPair)
+  const westTransferTxId = await westTransferCall.getId(ownerSeed.keyPair.publicKey)
+  await runPolling({
+    sourceFn: async () => {
+      const data = await fetch(`${NODE_ADDRESS}/transactions/info/${westTransferTxId}`)
+      return data.json()
+    },
+    predicateFn: (result: any) => {
+      console.log('waiting for west transfer to user')
+      return result.id !== undefined && result.id === westTransferTxId
+    },
+    pollInterval: 1000,
+    timeout: 30000,
+  })  
+  
+  const liquidatorSeedPhrase = generateUserSeedPhrase()
+  const liquidator = weSdk.Seed.fromExistingPhrase(liquidatorSeedPhrase)
+  const rwaTransferCall = weSdk.API.Transactions.Transfer.V3({
+    recipient: liquidator.address,
+    assetId: RWA_TOKEN_ID,
+    amount: RWA_AMOUNT * 100000000,
+    timestamp: Date.now(),
+    attachment: '',
+    fee: minimumFee[4],
+    senderPublicKey: ownerSeed.keyPair.publicKey,
+  });
+  rwaTransferCall.broadcast(ownerSeed.keyPair)
+  const rwaTransferTxId = await westTransferCall.getId(ownerSeed.keyPair.publicKey)
+  await runPolling({
+    sourceFn: async () => {
+      const data = await fetch(`${NODE_ADDRESS}/transactions/info/${rwaTransferTxId}`)
+      return data.json()
+    },
+    predicateFn: (result: any) => {
+      console.log('waiting for rwa transfer to liquidator')
+      return result.id !== undefined && result.id === rwaTransferTxId
+    },
+    pollInterval: 1000,
+    timeout: 30000,
+  })  
+  
   const getTxStatus = async (txId: string) => {
     try {
       return await globals.nodeApi.getTxStatus(txId)
@@ -56,7 +128,7 @@ async function main() {
    * MINT
    */
   await (async () => {
-    const mintTxId = await contractApi.mint(userSeed, 5)
+    const mintTxId = await contractApi.mint(userSeed, WEST_AMOUNT)
     const pollingResult = await runPolling<GetTxStatusResponse>({
       sourceFn: async () => {
         return getTxStatus(mintTxId)
@@ -110,9 +182,11 @@ async function main() {
     }
     const liquidatableVault = liquidatableVaults[0]
 
-    const liquidatorSeed = weSdk.Seed.fromExistingPhrase(parsedUserSeedsResult.seeds[1])
-    const liquidateTxId = await contractApi
-      .liquidate(liquidatorSeed, userSeed.address, parseFloat(liquidatableVault.east_amount as unknown as string));
+    const liquidateTxId = await contractApi.liquidate(
+      liquidator,
+      liquidatableVault.address,
+      parseFloat(liquidatableVault.east_amount as unknown as string)
+    );
     const pollingResult = await runPolling<GetTxStatusResponse>({
       sourceFn: async () => {
         return getTxStatus(liquidateTxId)
