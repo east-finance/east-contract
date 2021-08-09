@@ -1,8 +1,10 @@
+import { ApiTokenRefresher } from '@wavesenterprise/api-token-refresher';
+import { TokenPair } from '@wavesenterprise/api-token-refresher/types';
 import { create, MAINNET_CONFIG, Seed } from '@wavesenterprise/js-sdk';
 import nodeFetch from 'node-fetch';
 import { ConfigParam } from '../../interfaces';
 import { RPCService } from '../../services/RPCService';
-import { CONTRACT_ID, NODE_ADDRESS, ORACLE_CONTRACT_ID, RWA_TOKEN_ID, SEED_PHRASE } from '../config';
+import { AUTH_PASSWORD, AUTH_SERVICE_ADDRESS, AUTH_USERNAME, CONTRACT_ID, NODE_ADDRESS, ORACLE_CONTRACT_ID, RWA_TOKEN_ID, SEED_PHRASE } from '../config';
 import { closeInit } from './contract-api/close-init';
 import { createEastContract } from './contract-api/create-east-contract';
 import { liquidate } from './contract-api/liquidate';
@@ -16,11 +18,48 @@ import { getContractState } from './node-api/get-contract-state';
 import { getTxStatus } from './node-api/get-tx-status';
 import { updateRates } from './oracle-contract-api/update-rates';
 
+async function getTokens(): Promise<TokenPair> {
+  const data = await nodeFetch(`${AUTH_SERVICE_ADDRESS}/v1/auth/login`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      username: AUTH_USERNAME,
+      password: AUTH_PASSWORD,
+    }),
+  })
+  return data.json() as Promise<TokenPair>
+}
+
+async function refreshCallback (token: string): Promise<TokenPair> {
+  try {
+    const data = await nodeFetch(`${AUTH_SERVICE_ADDRESS}/v1/auth/refresh`, {      
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },  
+      body: JSON.stringify({
+        token,
+      })
+    })
+    return data.json() as Promise<TokenPair>
+  } catch (e) {
+    return getTokens()
+  }
+}
+
 export async function initGlobals() {
+  const tokens = await getTokens()
+  const apiTokenRefresher = new ApiTokenRefresher({
+      authorization: tokens,
+      refreshCallback,
+   })
+  const { fetch: authorizedFetch } = apiTokenRefresher.init()
   const rpcService = new RPCService()
   const fetch = ((url: RequestInfo, options?: RequestInit): Promise<Response> => {
     // @ts-ignore
-    return nodeFetch(url, {
+    return authorizedFetch(url, {
       ...options,
       headers: {
         ...options?.headers,

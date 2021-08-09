@@ -8,6 +8,9 @@ const REQUIRED_ENVS = {
   IMAGE_HASH: '',
   ORACLE_CONTRACT_ID: '',
   RWA_TOKEN_ID: '',
+  AUTH_SERVICE_ADDRESS: '',
+  AUTH_USERNAME: '',
+  AUTH_PASSWORD: '',
 }
 
 interface OptionalEnvs {
@@ -43,5 +46,8 @@ export const {
   RWA_TOKEN_ID,
   EAST_SERVICE_ADDRESS,
   CONTRACT_ID,
-  PATH_TO_USER_SEEDS
+  PATH_TO_USER_SEEDS,
+  AUTH_SERVICE_ADDRESS,
+  AUTH_PASSWORD,
+  AUTH_USERNAME,
 } = envs.parsed
