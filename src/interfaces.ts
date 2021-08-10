@@ -114,7 +114,8 @@ export enum Operations {
   liquidate = 'liquidate',
   update_config = 'update_config',
   claim_overpay_init = 'claim_overpay_init',
-  claim_overpay = 'claim_overpay'
+  claim_overpay = 'claim_overpay',
+  write_liquidation_west_transfer = 'write_liquidation_west_transfer',
 }
 
 export enum StateKeys {

@@ -802,6 +802,9 @@ export class RPCService {
         case Operations.liquidate:
           results = await this.liquidate(tx, value);
           break;
+        case Operations.write_liquidation_west_transfer:
+          results = await this.writeLiquidationWestTransfer(tx, value);
+          break;
         default:
           throw new Error(`Unknown DockerCall operation key: "${param.key}"`);
       }
