@@ -20,7 +20,8 @@ import {
   SupplyParam,
   ConfigParam,
   ClaimOverpayParam,
-  ReissueParam
+  ReissueParam,
+  WriteLiquidationWestTransferParam
 } from '../interfaces';
 import { CONNECTION_ID, CONNECTION_TOKEN, NODE, NODE_PORT, HOST_NETWORK } from '../config';
 import { StateService } from './StateService';
@@ -741,6 +742,17 @@ export class RPCService {
         string_value: JSON.stringify(config)
       }
     ];
+  }
+
+  async writeLiquidationWestTransfer(tx: Transaction, param: WriteLiquidationWestTransferParam) {
+    await this.checkAdminPermissions(tx);
+    const { address, timestamp } = param;
+    return [
+      {
+        key: `${StateKeys.liquidationExchange}_${address}_${timestamp}`,
+        bool_value: true
+      }
+    ]
   }
 
   async checkIsContractEnabled(): Promise<void> {

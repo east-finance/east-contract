@@ -124,7 +124,8 @@ export enum StateKeys {
   config = 'config',
   exchange = 'exchange',
   liquidatedVault = 'liquidated_vault',
-  totalRwa = 'total_rwa'
+  totalRwa = 'total_rwa',
+  liquidationExchange = 'liquidation_exchange',
 }
 
 export interface ConfigParam {
@@ -150,4 +151,9 @@ export type TransferTx = {
   amount: number,
   recipient: string,
   attachment?: string
+}
+
+export interface WriteLiquidationWestTransferParam {
+  address: string,
+  timestamp: number,
 }
