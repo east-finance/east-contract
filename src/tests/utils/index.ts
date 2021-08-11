@@ -17,6 +17,7 @@ import { getLiquidatableVaults } from './east-service-api/get-liquidatable-vault
 import { getTxStatuses } from './east-service-api/get-tx-statuses';
 import { trackTx, TrackTxRequest } from './east-service-api/track-tx';
 import { getContractState } from './node-api/get-contract-state';
+import { getTransactionInfo } from './node-api/get-transaction-info';
 import { getTxStatus } from './node-api/get-tx-status';
 import { transfer } from './node-api/transfer';
 import { updateRates } from './oracle-contract-api/update-rates';
@@ -176,6 +177,9 @@ export async function initGlobals() {
         senderKeyPair: senderSeed.keyPair,
         weSdk,
       })
+    },
+    getTransactionInfo: (txId: string) => {
+      return getTransactionInfo(fetch, txId)
     }
   }
   const oracleContractApi = {
