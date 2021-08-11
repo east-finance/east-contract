@@ -763,13 +763,15 @@ export class RPCService {
   }
 
   async handleDockerCall(tx: Transaction): Promise<void> {
-    await this.checkIsContractEnabled();
     const { params } = tx;
     let results: DataEntryRequest[] = [];
 
     // TODO: iterate params
     const param = params[0] || {};
     if (param) {
+      if (Object.keys(Operations).filter(operationName => operationName !== Operations.update_config).includes(param.key)) {
+        await this.checkIsContractEnabled();
+      }
       const value = JSON.parse(param.string_value || '{}');
       switch(param.key) {
         case Operations.update_config:
