@@ -11,6 +11,7 @@ import { liquidate } from './contract-api/liquidate';
 import { mint } from './contract-api/mint';
 import { reissue } from './contract-api/reissue';
 import { supply } from './contract-api/supply';
+import { updateConfig } from './contract-api/update-config';
 import { getLiquidatableVaults } from './east-service-api/get-liquidatable-vaults';
 import { getTxStatuses } from './east-service-api/get-tx-statuses';
 import { trackTx, TrackTxRequest } from './east-service-api/track-tx';
@@ -133,7 +134,16 @@ export async function initGlobals() {
         liquidatableVaultAddress,
         rwaAmount,
       })
-    }
+    },
+    updateConfig: (config: ConfigParam) => {
+      return updateConfig({
+        config,
+        contractId: CONTRACT_ID!,
+        minimumFee,
+        ownerSeed: seed,
+        weSdk,
+      })
+    },
   }
   const eastServiceApi = {
     trackTx: (request: TrackTxRequest) => {
