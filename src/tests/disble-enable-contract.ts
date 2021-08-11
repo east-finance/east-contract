@@ -34,8 +34,7 @@ async function main() {
   });
   await runPolling({
     sourceFn: async () => {
-      const data = await fetch(`${NODE_ADDRESS}/transactions/info/${transferId}`)
-      return data.json()
+      return nodeApi.getTransactionInfo(transferId)
     },
     predicateFn: (result: any) => {
       console.log('waiting for west transfer to user')
