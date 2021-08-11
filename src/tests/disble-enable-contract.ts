@@ -34,11 +34,15 @@ async function main() {
   });
   await runPolling({
     sourceFn: async () => {
-      return nodeApi.getTransactionInfo(transferId)
+      try {
+        return nodeApi.getTransactionInfo(transferId)
+      } catch (err) {
+        return
+      }
     },
     predicateFn: (result: any) => {
       console.log('waiting for west transfer to user')
-      return result.id !== undefined && result.id === transferId
+      return result !== undefined && result.id !== undefined && result.id === transferId
     },
     pollInterval: 1000,
     timeout: 30000,
