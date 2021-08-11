@@ -44,7 +44,6 @@ test('Config dto validation', async () => {
     expect(error.message.includes('oracleTimestampMaxDiff')).toBeTruthy()
     expect(error.message.includes('rwaPart')).toBeTruthy()
     expect(error.message.includes('isContractEnabled')).toBeTruthy()
-    expect(error.message).toBe('Validation error: oracleTimestampMaxDiff must be a positive number, rwaPart must be a positive number, isContractEnabled must be a boolean value')
   }
 })
 
