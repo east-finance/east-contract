@@ -1,5 +1,5 @@
 import { readFileSync } from "fs";
-import { NODE_ADDRESS, ORACLE_CONTRACT_ID, RWA_TOKEN_ID } from "./config";
+import { ORACLE_CONTRACT_ID, RWA_TOKEN_ID } from "./config";
 import { initGlobals } from "./utils";
 import { GetTxStatusError, GetTxStatusResponse } from "./utils/node-api/get-tx-status";
 import { PollingTimeoutError, runPolling } from "./utils/polling";
@@ -25,29 +25,6 @@ async function main() {
     }
     return result.every(nodeResponse => nodeResponse.status === 'Success')
   }
-  const userSeed = utils.createRandomSeed();
-  const transferId = await nodeApi.transfer({
-    amount: 5,
-    assetId: '',
-    recipientAddress: userSeed.address,
-    senderSeed: ownerSeed,
-  });
-  await runPolling({
-    sourceFn: async () => {
-      try {
-        const result = await nodeApi.getTransactionInfo(transferId)
-        return result
-      } catch (err) {
-        return
-      }
-    },
-    predicateFn: (result: any) => {
-      console.log('waiting for west transfer to user')
-      return result !== undefined && result.id !== undefined && result.id === transferId
-    },
-    pollInterval: 1000,
-    timeout: 30000,
-  });
   /**
    * DISABLE CONTRACT
    */
