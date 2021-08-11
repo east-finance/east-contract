@@ -35,7 +35,8 @@ async function main() {
   await runPolling({
     sourceFn: async () => {
       try {
-        return nodeApi.getTransactionInfo(transferId)
+        const result = await nodeApi.getTransactionInfo(transferId)
+        return result
       } catch (err) {
         return
       }
