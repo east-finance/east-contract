@@ -1,6 +1,7 @@
 import { ApiTokenRefresher } from '@wavesenterprise/api-token-refresher';
 import { TokenPair } from '@wavesenterprise/api-token-refresher/types';
 import { create, MAINNET_CONFIG, Seed } from '@wavesenterprise/js-sdk';
+import { Transfer } from '@wavesenterprise/js-sdk/raw/src/grpc/compiled-web/transfer_pb';
 import nodeFetch from 'node-fetch';
 import { ConfigParam } from '../../interfaces';
 import { RPCService } from '../../services/RPCService';
@@ -17,7 +18,9 @@ import { getTxStatuses } from './east-service-api/get-tx-statuses';
 import { trackTx, TrackTxRequest } from './east-service-api/track-tx';
 import { getContractState } from './node-api/get-contract-state';
 import { getTxStatus } from './node-api/get-tx-status';
+import { transfer } from './node-api/transfer';
 import { updateRates } from './oracle-contract-api/update-rates';
+import { createRandomSeed } from './utils/create-random-seed';
 
 async function getTokens(): Promise<TokenPair> {
   const data = await nodeFetch(`${AUTH_SERVICE_ADDRESS}/v1/auth/login`, {
@@ -162,6 +165,17 @@ export async function initGlobals() {
     },
     getContractState: (limit: number, offset: number = 0) => {
       return getContractState(fetch, ORACLE_CONTRACT_ID, limit, offset)
+    },
+    transfer: (namedArgs: { amount: number, senderSeed: Seed, recipientAddress: string, assetId: string }) => {
+      const { amount, senderSeed, recipientAddress, assetId } = namedArgs;
+      return transfer({
+        amount,
+        minimumFee,
+        assetId,
+        recipientAddress,
+        senderKeyPair: senderSeed.keyPair,
+        weSdk,
+      })
     }
   }
   const oracleContractApi = {
@@ -177,6 +191,11 @@ export async function initGlobals() {
       })
     }
   }
+  const utils = {
+    createRandomSeed: () => {
+      return createRandomSeed(weSdk)
+    }
+  }
   return {
     rpcService,
     fetch,
@@ -184,6 +203,7 @@ export async function initGlobals() {
     contractApi,
     eastServiceApi,
     oracleContractApi,
+    utils,
     nodeApi,
     seed,
     minimumFee,

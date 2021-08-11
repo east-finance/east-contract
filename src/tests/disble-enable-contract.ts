@@ -1,8 +1,11 @@
+import { readFileSync } from "fs";
+import { NODE_ADDRESS, ORACLE_CONTRACT_ID, RWA_TOKEN_ID } from "./config";
 import { initGlobals } from "./utils";
 import { GetTxStatusError, GetTxStatusResponse } from "./utils/node-api/get-tx-status";
+import { PollingTimeoutError, runPolling } from "./utils/polling";
 
 async function main() {
-  const { contractApi, nodeApi } = await initGlobals();
+  const { contractApi, nodeApi, utils, seed: ownerSeed, fetch } = await initGlobals();
   const getTxStatus = async (txId: string) => {
     try {
       return await nodeApi.getTxStatus(txId)
@@ -22,12 +25,73 @@ async function main() {
     }
     return result.every(nodeResponse => nodeResponse.status === 'Success')
   }
+  const userSeed = utils.createRandomSeed();
+  const transferId = await nodeApi.transfer({
+    amount: 5,
+    assetId: '',
+    recipientAddress: userSeed.address,
+    senderSeed: ownerSeed,
+  });
+  await runPolling({
+    sourceFn: async () => {
+      const data = await fetch(`${NODE_ADDRESS}/transactions/info/${transferId}`)
+      return data.json()
+    },
+    predicateFn: (result: any) => {
+      console.log('waiting for west transfer to user')
+      return result.id !== undefined && result.id === transferId
+    },
+    pollInterval: 1000,
+    timeout: 30000,
+  });
   /**
-   * UPDATE CONFIG
+   * DISABLE CONTRACT
    */
-  (async () => {
-    const updateConfigTxId = contractApi
-  })()
+  await (async () => {
+    const updateConfigTxId = await contractApi.updateConfig({
+      ...JSON.parse(readFileSync('./east-config.json').toString()),
+      oracleContractId: ORACLE_CONTRACT_ID,
+      rwaTokenId: RWA_TOKEN_ID,
+      isContractEnabled: false,
+    })
+    const pollingResult = await runPolling<GetTxStatusResponse>({
+      sourceFn: async () => {
+        return getTxStatus(updateConfigTxId)
+      },
+      predicateFn: isContractCallSuccess,
+      pollInterval: 1000,
+      timeout: 60000 * 5,
+    })
+    if (pollingResult instanceof PollingTimeoutError) {
+      return
+    }
+    console.log('DISABLE CONTRACT')
+    console.log(pollingResult)
+  })();
+  /**
+   * ENABLE CONTRACT
+   */
+   await (async () => {
+    const updateConfigTxId = await contractApi.updateConfig({
+      ...JSON.parse(readFileSync('./east-config.json').toString()),
+      oracleContractId: ORACLE_CONTRACT_ID,
+      rwaTokenId: RWA_TOKEN_ID,
+      isContractEnabled: true,
+    })
+    const pollingResult = await runPolling<GetTxStatusResponse>({
+      sourceFn: async () => {
+        return getTxStatus(updateConfigTxId)
+      },
+      predicateFn: isContractCallSuccess,
+      pollInterval: 1000,
+      timeout: 60000 * 5,
+    })
+    if (pollingResult instanceof PollingTimeoutError) {
+      return
+    }
+    console.log('ENABLE CONTRACT')
+    console.log(pollingResult)
+  })();
 }
 
 main()
