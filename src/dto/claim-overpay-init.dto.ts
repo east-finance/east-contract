@@ -1,6 +1,7 @@
-import { IsNumber, IsPositive } from "class-validator";
+import { IsNumber, IsPositive, IsOptional } from "class-validator";
 
 export class ClaimOverpayInitDto {
+  @IsOptional()
   @IsNumber(
     {
       allowInfinity: false,
