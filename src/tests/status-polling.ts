@@ -1,5 +1,6 @@
 import { TxTypes } from "./constants";
 import { initGlobals } from "./utils";
+import { GetTxStatusesResponse } from "./utils/east-service-api/get-tx-statuses";
 import { GetTransactionInfoResponse } from "./utils/node-api/get-transaction-info";
 import { GetTxStatusError, GetTxStatusResponse } from "./utils/node-api/get-tx-status";
 import { PollingTimeoutError, runPolling } from "./utils/polling";
@@ -85,9 +86,9 @@ async function main() {
     })
     const result = await runPolling({
       sourceFn: () => eastServiceApi.getTxStatuses(userSeed.address, 100, 0),
-      predicateFn: (result: any) => {
-        console.log(result)
-        return false
+      predicateFn: (result: GetTxStatusesResponse) => {
+        const txStatus = result.find(tx => tx.tx_id === mintTxId)
+        return txStatus !== undefined && txStatus.status === 'success'
       },
       pollInterval: 1000,
       timeout: 1000 * 120,
