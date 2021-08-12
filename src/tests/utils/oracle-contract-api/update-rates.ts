@@ -6,18 +6,32 @@ type UpdateRatesArgs = {
   contractId: TxId,
   minimumFee: MinimumFee,
   userSeed: Seed,
-  key: 'west' | 'rwa',
-  value: number,
+  west?: number,
+  rwa?: number,
 }
 
 export function updateRates(namedArgs: UpdateRatesArgs) {
-  const { contractId, minimumFee, userSeed, weSdk, key, value } = namedArgs
-  let realKey: '000003_latest' | '000010_latest' | undefined
-  if (key === 'west') {
-    realKey = '000003_latest'
+  const { contractId, minimumFee, userSeed, weSdk, west, rwa } = namedArgs
+  const westKey = '000003_latest';
+  const rwaKey = '000010_latest';
+  const params = [];
+  if (west !== undefined) {
+    params.push(
+      {
+        type: 'string',
+        key: westKey,
+        value: JSON.stringify({ timestamp: Date.now(), value: west.toString() }),
+      }
+    )
   }
-  if (key === 'rwa') {
-    realKey = '000010_latest'
+  if (rwa !== undefined) {
+    params.push(
+      {
+        type: 'string',
+        key: rwaKey,
+        value: JSON.stringify({ timestamp: Date.now(), value: rwa.toString() }),
+      }
+    )
   }
   const call = weSdk.API.Transactions.CallContract.V4({
     contractId,
@@ -25,11 +39,7 @@ export function updateRates(namedArgs: UpdateRatesArgs) {
     fee: minimumFee[104],
     senderPublicKey: userSeed.keyPair.publicKey,
     timestamp: Date.now(),
-    params: [{
-      type: 'string',
-      key: realKey,
-      value: JSON.stringify({ timestamp: Date.now(), value: value.toString() }),
-    }],
+    params,
   });
   call.broadcast(userSeed.keyPair)
   return call.getId(userSeed.keyPair.publicKey)

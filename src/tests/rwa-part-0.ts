@@ -34,8 +34,7 @@ async function main() {
    */
   await (async () => {
     const updateRatesTxId = await oracleContractApi.updateRates({
-      key: 'west',
-      value: 0.5,
+      west: 0.5,
     })
     const pollingResult = await runPolling<GetTxStatusResponse>({
       sourceFn: async () => {

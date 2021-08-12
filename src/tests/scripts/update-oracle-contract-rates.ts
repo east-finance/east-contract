@@ -4,41 +4,34 @@ import { PollingTimeoutError, runPolling } from "../utils/polling";
 
 async function main(west?: number, rwa?: number) {
   const { oracleContractApi, nodeApi } = await initGlobals()
-  const txIds = []
-  if (west !== undefined) {
-    txIds.push(await oracleContractApi.updateRates({ key: 'west', value: west }))
+  const txId = await oracleContractApi.updateRates({ west, rwa })
+  const pollintResult = await runPolling<GetTxStatusResponse>({
+    sourceFn: async () => {
+      try {
+        return await nodeApi.getTxStatus(txId)
+      } catch (err) {
+        if (err instanceof GetTxStatusError) {
+          return err
+        }
+      }
+    },
+    predicateFn: (result: GetTxStatusResponse | GetTxStatusError | undefined) => {
+      if (result === undefined) {
+        return false
+      }
+      if (result instanceof GetTxStatusError) {
+        return false
+      }
+      return result.every(nodeResponse => nodeResponse.status === 'Success')
+    },
+    pollInterval: 1000,
+    timeout: 60000,
+  })
+  if (pollintResult instanceof PollingTimeoutError) {
+    console.log('Timeout error');
+    return
   }
-  if (rwa !== undefined) {
-    txIds.push(await oracleContractApi.updateRates({ key: 'rwa', value: rwa }))
-  }
-  console.log(
-    await Promise.all(
-      txIds.map(txId => {
-        return runPolling<GetTxStatusResponse>({
-          sourceFn: async () => {
-            try {
-              return await nodeApi.getTxStatus(txId)
-            } catch (err) {
-              if (err instanceof GetTxStatusError) {
-                return err
-              }
-            }
-          },
-          predicateFn: (result: GetTxStatusResponse | GetTxStatusError | undefined) => {
-            if (result === undefined) {
-              return false
-            }
-            if (result instanceof GetTxStatusError) {
-              return false
-            }
-            return result.every(nodeResponse => nodeResponse.status === 'Success')
-          },
-          pollInterval: 1000,
-          timeout: 60000,
-        })
-      })
-    )
-  )
+  console.log(pollintResult)
 }
 
 const west: number | undefined = process.env.WEST === undefined ? undefined : parseFloat(process.env.WEST)
