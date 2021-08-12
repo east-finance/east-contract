@@ -1,18 +1,48 @@
 import { TxTypes } from "./constants";
 import { initGlobals } from "./utils";
 import { GetTransactionInfoResponse } from "./utils/node-api/get-transaction-info";
+import { GetTxStatusError, GetTxStatusResponse } from "./utils/node-api/get-tx-status";
 import { PollingTimeoutError, runPolling } from "./utils/polling";
 
 const WEST_AMOUNT = 5
 
 async function main() {
   try {
-    const { contractApi, eastServiceApi, nodeApi, utils, seed: ownerSeed } = await initGlobals();
-
+    const { contractApi, eastServiceApi, nodeApi, utils, seed: ownerSeed, oracleContractApi } = await initGlobals();
+    const getTxStatus = async (txId: string) => {
+      try {
+        return await nodeApi.getTxStatus(txId)
+      } catch (err) {
+        if (err instanceof GetTxStatusError) {
+          return err
+        }
+      }
+    }
+    const isContractCallSuccess = (result: GetTxStatusResponse | GetTxStatusError | undefined) => {
+      if (result === undefined) {
+        return false
+      }
+      if (result instanceof GetTxStatusError) {
+        console.log(`${Date.now()}: ${JSON.stringify(result.response)}`)
+        return false
+      }
+      return result.every(nodeResponse => nodeResponse.status === 'Success')
+    }
     /**
      * UPDATE RATES
      */
-    
+    const updateRatesTxId = await oracleContractApi.updateRates({
+      west: 0.5,
+      rwa: 0.9978,
+    })
+    await runPolling({
+      sourceFn: () => {
+        return getTxStatus(updateRatesTxId)
+      },
+      predicateFn: isContractCallSuccess,
+      pollInterval: 1000,
+      timeout: 30000,
+    })
     
     const userSeed = utils.createRandomSeed()
     /**
