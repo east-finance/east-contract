@@ -36,7 +36,7 @@ async function main() {
       west: 0.5,
       rwa: 0.9978,
     })
-    await runPolling({
+    const updateRatesResult = await runPolling({
       sourceFn: () => {
         return getTxStatus(updateRatesTxId)
       },
@@ -44,6 +44,12 @@ async function main() {
       pollInterval: 1000,
       timeout: 30000,
     })
+    if (updateRatesResult instanceof PollingTimeoutError) {
+      console.log('Update rates. Timeout error.')
+      return
+    }
+    console.log('UPDATE RATES')
+    console.log(updateRatesResult)
     
     const userSeed = utils.createRandomSeed()
     /**
@@ -74,6 +80,8 @@ async function main() {
       console.log('Timeout error');
       return
     }
+    console.log('TRANSFER')
+    console.log(transferPollingResult)
 
     /**
      * MINT
@@ -97,6 +105,8 @@ async function main() {
       console.log('Timeout error')
       return
     }
+    console.log('MINT')
+    console.log(result)
   } catch (err) {
     console.log(err.message)
   }
