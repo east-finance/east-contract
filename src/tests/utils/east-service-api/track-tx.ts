@@ -6,6 +6,7 @@ export interface TrackTxRequest {
   txId: string
   address: string
   type: TxTypes,
+  timestamp: number,
 }
 
 export async function trackTx(fetch: typeof nodeFetch, request: TrackTxRequest) {

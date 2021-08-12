@@ -91,6 +91,7 @@ async function main() {
       address: userSeed.address,
       txId: mintTxId,
       type: TxTypes.mint,
+      timestamp: Date.now(),
     })
     const result = await runPolling({
       sourceFn: () => eastServiceApi.getTxStatuses(userSeed.address, 100, 0),
