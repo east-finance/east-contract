@@ -35,6 +35,8 @@ import { ReissueDto } from '../dto/reissue.dto';
 import { SupplyDto } from '../dto/supply.dto';
 import { ClaimOverpayDto } from '../dto/claim-overpay.dto';
 import { LiquidateDto } from '../dto/liquidate.dto';
+import { BigNumber } from 'bignumber.js';
+import { add, subtract } from './math';
 
 
 const logger = createLogger('GRPC service');
@@ -112,12 +114,11 @@ export class RPCService {
     this.stateService = new StateService(this.client, this.txClient, this.addressService, this.contractUtilService);
   }
 
-  async checkAdminBalance(rwaAmount: number, totalRwa: number) {
+  async checkAdminBalance(rwaAmount: BigNumber, totalRwa: BigNumber) {
     const { adminAddress, rwaTokenId } = await this.stateService.getConfig()
-    const { amount, decimals } = await this.stateService.getAssetBalance(adminAddress, rwaTokenId)
-    const parsedAmount = parseValue(amount, decimals)
-    const diff = parsedAmount - rwaAmount + totalRwa
-    if (diff < 0) {
+    const amount = await this.stateService.getAssetBalance(adminAddress, rwaTokenId)
+    const diff = add(subtract(amount, rwaAmount), totalRwa)
+    if (diff.isLessThan(0)) {
       throw new Error('Insufficient RWA balance in protocol to mint new EAST. Please try again later or contact technical support.')
     }
   }

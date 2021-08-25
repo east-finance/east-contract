@@ -1,4 +1,5 @@
 import { Metadata } from '@grpc/grpc-js';
+import { BigNumber } from 'bignumber.js';
 import { ConfigParam, DataEntryRequest, DataEntryResponse, StateKeys, Vault } from '../interfaces';
 import { Base58 } from '../utils/base58';
 import { createLogger } from '../utils/logger';
@@ -236,7 +237,7 @@ export class StateService {
     }
   }
 
-  async getAssetBalance(address: string, assetId: string): Promise<{ assetId: string, amount: number, decimals: number }> {
+  async getAssetBalance(address: string, assetId: string): Promise<BigNumber> {
     return new Promise((resolve, reject) => {
       this.addressService.getAssetBalance(
         {
@@ -257,11 +258,10 @@ export class StateService {
             reject(new Error(`GRPC Node error. AddressService.GetAssetBalance: ${internalReprKeysAndValues.join(', ')}`));
             return
           }
-          resolve({
-            assetId: response.assetId ? Base58.encode(response.assetId.value || response.asset_id) : '',
-            amount: response.amount,
-            decimals: response.decimals,
-          })
+          // const assetId = response.assetId ? Base58.encode(response.assetId.value || response.asset_id) : '';
+          const amount = response.amount;
+          const decimals = response.decimals;
+          resolve(new BigNumber((amount / Math.pow(10, decimals)).toString()));
         }
       )
     })
