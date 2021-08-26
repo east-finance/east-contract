@@ -464,9 +464,9 @@ export class RPCService {
       const exchange = await this.exchangeWest(maxWestToExchange);
       newVault = {
         ...oldVault,
-        eastAmount: roundValue(oldVault.eastAmount + exchange.eastAmount),
-        westAmount: roundValue(oldVault.westAmount - maxWestToExchange),
-        rwaAmount: roundValue(oldVault.rwaAmount + exchange.rwaAmount),
+        eastAmount: add(oldVault.eastAmount, exchange.eastAmount),
+        westAmount: subtract(oldVault.westAmount, maxWestToExchange),
+        rwaAmount: add(oldVault.rwaAmount, exchange.rwaAmount),
         westRate: exchange.westRate,
         rwaRate: exchange.rwaRate
       }
@@ -474,27 +474,27 @@ export class RPCService {
 
     let totalSupply = await this.stateService.getTotalSupply();
     let totalRwa = await this.stateService.getTotalRwa();
-    await this.checkAdminBalance(newVault.rwaAmount - oldVault.rwaAmount, totalRwa);
+    await this.checkAdminBalance(subtract(newVault.rwaAmount, oldVault.rwaAmount), totalRwa);
     let balance = await this.stateService.getBalance(tx.sender);
-    const diff = newVault.eastAmount - oldVault.eastAmount;
+    const diff = subtract(newVault.eastAmount, oldVault.eastAmount);
     newVault.updatedAt = this.txTimestamp;
 
-    balance += diff;
-    totalSupply += diff;
-    totalRwa += newVault.rwaAmount - oldVault.rwaAmount;
+    balance = add(balance, diff);
+    totalSupply = add(totalSupply, diff);
+    totalRwa = add(totalRwa, subtract(newVault.rwaAmount, oldVault.rwaAmount));
 
     return [
       {
         key: StateKeys.totalSupply,
-        string_value: '' + roundValue(totalSupply)
+        string_value: totalSupply.decimalPlaces(EAST_DECIMALS).toString()
       },
       {
         key: StateKeys.totalRwa,
-        string_value: '' + roundValue(totalRwa)
+        string_value: totalRwa.decimalPlaces(EAST_DECIMALS).toString()
       },
       {
         key: `${StateKeys.balance}_${tx.sender}`,
-        string_value: '' + roundValue(balance)
+        string_value: balance.decimalPlaces(EAST_DECIMALS).toString()
       },
       {
         key: `${StateKeys.vault}_${tx.sender}`,
