@@ -616,23 +616,24 @@ export class RPCService {
 
   async transfer(tx: Transaction, value: TransferParam): Promise<DataEntryRequest[]> {
     await this.validate(TransferDto, value)
-    const { to, amount } = value
+    const { to, amount: _amount } = value
     const from = tx.sender
+    const amount = new BigNumber(_amount.toString())
 
     let fromBalance = await this.stateService.getBalance(from);
-    if (fromBalance < amount) {
-      throw new Error(`Insufficient funds to transfer from "${from}": balance "${fromBalance}", amount "${amount}"`);
+    if (fromBalance.isLessThan(amount)) {
+      throw new Error(`Insufficient funds to transfer from "${from}": balance "${fromBalance.toString()}", amount "${amount}"`);
     }
     let toBalance = await this.stateService.getBalance(to);
 
-    fromBalance -= amount;
-    toBalance += amount;
+    fromBalance = subtract(fromBalance, amount);
+    toBalance = add(toBalance, amount);
     return [{
       key: `${StateKeys.balance}_${from}`,
-      string_value: '' + roundValue(fromBalance)
+      string_value: fromBalance.decimalPlaces(EAST_DECIMALS).toString()
     }, {
       key: `${StateKeys.balance}_${to}`,
-      string_value: '' + roundValue(toBalance)
+      string_value: toBalance.decimalPlaces(EAST_DECIMALS).toString()
     }];
   }
 
