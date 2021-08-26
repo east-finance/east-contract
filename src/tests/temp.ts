@@ -39,4 +39,4 @@ BigNumber.config({
 //   console.log(rwaPartInPosition.toString())
 // })();
 
-console.log(new BigNumber('0.5').isEqualTo(new BigNumber('0.5')));
+console.log(BigNumber.maximum(new BigNumber('-0.45'), '-0.5').toString())

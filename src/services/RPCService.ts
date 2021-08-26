@@ -588,7 +588,7 @@ export class RPCService {
 
     // check balance
     if (balance.isLessThan(eastAmount)) {
-      throw new Error(`Not enought EAST amount(${eastAmount}) on ${address} to burn vault: ${address}`);
+      throw new Error(`Not enought EAST amount(${eastAmount.toString()}) on ${address} to burn vault: ${address}`);
     }
 
     balance = subtract(balance, eastAmount);
@@ -597,15 +597,15 @@ export class RPCService {
     return [
       {
         key: StateKeys.totalSupply,
-        string_value: '' + roundValue(Math.max(totalSupply, 0))
+        string_value: BigNumber.maximum(totalSupply, '0').decimalPlaces(EAST_DECIMALS).toString()
       },
       {
         key: StateKeys.totalRwa,
-        string_value: '' + roundValue(totalRwa)
+        string_value: totalRwa.decimalPlaces(EAST_DECIMALS).toString()
       },
       {
         key: `${StateKeys.balance}_${address}`,
-        string_value: '' + roundValue(Math.max(balance, 0))
+        string_value: BigNumber.maximum(balance, 0).decimalPlaces(EAST_DECIMALS).toString()
       },
       {
         key: `${StateKeys.vault}_${address}`,
