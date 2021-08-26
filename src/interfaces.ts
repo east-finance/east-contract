@@ -50,6 +50,11 @@ export type ContractTransactionResponse = {
   auth_token: string,
 }
 
+export interface OracleJson {
+  value: string,
+  timestamp: number
+}
+
 export interface Oracle {
   value: BigNumber,
   timestamp: number
@@ -74,6 +79,17 @@ export interface TransferParam {
 
 export interface ReissueParam {
   maxWestToExchange?: number
+}
+
+export interface VaultJson {
+  eastAmount: string,
+  westAmount: string,
+  rwaAmount: string,
+  westRate: OracleJson,
+  rwaRate: OracleJson,
+  updatedAt: number,
+  liquidationCollateral: string,
+  liquidated?: boolean
 }
 
 export interface Vault {

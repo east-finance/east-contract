@@ -304,19 +304,40 @@ export class RPCService {
       westAmount: oldWestAmount
     } = oldVault;
 
-    const usdTotal = oldRwaAmount * rwaRate.value + oldWestAmount * westRate.value
-    const rwaPartInPosition = rwaPart / ((1 - rwaPart) * westCollateral + rwaPart)
-    const usdToRwaAmount = rwaPartInPosition * usdTotal
-    const rwaAmount = usdToRwaAmount / rwaRate.value
-    const eastPriceInWest = (rwaPart / westRate.value) + ((1 - rwaPart) / westRate.value * westCollateral)
-    const westAmount = (usdTotal - usdToRwaAmount) / westRate.value
-    const eastAmount = westAmount / eastPriceInWest
+    const usdTotal = add(
+      multiply(oldRwaAmount, rwaRate.value),
+      multiply(oldWestAmount, westRate.value)
+    );
+    const rwaPartInPosition = divide(
+      rwaPart,
+      add(
+        multiply(
+          subtract(new BigNumber(1), rwaPart), 
+          westCollateral
+        ),
+        rwaPart
+      )
+    );
+    const usdToRwaAmount = multiply(rwaPartInPosition, usdTotal)
+    const rwaAmount = divide(usdToRwaAmount, rwaRate.value)
+    const eastPriceInWest = add(
+      divide(rwaPart, westRate.value),
+      multiply(
+        divide(
+          subtract(new BigNumber(1), rwaPart),
+          westRate.value
+        ),
+        westCollateral
+      )
+    );
+    const westAmount = divide(subtract(usdTotal, usdToRwaAmount), westRate.value)
+    const eastAmount = divide(westAmount, eastPriceInWest)
 
-    if (eastAmount > oldEastAmount) {
+    if (eastAmount.isGreaterThan(oldEastAmount)) {
       return {
-        eastAmount: roundValue(eastAmount),
-        rwaAmount: roundValue(rwaAmount),
-        westAmount: roundValue(westAmount),
+        eastAmount: eastAmount.decimalPlaces(EAST_DECIMALS),
+        rwaAmount: rwaAmount.decimalPlaces(EAST_DECIMALS),
+        westAmount: westAmount.decimalPlaces(WEST_DECIMALS),
         westRate,
         rwaRate
       }
@@ -325,7 +346,7 @@ export class RPCService {
     }
   }
 
-  async checkTransferAmount(transferAmount: number) {
+  async checkTransferAmount(transferAmount: BigNumber) {
     const { oracleContractId, oracleTimestampMaxDiff, rwaPart, westCollateral } = await this.stateService.getConfig();
     const { westRate } = await this.getLastOracles(oracleTimestampMaxDiff, oracleContractId);
     const eastAmount = await this.calculateEastAmount({
@@ -334,13 +355,13 @@ export class RPCService {
       westCollateral,
       westRate,
     })
-    if (eastAmount < MINIMUM_EAST_AMOUNT_TO_BUY) {
+    if (eastAmount.isLessThan(MINIMUM_EAST_AMOUNT_TO_BUY)) {
       throw new Error(`Minimum EAST amount to buy is: ${MINIMUM_EAST_AMOUNT_TO_BUY}, got: ${eastAmount}`);
     }
   }
 
   // returns amount
-  async checkTransfer(tx: Transaction, transferId: string, transferAssetId?: string): Promise<number> {
+  async checkTransfer(tx: Transaction, transferId: string, transferAssetId?: string): Promise<BigNumber> {
     const {
       sender_public_key: senderPubKey,
       amount: transferAmount,
@@ -376,7 +397,7 @@ export class RPCService {
       throw new Error(`Transfer ${transferId} is already used for accounting`);
     }
 
-    return transferAmount
+    return new BigNumber((transferAmount / Math.pow(10, WEST_DECIMALS)).toString());
   }
 
   async mint(tx: Transaction, param: MintParam): Promise<DataEntryRequest[]> {
@@ -388,30 +409,29 @@ export class RPCService {
     }
 
     const transferAmount = await this.checkTransfer(tx, transferId)
-    const parsedTransferAmount = parseFloat(transferAmount + '') / Math.pow(10, WEST_DECIMALS)
-    await this.checkTransferAmount(parsedTransferAmount)
-    const vault = await this.calculateVault(parsedTransferAmount) as Vault
+    await this.checkTransferAmount(transferAmount)
+    const vault = await this.calculateVault(transferAmount) as Vault;
 
     vault.updatedAt = this.txTimestamp;
     let totalSupply = await this.stateService.getTotalSupply();
     let totalRwa = await this.stateService.getTotalRwa();
     await this.checkAdminBalance(vault.rwaAmount, totalRwa);
     let balance = await this.stateService.getBalance(tx.sender);
-    balance += vault.eastAmount;
-    totalSupply += vault.eastAmount;
-    totalRwa += vault.rwaAmount;
+    balance = add(balance, vault.eastAmount)
+    totalSupply = add(totalSupply, vault.eastAmount);
+    totalRwa = add(totalRwa, vault.rwaAmount);
     return [
       {
         key: StateKeys.totalSupply,
-        string_value: '' + roundValue(totalSupply)
+        string_value: totalSupply.decimalPlaces(EAST_DECIMALS).toString()
       },
       {
         key: StateKeys.totalRwa,
-        string_value: '' + roundValue(totalRwa)
+        string_value: totalRwa.decimalPlaces(EAST_DECIMALS).toString()
       },
       {
         key: `${StateKeys.balance}_${tx.sender}`,
-        string_value: '' + roundValue(balance)
+        string_value: balance.decimalPlaces(EAST_DECIMALS).toString()
       },
       {
         key: `${StateKeys.vault}_${tx.sender}`,
@@ -426,7 +446,10 @@ export class RPCService {
 
   async reissue(tx: Transaction, param: ReissueParam): Promise<DataEntryRequest[]> {
     await this.validate(ReissueDto, param)
-    const { maxWestToExchange } = param
+    let maxWestToExchange;
+    if (param.maxWestToExchange !== undefined) {
+      maxWestToExchange = new BigNumber(param.maxWestToExchange.toString());
+    }
     const oldVault = await this.stateService.getVault(tx.sender);
 
     let newVault: Vault = await this.recalculateVault(oldVault) as Vault
@@ -435,9 +458,9 @@ export class RPCService {
       throw new Error(`Cannot increase east amount`);
     }
 
-    const westAmountDelta = oldVault.westAmount - newVault.westAmount;
+    const westAmountDelta = subtract(oldVault.westAmount, newVault.westAmount);
 
-    if (maxWestToExchange && westAmountDelta > maxWestToExchange) {
+    if (maxWestToExchange !== undefined && westAmountDelta.isGreaterThan(maxWestToExchange)) {
       const exchange = await this.exchangeWest(maxWestToExchange);
       newVault = {
         ...oldVault,

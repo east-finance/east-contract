@@ -1,6 +1,6 @@
 import { Metadata } from '@grpc/grpc-js';
 import { BigNumber } from 'bignumber.js';
-import { ConfigParam, DataEntryRequest, DataEntryResponse, StateKeys, Vault } from '../interfaces';
+import { ConfigParam, DataEntryRequest, DataEntryResponse, StateKeys, Vault, VaultJson } from '../interfaces';
 import { Base58 } from '../utils/base58';
 import { createLogger } from '../utils/logger';
 
@@ -145,22 +145,22 @@ export class StateService {
     return entry[entry.value] as R;
   }
 
-  async getTotalSupply(): Promise<number> {
+  async getTotalSupply(): Promise<BigNumber> {
     const value = await this.getContractKeyValue(StateKeys.totalSupply);
-    return value ? Number(value) : 0;
+    return value ? new BigNumber(value as string) : new BigNumber(0);
   }
 
-  async getTotalRwa(): Promise<number> {
+  async getTotalRwa(): Promise<BigNumber> {
     const value = await this.getContractKeyValue(StateKeys.totalRwa);
-    return value ? Number(value) : 0;
+    return value ? new BigNumber(value as string) : new BigNumber(0);
   }
 
-  async getBalance(address: string): Promise<number> {
+  async getBalance(address: string): Promise<BigNumber> {
     try {
       const value = await this.getContractKeyValue(`${StateKeys.balance}_${address}`);
-      return Number(value);
+      return new BigNumber(value as string);
     } catch (e) {
-      return 0;
+      return new BigNumber(0);
     }
   }
 
@@ -214,12 +214,28 @@ export class StateService {
 
   async getVault(vaultId: string): Promise<Vault> {
     const value = await this.getContractKeyValue(`${StateKeys.vault}_${vaultId}`);
-    const vault = JSON.parse(value as string) as Vault;
-    if (!vault) {
+    const vaultJson = JSON.parse(value as string) as VaultJson;
+    if (!vaultJson) {
       throw new Error(`vault ${vaultId} does not exist`);
     }
-    if (vault.liquidated) {
+    if (vaultJson.liquidated) {
       throw new Error(`vault ${vaultId} liquidated`);
+    }
+    const vault: Vault = {
+      eastAmount: new BigNumber(vaultJson.eastAmount),
+      rwaAmount: new BigNumber(vaultJson.rwaAmount),
+      westAmount: new BigNumber(vaultJson.westAmount),
+      rwaRate: {
+        timestamp: vaultJson.rwaRate.timestamp,
+        value: new BigNumber(vaultJson.rwaRate.value)
+      },
+      westRate: {
+        timestamp: vaultJson.westRate.timestamp,
+        value: new BigNumber(vaultJson.westRate.value)
+      },
+      liquidationCollateral: new BigNumber(vaultJson.liquidationCollateral),
+      updatedAt: vaultJson.updatedAt,
+      liquidated: vaultJson.liquidated,
     }
     return vault;
   }
