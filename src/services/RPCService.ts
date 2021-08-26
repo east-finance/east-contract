@@ -529,7 +529,7 @@ export class RPCService {
     if (westTransferId !== undefined) {
       const {
         sender_public_key: westSenderPubKey,
-        amount: westTransferAmount,
+        amount: _westTransferAmount,
         recipient: westRecipient,
         asset_id: westAssetId,
       } = await this.stateService.getTransactionInfoOrFail<TransferTx>(westTransferId);
@@ -546,16 +546,18 @@ export class RPCService {
         throw new Error(`Expected transfer asset to be WEST, now: ${westAssetId}`);
       }
 
-      if (roundValue(parseValue(westTransferAmount)) !== roundValue(westAmount - CLOSE_COMISSION)) {
+      const westTransferAmount = new BigNumber((_westTransferAmount / Math.pow(10, WEST_DECIMALS)).toString())
+      
+      if (!westTransferAmount.isEqualTo(subtract(westAmount, new BigNumber(CLOSE_COMISSION.toString())))) {
         throw new Error(`west transfer amount must be more or equal vault amount, 
-          westAmount: ${westAmount}, westTransferAmount: ${westTransferAmount}`)
+          westAmount: ${westAmount.toString()}, westTransferAmount: ${westTransferAmount.toString()}`)
       }
     }
 
     if (rwaTransferId !== undefined) {
       const {
         sender_public_key: rwaSenderPubKey,
-        amount: rwaTransferAmount,
+        amount: _rwaTransferAmount,
         recipient: rwaRecipient,
         asset_id: rwaAssetId,
       } = await this.stateService.getTransactionInfoOrFail<TransferTx>(rwaTransferId);
@@ -572,7 +574,9 @@ export class RPCService {
         throw new Error(`Expected transfer asset to be ${rwaTokenId}, got: ${rwaAssetId}`);
       }
 
-      if (roundValue(parseValue(rwaTransferAmount)) !== roundValue(rwaAmount)) {
+      const rwaTransferAmount = new BigNumber((_rwaTransferAmount / Math.pow(10, EAST_DECIMALS)).toString());
+      
+      if (!rwaTransferAmount.isEqualTo(rwaAmount)) {
         throw new Error(`rwa transfer amount not equal to vault amount, 
           rwaAmount: ${rwaAmount}, rwaTransferAmount: ${rwaTransferAmount}`)
       }
@@ -583,13 +587,13 @@ export class RPCService {
     let balance = await this.stateService.getBalance(address);
 
     // check balance
-    if (balance < eastAmount) {
+    if (balance.isLessThan(eastAmount)) {
       throw new Error(`Not enought EAST amount(${eastAmount}) on ${address} to burn vault: ${address}`);
     }
 
-    balance -= eastAmount;
-    totalSupply -= eastAmount;
-    totalRwa -= rwaAmount;
+    balance = subtract(balance, eastAmount);
+    totalSupply = subtract(totalSupply, eastAmount);
+    totalRwa = subtract(totalRwa, rwaAmount);
     return [
       {
         key: StateKeys.totalSupply,
@@ -644,10 +648,9 @@ export class RPCService {
     const { eastAmount, westAmount, rwaAmount } = await this.stateService.getVault(address);
     const { rwaTokenId, oracleContractId, rwaPart, liquidationCollateral } = await this.stateService.getConfig();
     const transferAmount = await this.checkTransfer(tx, transferId, rwaTokenId);
-    const parsedTransferAmount = parseFloat(transferAmount + '') / Math.pow(10, WEST_DECIMALS);
 
-    if (parsedTransferAmount !== eastAmount) {
-      throw new Error(`Cannot liquidate vault ${address}: expected transfer amount: ${eastAmount}, received: ${parsedTransferAmount}`)
+    if (!transferAmount.isEqualTo(eastAmount)) {
+      throw new Error(`Cannot liquidate vault ${address}: expected transfer amount: ${eastAmount.toString()}, received: ${transferAmount.toString()}`)
     }
 
     const westRate = JSON.parse(await this.stateService.getContractKeyValue(WEST_ORACLE_STREAM, oracleContractId));
@@ -692,7 +695,7 @@ export class RPCService {
     const { transferId } = param
     const vault = await this.stateService.getVault(tx.sender);
     const transferAmount = await this.checkTransfer(tx, transferId);
-    vault.westAmount = roundValue(vault.westAmount + (Number(transferAmount) / Math.pow(10, WEST_DECIMALS)));
+    vault.westAmount = add(vault.westAmount, transferAmount).decimalPlaces(WEST_DECIMALS);
 
     return [
       {

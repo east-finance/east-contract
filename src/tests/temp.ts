@@ -39,8 +39,4 @@ BigNumber.config({
 //   console.log(rwaPartInPosition.toString())
 // })();
 
-console.log(
-  JSON.stringify({
-    value: new BigNumber('0.5')
-  })
-)
+console.log(new BigNumber('0.5').isEqualTo(new BigNumber('0.5')));
