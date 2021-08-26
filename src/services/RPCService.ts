@@ -36,7 +36,7 @@ import { SupplyDto } from '../dto/supply.dto';
 import { ClaimOverpayDto } from '../dto/claim-overpay.dto';
 import { LiquidateDto } from '../dto/liquidate.dto';
 import { BigNumber } from 'bignumber.js';
-import { add, subtract } from './math';
+import { add, divide, multiply, subtract } from './math';
 
 
 const logger = createLogger('GRPC service');
@@ -70,6 +70,7 @@ const ContractUtilService = proto.UtilService as ServiceClientConstructor;
 
 // CONSTS
 const WEST_DECIMALS = 8
+const EAST_DECIMALS = 8
 const WEST_ORACLE_STREAM = '000003_latest'
 const RWA_ORACLE_STREAM = '000010_latest'
 const MINIMUM_EAST_AMOUNT_TO_BUY = 1
@@ -173,7 +174,7 @@ export class RPCService {
     }
   }
 
-  async getLastOracles(oracleTimestampMaxDiff: number, oracleContractId: string) : Promise<{ westRate: Oracle, rwaRate: Oracle }> {
+  async getLastOracles(oracleTimestampMaxDiff: number, oracleContractId: string): Promise<{ westRate: Oracle, rwaRate: Oracle }> {
     const westRate = JSON.parse(await this.stateService.getContractKeyValue(WEST_ORACLE_STREAM, oracleContractId))
     const rwaRate = JSON.parse(await this.stateService.getContractKeyValue(RWA_ORACLE_STREAM, oracleContractId))
 
@@ -184,23 +185,34 @@ export class RPCService {
       throw new Error(`Too big difference in milliseconds between oracle_data.timestamp and current timestamp: 
         westRate: ${JSON.stringify(westRate)}, rwaRate: ${JSON.stringify(rwaRate)}, ${westTimeDiff}, ${rwaTimeDiff}, ${oracleTimestampMaxDiff}`)
     }
+    westRate.value = new BigNumber(westRate.value.toString())
+    rwaRate.value = new BigNumber(westRate.value.toString())
     return { westRate, rwaRate }
   }
 
-  async calculateEastAmount(namedArgs: { transferAmount: number, rwaPart: number, westCollateral: number, westRate: Oracle }) {
+  async calculateEastAmount(namedArgs: { transferAmount: BigNumber, rwaPart: BigNumber, westCollateral: BigNumber, westRate: Oracle }) {
     const { rwaPart, westCollateral, westRate, transferAmount } = namedArgs
-    const eastPriceInWest = (rwaPart / westRate.value) + ((1 - rwaPart) / westRate.value * westCollateral)
-    const eastAmount = transferAmount / eastPriceInWest
-    return roundValue(eastAmount)
+    const eastPriceInWest = add(
+      divide(rwaPart, westRate.value),
+      multiply(
+        divide(
+          subtract(new BigNumber(1), rwaPart),
+          westRate.value
+        ),
+        westCollateral
+      )
+    );
+    const eastAmount = divide(transferAmount, eastPriceInWest);
+    return eastAmount.decimalPlaces(EAST_DECIMALS)
   }
 
-  async calculateVault(transferAmount: number): Promise<{
-    eastAmount: number,
-    rwaAmount: number,
-    westAmount: number,
+  async calculateVault(transferAmount: BigNumber): Promise<{
+    eastAmount: BigNumber,
+    rwaAmount: BigNumber,
+    westAmount: BigNumber,
     westRate: Oracle,
     rwaRate: Oracle,
-    liquidationCollateral: number
+    liquidationCollateral: BigNumber
   }> {
     const {
       oracleContractId,
@@ -210,12 +222,19 @@ export class RPCService {
       liquidationCollateral
     } = await this.stateService.getConfig()
 
-    // mock
-    // const westRate = {value: 0.34, timestamp: Date.now()}, rwaRate = {value: 1, timestamp: Date.now()}
     const { westRate, rwaRate } = await this.getLastOracles(oracleTimestampMaxDiff, oracleContractId);
-    const rwaPartInPosition = rwaPart / ((1 - rwaPart) * westCollateral + rwaPart)
-    const westToRwaAmount = rwaPartInPosition * transferAmount
-    const rwaAmount = westToRwaAmount * westRate.value / rwaRate.value
+    const rwaPartInPosition = divide(
+      rwaPart,
+      add(
+        multiply(
+          subtract(new BigNumber(1), rwaPart), 
+          westCollateral
+        ),
+        rwaPart
+      )
+    );
+    const westToRwaAmount = multiply(rwaPartInPosition, transferAmount);
+    const rwaAmount = divide(multiply(westToRwaAmount, westRate.value), rwaRate.value);
     return {
       eastAmount: await this.calculateEastAmount({
         transferAmount,
@@ -223,17 +242,17 @@ export class RPCService {
         westCollateral,
         westRate,
       }),
-      rwaAmount: roundValue(rwaAmount),
-      westAmount: roundValue(transferAmount - westToRwaAmount),
+      rwaAmount: rwaAmount.decimalPlaces(EAST_DECIMALS),
+      westAmount: subtract(transferAmount, westToRwaAmount).decimalPlaces(EAST_DECIMALS),
       westRate,
       rwaRate,
       liquidationCollateral
     }
   }
 
-  async exchangeWest(westToRwaAmount: number): Promise<{
-    eastAmount: number,
-    rwaAmount: number,
+  async exchangeWest(westToRwaAmount: BigNumber): Promise<{
+    eastAmount: BigNumber,
+    rwaAmount: BigNumber,
     westRate: Oracle,
     rwaRate: Oracle,
   }> {
@@ -244,21 +263,30 @@ export class RPCService {
       westCollateral,
     } = await this.stateService.getConfig()
     const { westRate, rwaRate } = await this.getLastOracles(oracleTimestampMaxDiff, oracleContractId);
-    const eastPriceInWest = (rwaPart / westRate.value) + ((1 - rwaPart) / westRate.value * westCollateral)
-    const eastAmount = westToRwaAmount / eastPriceInWest
-    const rwaAmount = westToRwaAmount * westRate.value / rwaRate.value
+    const eastPriceInWest = add(
+      divide(rwaPart, westRate.value),
+      multiply(
+        divide(
+          subtract(new BigNumber(1), rwaPart),
+          westRate.value
+        ),
+        westCollateral
+      )
+    );
+    const eastAmount = divide(westToRwaAmount, eastPriceInWest);
+    const rwaAmount = divide(multiply(westToRwaAmount, westRate.value), rwaRate.value);
     return {
-      eastAmount: roundValue(eastAmount),
-      rwaAmount: roundValue(rwaAmount),
+      eastAmount: eastAmount.decimalPlaces(EAST_DECIMALS),
+      rwaAmount: rwaAmount.decimalPlaces(EAST_DECIMALS),
       westRate,
       rwaRate
     }
   }
 
   async recalculateVault(oldVault: Vault): Promise<{
-    eastAmount: number,
-    rwaAmount: number,
-    westAmount: number,
+    eastAmount: BigNumber,
+    rwaAmount: BigNumber,
+    westAmount: BigNumber,
     westRate: Oracle,
     rwaRate: Oracle
   } | false> {
@@ -269,8 +297,6 @@ export class RPCService {
       westCollateral
     } = await this.stateService.getConfig();
 
-    // mock
-    // const westRate = {value: 0.68, timestamp: Date.now()}, usdpRate = {value: 1, timestamp: Date.now()}
     const { westRate, rwaRate } = await this.getLastOracles(oracleTimestampMaxDiff, oracleContractId);
     const {
       eastAmount: oldEastAmount,
@@ -322,7 +348,7 @@ export class RPCService {
       recipient
     } = await this.stateService.getTransactionInfoOrFail<TransferTx>(transferId);
 
-    if(transferAssetId) {
+    if (transferAssetId) {
       if (assetId !== transferAssetId) {
         throw new Error(`Expected transfer asset to be ${transferAssetId}, got: ${assetId}`);
       }
@@ -432,7 +458,7 @@ export class RPCService {
 
     balance += diff;
     totalSupply += diff;
-    totalRwa +=  newVault.rwaAmount - oldVault.rwaAmount;
+    totalRwa += newVault.rwaAmount - oldVault.rwaAmount;
 
     return [
       {
@@ -567,7 +593,7 @@ export class RPCService {
     const from = tx.sender
 
     let fromBalance = await this.stateService.getBalance(from);
-    if(fromBalance < amount) {
+    if (fromBalance < amount) {
       throw new Error(`Insufficient funds to transfer from "${from}": balance "${fromBalance}", amount "${amount}"`);
     }
     let toBalance = await this.stateService.getBalance(to);
@@ -774,7 +800,7 @@ export class RPCService {
         await this.checkIsContractEnabled();
       }
       const value = JSON.parse(param.string_value || '{}');
-      switch(param.key) {
+      switch (param.key) {
         case Operations.update_config:
           results = await this.updateConfig(tx, value);
           break;
@@ -827,7 +853,7 @@ export class RPCService {
     logger.info(`Transaction ${tx.type} income: ${tx.id}, data: ${JSON.stringify(tx)}`);
     const start = Date.now();
     try {
-      switch(tx.type) {
+      switch (tx.type) {
         case TxType.DockerCreate:
           await this.handleDockerCreate(tx);
           break;
@@ -836,8 +862,8 @@ export class RPCService {
           await this.handleDockerCall(tx);
           break;
       }
-      logger.info(`Tx "${tx.id}" (type ${tx.type}) successfully mined, elapsed time: ${Date.now() -  start}ms`);
-    } catch(e) {
+      logger.info(`Tx "${tx.id}" (type ${tx.type}) successfully mined, elapsed time: ${Date.now() - start}ms`);
+    } catch (e) {
       logger.info(`Tx "${tx.id}" (type ${tx.type}) error: ${e.message}`);
       await this.stateService.commitError(tx.id, e.message);
     }
