@@ -200,9 +200,9 @@ export class StateService {
     return {
       oracleContractId,
       oracleTimestampMaxDiff,
-      rwaPart,
-      westCollateral,
-      liquidationCollateral,
+      rwaPart: new BigNumber(rwaPart.toString()),
+      westCollateral: new BigNumber(westCollateral.toString()),
+      liquidationCollateral: new BigNumber(liquidationCollateral.toString()),
       minHoldTime,
       adminAddress,
       adminPublicKey,
