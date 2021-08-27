@@ -23,7 +23,7 @@ export async function transfer(namedArgs: TransferArgs) {
       key: 'transfer',
       value: JSON.stringify({
         to: userToSeed.address,
-        amount: (amount * 100000000).toString(),
+        amount,
       })
     }],
   });
