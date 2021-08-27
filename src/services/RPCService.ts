@@ -647,24 +647,27 @@ export class RPCService {
     }
 
     const { eastAmount, westAmount, rwaAmount } = await this.stateService.getVault(address);
-    const { rwaTokenId, oracleContractId, rwaPart, liquidationCollateral } = await this.stateService.getConfig();
+    const { rwaTokenId, oracleContractId, rwaPart, liquidationCollateral, oracleTimestampMaxDiff } = await this.stateService.getConfig();
     const transferAmount = await this.checkTransfer(tx, transferId, rwaTokenId);
 
     if (!transferAmount.isEqualTo(eastAmount)) {
       throw new Error(`Cannot liquidate vault ${address}: expected transfer amount: ${eastAmount.toString()}, received: ${transferAmount.toString()}`)
     }
 
-    const westRate = JSON.parse(await this.stateService.getContractKeyValue(WEST_ORACLE_STREAM, oracleContractId));
-    const westPart = 1 - rwaPart;
-    const currentWestCollateral = (westAmount * westRate.value) / (westPart * eastAmount);
+    const { westRate } = await this.getLastOracles(oracleTimestampMaxDiff, oracleContractId)
+    const westPart = subtract(new BigNumber(1), rwaPart);
+    const currentWestCollateral = divide(
+      multiply(westAmount, westRate.value),
+      multiply(westPart, eastAmount),
+    );
 
-    if (currentWestCollateral > liquidationCollateral) {
-      throw new Error(`Cannot liquidate vault ${address}, currentWestCollateral: ${currentWestCollateral}, liquidationCollateral: ${liquidationCollateral}`);
+    if (currentWestCollateral.isGreaterThan(liquidationCollateral)) {
+      throw new Error(`Cannot liquidate vault ${address}, currentWestCollateral: ${currentWestCollateral.toString()}, liquidationCollateral: ${liquidationCollateral.toString()}`);
     }
 
     const liquidatedVault = {
-      eastAmount: roundValue(eastAmount),
-      rwaAmount: roundValue(eastAmount),
+      eastAmount: eastAmount.decimalPlaces(EAST_DECIMALS),
+      rwaAmount: eastAmount.decimalPlaces(EAST_DECIMALS),
       address,
       liquidated: true,
       westRate,
@@ -673,12 +676,12 @@ export class RPCService {
     }
 
     let totalRwa = await this.stateService.getTotalRwa();
-    totalRwa += liquidatedVault.rwaAmount - rwaAmount;
+    totalRwa = add(totalRwa, subtract(liquidatedVault.rwaAmount, rwaAmount));
 
     return [
       {
         key: StateKeys.totalRwa,
-        string_value: '' + roundValue(totalRwa)
+        string_value: totalRwa.decimalPlaces(EAST_DECIMALS).toString()
       },
       {
         key: `${StateKeys.vault}_${address}`,
@@ -720,7 +723,7 @@ export class RPCService {
     const {
       sender_public_key: senderPubKey,
       asset_id: assetId,
-      amount,
+      amount: _amount,
       recipient,
       attachment,
     } = await this.stateService.getTransactionInfoOrFail<TransferTx>(transferId);
@@ -744,21 +747,22 @@ export class RPCService {
       throw new Error(`Transfer ${transferId} is already used for accounting`);
     }
 
-    const amountParsed = amount / Math.pow(10, WEST_DECIMALS);
-    // check claim overpay limits
+    const amount = new BigNumber((_amount / Math.pow(10, WEST_DECIMALS)).toString());
+
     const { oracleContractId, rwaPart, westCollateral } = await this.stateService.getConfig();
     const westRate = JSON.parse(await this.stateService.getContractKeyValue(WEST_ORACLE_STREAM, oracleContractId))
     const rwaRate = JSON.parse(await this.stateService.getContractKeyValue(RWA_ORACLE_STREAM, oracleContractId))
-    const westPart = 1 - rwaPart;
-    let westExpectedValue = vault.eastAmount * westPart * rwaRate.value * westCollateral
-    if (rwaPart === 0) {
-      westExpectedValue = vault.eastAmount * westPart * westCollateral
+    const westPart = subtract(new BigNumber(1), rwaPart);
+    let westExpectedValue = vault.eastAmount.multipliedBy(westPart).multipliedBy(rwaRate.value).multipliedBy(westCollateral)
+    if (rwaPart.isEqualTo(0)) {
+      westExpectedValue = vault.eastAmount.multipliedBy(westPart).multipliedBy(westCollateral)
     }
-    const expectedWestAmount = westExpectedValue / westRate.value
-    const expectedTransferAmount = vault.westAmount - expectedWestAmount
+    const expectedWestAmount = divide(westExpectedValue, westRate.value);
+    const expectedTransferAmount = subtract(vault.westAmount, expectedWestAmount);
 
-    if (amountParsed > expectedTransferAmount * CLAIM_OVERPAY_INACCURACY) {
-      throw new Error(`Maximum allowable withdrawal: ${expectedTransferAmount * CLAIM_OVERPAY_INACCURACY}, received: ${amountParsed}`);
+    const maxWithdrawal = multiply(expectedTransferAmount, new BigNumber(CLAIM_OVERPAY_INACCURACY.toString()))
+    if (amount.isGreaterThan(maxWithdrawal)) {
+      throw new Error(`Maximum allowable withdrawal: ${maxWithdrawal.toString()}, received: ${amount.toString()}`);
     }
 
     const newWestAmount = roundValue(vault.westAmount - amountParsed - CLAIM_OVERPAY_COMISSION);
