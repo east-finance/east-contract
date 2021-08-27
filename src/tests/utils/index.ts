@@ -1,7 +1,6 @@
 import { ApiTokenRefresher } from '@wavesenterprise/api-token-refresher';
 import { TokenPair } from '@wavesenterprise/api-token-refresher/types';
 import { create, MAINNET_CONFIG, Seed } from '@wavesenterprise/js-sdk';
-import { Transfer } from '@wavesenterprise/js-sdk/raw/src/grpc/compiled-web/transfer_pb';
 import nodeFetch from 'node-fetch';
 import { ConfigParam } from '../../interfaces';
 import { RPCService } from '../../services/RPCService';
@@ -22,6 +21,8 @@ import { getTxStatus } from './node-api/get-tx-status';
 import { transfer } from './node-api/transfer';
 import { updateRates } from './oracle-contract-api/update-rates';
 import { createRandomSeed } from './utils/create-random-seed';
+import { transfer as eastTransfer } from './contract-api/transfer';
+
 
 async function getTokens(): Promise<TokenPair> {
   const data = await nodeFetch(`${AUTH_SERVICE_ADDRESS}/v1/auth/login`, {
@@ -148,6 +149,16 @@ export async function initGlobals() {
         weSdk,
       })
     },
+    transfer: (userFromSeed: Seed, userToSeed: Seed, amount: number) => {
+      return eastTransfer({
+        amount,
+        contractId: CONTRACT_ID!,
+        minimumFee,
+        userFromSeed,
+        userToSeed,
+        weSdk
+      })
+    }
   }
   const eastServiceApi = {
     trackTx: (request: TrackTxRequest) => {
