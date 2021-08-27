@@ -787,11 +787,17 @@ export class RPCService {
   async updateConfig(tx: Transaction, newConfig: Partial<ConfigParam>): Promise<DataEntryRequest[]> {
     await this.checkAdminPermissions(tx);
     const oldConfig = await this.stateService.getConfig();
+    const oldConfigJson = {
+      ...oldConfig,
+      rwaPart: parseFloat(oldConfig.rwaPart.toString()),
+      westCollateral: parseFloat(oldConfig.westCollateral.toString()),
+      liquidationCollateral: parseFloat(oldConfig.liquidationCollateral.toString()),
+    } as ConfigDto
 
     const config = {
-      ...oldConfig,
+      ...oldConfigJson,
       ...newConfig
-    }
+    } as ConfigDto
     await this.validateConfig(config);
 
     return [
