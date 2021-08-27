@@ -765,9 +765,9 @@ export class RPCService {
       throw new Error(`Maximum allowable withdrawal: ${maxWithdrawal.toString()}, received: ${amount.toString()}`);
     }
 
-    const newWestAmount = roundValue(vault.westAmount - amountParsed - CLAIM_OVERPAY_COMISSION);
-    if (newWestAmount <= 0) {
-      throw new Error(`newWestAmount less than 0, newWestAmount: ${newWestAmount}, amountParsed: ${amountParsed}`);
+    const newWestAmount = vault.westAmount.minus(amount).minus(new BigNumber(CLAIM_OVERPAY_COMISSION.toString()));
+    if (newWestAmount.isLessThanOrEqualTo(0)) {
+      throw new Error(`newWestAmount less than 0, newWestAmount: ${newWestAmount.toString()}, amountParsed: ${amount.toString()}`);
     }
 
     vault.westAmount = newWestAmount;
