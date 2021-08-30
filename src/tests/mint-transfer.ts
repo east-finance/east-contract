@@ -3,15 +3,34 @@ import { GetTransactionInfoResponse } from "./utils/node-api/get-transaction-inf
 import { GetTxStatusError, GetTxStatusResponse } from "./utils/node-api/get-tx-status";
 import { PollingTimeoutError, runPolling } from "./utils/polling";
 
-const WEST_AMOUNT = 15
+const WEST_AMOUNT = 15;
 
 async function main() {
   const globals = await initGlobals();
   const { contractApi, oracleContractApi, nodeApi, utils, seed: ownerSeed } = globals
-  const userSeed = utils.createRandomSeed()
+  const getTxStatus = async (txId: string) => {
+    try {
+      return await globals.nodeApi.getTxStatus(txId)
+    } catch (err) {
+      if (err instanceof GetTxStatusError) {
+        return err
+      }
+    }
+  }
+  const isContractCallSuccess = (result: GetTxStatusResponse | GetTxStatusError | undefined) => {
+    if (result === undefined) {
+      return false
+    }
+    if (result instanceof GetTxStatusError) {
+      console.log(`${Date.now()}: ${JSON.stringify(result.response)}`)
+      return false
+    }
+    return result.every(nodeResponse => nodeResponse.status === 'Success')
+  }
   /**
    * WEST TRANSFER
    */
+  const userSeed = utils.createRandomSeed()
   const transferId = await nodeApi.transfer({
     amount: WEST_AMOUNT,
     assetId: '',
@@ -37,27 +56,8 @@ async function main() {
     console.log('Timeout error');
     return
   }
-  console.log('WEST TRANSFER');
-  console.log(transferPollingResult)
-  const getTxStatus = async (txId: string) => {
-    try {
-      return await globals.nodeApi.getTxStatus(txId)
-    } catch (err) {
-      if (err instanceof GetTxStatusError) {
-        return err
-      }
-    }
-  }
-  const isContractCallSuccess = (result: GetTxStatusResponse | GetTxStatusError | undefined) => {
-    if (result === undefined) {
-      return false
-    }
-    if (result instanceof GetTxStatusError) {
-      console.log(`${Date.now()}: ${JSON.stringify(result.response)}`)
-      return false
-    }
-    return result.every(nodeResponse => nodeResponse.status === 'Success')
-  }
+  console.log('WEST TRANSFER')
+  console.log(transferPollingResult)  
   /**
    * UPDATE ORACLE CONTRACT RATES
    */
@@ -84,7 +84,7 @@ async function main() {
    * MINT
    */
   await (async () => {
-    const mintTxId = await contractApi.mint(userSeed, 5)
+    const mintTxId = await contractApi.mint(userSeed, 15)
     const pollingResult = await runPolling<GetTxStatusResponse>({
       sourceFn: async () => {
         return getTxStatus(mintTxId)
@@ -100,13 +100,14 @@ async function main() {
     console.log(pollingResult)
   })();
   /**
-   * SUPPLY
+   * EAST TRANSFER
    */
-  await (async () => {
-    const supplyTxId = await contractApi.supply(userSeed, 10)
+   await (async () => {
+    const user2Seed = utils.createRandomSeed()
+    const transferTxid = await contractApi.transfer(userSeed, user2Seed, 2)
     const pollingResult = await runPolling<GetTxStatusResponse>({
       sourceFn: async () => {
-        return getTxStatus(supplyTxId)
+        return getTxStatus(transferTxid)
       },
       predicateFn: isContractCallSuccess,
       pollInterval: 1000,
@@ -115,47 +116,9 @@ async function main() {
     if (pollingResult instanceof PollingTimeoutError) {
       return
     }
-    console.log('SUPPLY')
+    console.log('EAST TRANSFER')
     console.log(pollingResult)
-  })();
-  /** 
-   * REISSUE
-   */
-  await (async () => {
-    const reissueTxId = await contractApi.reissue(userSeed)
-    const pollingResult = await runPolling<GetTxStatusResponse>({
-      sourceFn: async () => {
-        return getTxStatus(reissueTxId)
-      },
-      predicateFn: isContractCallSuccess,
-      pollInterval: 1000,
-      timeout: 60000 * 5,
-    })
-    if (pollingResult instanceof PollingTimeoutError) {
-      return
-    }
-    console.log('REISSUE')
-    console.log(pollingResult)
-  })();
-  /** 
-   * CLOSE INIT
-   */
-  await (async () => {
-    const closeInitTxId = await contractApi.closeInit(userSeed)
-    const pollingResult = await runPolling<GetTxStatusResponse>({
-      sourceFn: async () => {
-        return getTxStatus(closeInitTxId)
-      },
-      predicateFn: isContractCallSuccess,
-      pollInterval: 1000,
-      timeout: 60000 * 5,
-    })
-    if (pollingResult instanceof PollingTimeoutError) {
-      return
-    }
-    console.log('CLOSE INIT')
-    console.log(pollingResult)
-  })()
+  })();  
 }
 
 main()

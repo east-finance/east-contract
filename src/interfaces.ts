@@ -1,3 +1,5 @@
+import BigNumber from "bignumber.js"
+
 declare module 'node-fetch';
 
 type ValueOf<Obj> = Obj[keyof Obj]
@@ -48,8 +50,13 @@ export type ContractTransactionResponse = {
   auth_token: string,
 }
 
+export interface OracleJson {
+  value: string,
+  timestamp: number
+}
+
 export interface Oracle {
-  value: number,
+  value: BigNumber,
   timestamp: number
 }
 
@@ -74,14 +81,25 @@ export interface ReissueParam {
   maxWestToExchange?: number
 }
 
+export interface VaultJson {
+  eastAmount: string,
+  westAmount: string,
+  rwaAmount: string,
+  westRate: OracleJson,
+  rwaRate: OracleJson,
+  updatedAt: number,
+  liquidationCollateral: string,
+  liquidated?: boolean
+}
+
 export interface Vault {
-  eastAmount: number,
-  westAmount: number,
-  rwaAmount: number,
+  eastAmount: BigNumber,
+  westAmount: BigNumber,
+  rwaAmount: BigNumber,
   westRate: Oracle,
   rwaRate: Oracle,
   updatedAt: number,
-  liquidationCollateral: number,
+  liquidationCollateral: BigNumber,
   liquidated?: boolean
 }
 
@@ -132,9 +150,9 @@ export enum StateKeys {
 export interface ConfigParam {
   oracleContractId: string,
   oracleTimestampMaxDiff: number,
-  rwaPart: number,
-  westCollateral: number,
-  liquidationCollateral: number,
+  rwaPart: BigNumber,
+  westCollateral: BigNumber,
+  liquidationCollateral: BigNumber,
   minHoldTime: number,
   rwaTokenId: string,
   isContractEnabled: boolean,

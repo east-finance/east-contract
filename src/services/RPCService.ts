@@ -35,6 +35,8 @@ import { ReissueDto } from '../dto/reissue.dto';
 import { SupplyDto } from '../dto/supply.dto';
 import { ClaimOverpayDto } from '../dto/claim-overpay.dto';
 import { LiquidateDto } from '../dto/liquidate.dto';
+import { BigNumber } from 'bignumber.js';
+import { add, divide, multiply, subtract } from './math';
 
 
 const logger = createLogger('GRPC service');
@@ -68,6 +70,7 @@ const ContractUtilService = proto.UtilService as ServiceClientConstructor;
 
 // CONSTS
 const WEST_DECIMALS = 8
+const EAST_DECIMALS = 8
 const WEST_ORACLE_STREAM = '000003_latest'
 const RWA_ORACLE_STREAM = '000010_latest'
 const MINIMUM_EAST_AMOUNT_TO_BUY = 1
@@ -112,12 +115,11 @@ export class RPCService {
     this.stateService = new StateService(this.client, this.txClient, this.addressService, this.contractUtilService);
   }
 
-  async checkAdminBalance(rwaAmount: number, totalRwa: number) {
+  async checkAdminBalance(rwaAmount: BigNumber, totalRwa: BigNumber) {
     const { adminAddress, rwaTokenId } = await this.stateService.getConfig()
-    const { amount, decimals } = await this.stateService.getAssetBalance(adminAddress, rwaTokenId)
-    const parsedAmount = parseValue(amount, decimals)
-    const diff = parsedAmount - rwaAmount + totalRwa
-    if (diff < 0) {
+    const amount = await this.stateService.getAssetBalance(adminAddress, rwaTokenId)
+    const diff = add(subtract(amount, rwaAmount), totalRwa)
+    if (diff.isLessThan(0)) {
       throw new Error('Insufficient RWA balance in protocol to mint new EAST. Please try again later or contact technical support.')
     }
   }
@@ -172,7 +174,7 @@ export class RPCService {
     }
   }
 
-  async getLastOracles(oracleTimestampMaxDiff: number, oracleContractId: string) : Promise<{ westRate: Oracle, rwaRate: Oracle }> {
+  async getLastOracles(oracleTimestampMaxDiff: number, oracleContractId: string): Promise<{ westRate: Oracle, rwaRate: Oracle }> {
     const westRate = JSON.parse(await this.stateService.getContractKeyValue(WEST_ORACLE_STREAM, oracleContractId))
     const rwaRate = JSON.parse(await this.stateService.getContractKeyValue(RWA_ORACLE_STREAM, oracleContractId))
 
@@ -183,23 +185,34 @@ export class RPCService {
       throw new Error(`Too big difference in milliseconds between oracle_data.timestamp and current timestamp: 
         westRate: ${JSON.stringify(westRate)}, rwaRate: ${JSON.stringify(rwaRate)}, ${westTimeDiff}, ${rwaTimeDiff}, ${oracleTimestampMaxDiff}`)
     }
+    westRate.value = new BigNumber(westRate.value.toString())
+    rwaRate.value = new BigNumber(westRate.value.toString())
     return { westRate, rwaRate }
   }
 
-  async calculateEastAmount(namedArgs: { transferAmount: number, rwaPart: number, westCollateral: number, westRate: Oracle }) {
+  async calculateEastAmount(namedArgs: { transferAmount: BigNumber, rwaPart: BigNumber, westCollateral: BigNumber, westRate: Oracle }) {
     const { rwaPart, westCollateral, westRate, transferAmount } = namedArgs
-    const eastPriceInWest = (rwaPart / westRate.value) + ((1 - rwaPart) / westRate.value * westCollateral)
-    const eastAmount = transferAmount / eastPriceInWest
-    return roundValue(eastAmount)
+    const eastPriceInWest = add(
+      divide(rwaPart, westRate.value),
+      multiply(
+        divide(
+          subtract(new BigNumber(1), rwaPart),
+          westRate.value
+        ),
+        westCollateral
+      )
+    );
+    const eastAmount = divide(transferAmount, eastPriceInWest);
+    return eastAmount.decimalPlaces(EAST_DECIMALS)
   }
 
-  async calculateVault(transferAmount: number): Promise<{
-    eastAmount: number,
-    rwaAmount: number,
-    westAmount: number,
+  async calculateVault(transferAmount: BigNumber): Promise<{
+    eastAmount: BigNumber,
+    rwaAmount: BigNumber,
+    westAmount: BigNumber,
     westRate: Oracle,
     rwaRate: Oracle,
-    liquidationCollateral: number
+    liquidationCollateral: BigNumber
   }> {
     const {
       oracleContractId,
@@ -209,12 +222,19 @@ export class RPCService {
       liquidationCollateral
     } = await this.stateService.getConfig()
 
-    // mock
-    // const westRate = {value: 0.34, timestamp: Date.now()}, rwaRate = {value: 1, timestamp: Date.now()}
     const { westRate, rwaRate } = await this.getLastOracles(oracleTimestampMaxDiff, oracleContractId);
-    const rwaPartInPosition = rwaPart / ((1 - rwaPart) * westCollateral + rwaPart)
-    const westToRwaAmount = rwaPartInPosition * transferAmount
-    const rwaAmount = westToRwaAmount * westRate.value / rwaRate.value
+    const rwaPartInPosition = divide(
+      rwaPart,
+      add(
+        multiply(
+          subtract(new BigNumber(1), rwaPart), 
+          westCollateral
+        ),
+        rwaPart
+      )
+    );
+    const westToRwaAmount = multiply(rwaPartInPosition, transferAmount);
+    const rwaAmount = divide(multiply(westToRwaAmount, westRate.value), rwaRate.value);
     return {
       eastAmount: await this.calculateEastAmount({
         transferAmount,
@@ -222,17 +242,17 @@ export class RPCService {
         westCollateral,
         westRate,
       }),
-      rwaAmount: roundValue(rwaAmount),
-      westAmount: roundValue(transferAmount - westToRwaAmount),
+      rwaAmount: rwaAmount.decimalPlaces(EAST_DECIMALS),
+      westAmount: subtract(transferAmount, westToRwaAmount).decimalPlaces(EAST_DECIMALS),
       westRate,
       rwaRate,
       liquidationCollateral
     }
   }
 
-  async exchangeWest(westToRwaAmount: number): Promise<{
-    eastAmount: number,
-    rwaAmount: number,
+  async exchangeWest(westToRwaAmount: BigNumber): Promise<{
+    eastAmount: BigNumber,
+    rwaAmount: BigNumber,
     westRate: Oracle,
     rwaRate: Oracle,
   }> {
@@ -243,21 +263,30 @@ export class RPCService {
       westCollateral,
     } = await this.stateService.getConfig()
     const { westRate, rwaRate } = await this.getLastOracles(oracleTimestampMaxDiff, oracleContractId);
-    const eastPriceInWest = (rwaPart / westRate.value) + ((1 - rwaPart) / westRate.value * westCollateral)
-    const eastAmount = westToRwaAmount / eastPriceInWest
-    const rwaAmount = westToRwaAmount * westRate.value / rwaRate.value
+    const eastPriceInWest = add(
+      divide(rwaPart, westRate.value),
+      multiply(
+        divide(
+          subtract(new BigNumber(1), rwaPart),
+          westRate.value
+        ),
+        westCollateral
+      )
+    );
+    const eastAmount = divide(westToRwaAmount, eastPriceInWest);
+    const rwaAmount = divide(multiply(westToRwaAmount, westRate.value), rwaRate.value);
     return {
-      eastAmount: roundValue(eastAmount),
-      rwaAmount: roundValue(rwaAmount),
+      eastAmount: eastAmount.decimalPlaces(EAST_DECIMALS),
+      rwaAmount: rwaAmount.decimalPlaces(EAST_DECIMALS),
       westRate,
       rwaRate
     }
   }
 
   async recalculateVault(oldVault: Vault): Promise<{
-    eastAmount: number,
-    rwaAmount: number,
-    westAmount: number,
+    eastAmount: BigNumber,
+    rwaAmount: BigNumber,
+    westAmount: BigNumber,
     westRate: Oracle,
     rwaRate: Oracle
   } | false> {
@@ -268,8 +297,6 @@ export class RPCService {
       westCollateral
     } = await this.stateService.getConfig();
 
-    // mock
-    // const westRate = {value: 0.68, timestamp: Date.now()}, usdpRate = {value: 1, timestamp: Date.now()}
     const { westRate, rwaRate } = await this.getLastOracles(oracleTimestampMaxDiff, oracleContractId);
     const {
       eastAmount: oldEastAmount,
@@ -277,19 +304,40 @@ export class RPCService {
       westAmount: oldWestAmount
     } = oldVault;
 
-    const usdTotal = oldRwaAmount * rwaRate.value + oldWestAmount * westRate.value
-    const rwaPartInPosition = rwaPart / ((1 - rwaPart) * westCollateral + rwaPart)
-    const usdToRwaAmount = rwaPartInPosition * usdTotal
-    const rwaAmount = usdToRwaAmount / rwaRate.value
-    const eastPriceInWest = (rwaPart / westRate.value) + ((1 - rwaPart) / westRate.value * westCollateral)
-    const westAmount = (usdTotal - usdToRwaAmount) / westRate.value
-    const eastAmount = westAmount / eastPriceInWest
+    const usdTotal = add(
+      multiply(oldRwaAmount, rwaRate.value),
+      multiply(oldWestAmount, westRate.value)
+    );
+    const rwaPartInPosition = divide(
+      rwaPart,
+      add(
+        multiply(
+          subtract(new BigNumber(1), rwaPart), 
+          westCollateral
+        ),
+        rwaPart
+      )
+    );
+    const usdToRwaAmount = multiply(rwaPartInPosition, usdTotal)
+    const rwaAmount = divide(usdToRwaAmount, rwaRate.value)
+    const eastPriceInWest = add(
+      divide(rwaPart, westRate.value),
+      multiply(
+        divide(
+          subtract(new BigNumber(1), rwaPart),
+          westRate.value
+        ),
+        westCollateral
+      )
+    );
+    const westAmount = divide(subtract(usdTotal, usdToRwaAmount), westRate.value)
+    const eastAmount = divide(westAmount, eastPriceInWest)
 
-    if (eastAmount > oldEastAmount) {
+    if (eastAmount.isGreaterThan(oldEastAmount)) {
       return {
-        eastAmount: roundValue(eastAmount),
-        rwaAmount: roundValue(rwaAmount),
-        westAmount: roundValue(westAmount),
+        eastAmount: eastAmount.decimalPlaces(EAST_DECIMALS),
+        rwaAmount: rwaAmount.decimalPlaces(EAST_DECIMALS),
+        westAmount: westAmount.decimalPlaces(WEST_DECIMALS),
         westRate,
         rwaRate
       }
@@ -298,7 +346,7 @@ export class RPCService {
     }
   }
 
-  async checkTransferAmount(transferAmount: number) {
+  async checkTransferAmount(transferAmount: BigNumber) {
     const { oracleContractId, oracleTimestampMaxDiff, rwaPart, westCollateral } = await this.stateService.getConfig();
     const { westRate } = await this.getLastOracles(oracleTimestampMaxDiff, oracleContractId);
     const eastAmount = await this.calculateEastAmount({
@@ -307,13 +355,13 @@ export class RPCService {
       westCollateral,
       westRate,
     })
-    if (eastAmount < MINIMUM_EAST_AMOUNT_TO_BUY) {
+    if (eastAmount.isLessThan(MINIMUM_EAST_AMOUNT_TO_BUY)) {
       throw new Error(`Minimum EAST amount to buy is: ${MINIMUM_EAST_AMOUNT_TO_BUY}, got: ${eastAmount}`);
     }
   }
 
   // returns amount
-  async checkTransfer(tx: Transaction, transferId: string, transferAssetId?: string): Promise<number> {
+  async checkTransfer(tx: Transaction, transferId: string, transferAssetId?: string): Promise<BigNumber> {
     const {
       sender_public_key: senderPubKey,
       amount: transferAmount,
@@ -321,7 +369,7 @@ export class RPCService {
       recipient
     } = await this.stateService.getTransactionInfoOrFail<TransferTx>(transferId);
 
-    if(transferAssetId) {
+    if (transferAssetId) {
       if (assetId !== transferAssetId) {
         throw new Error(`Expected transfer asset to be ${transferAssetId}, got: ${assetId}`);
       }
@@ -349,7 +397,7 @@ export class RPCService {
       throw new Error(`Transfer ${transferId} is already used for accounting`);
     }
 
-    return transferAmount
+    return new BigNumber((transferAmount / Math.pow(10, WEST_DECIMALS)).toString());
   }
 
   async mint(tx: Transaction, param: MintParam): Promise<DataEntryRequest[]> {
@@ -361,30 +409,29 @@ export class RPCService {
     }
 
     const transferAmount = await this.checkTransfer(tx, transferId)
-    const parsedTransferAmount = parseFloat(transferAmount + '') / Math.pow(10, WEST_DECIMALS)
-    await this.checkTransferAmount(parsedTransferAmount)
-    const vault = await this.calculateVault(parsedTransferAmount) as Vault
+    await this.checkTransferAmount(transferAmount)
+    const vault = await this.calculateVault(transferAmount) as Vault;
 
     vault.updatedAt = this.txTimestamp;
     let totalSupply = await this.stateService.getTotalSupply();
     let totalRwa = await this.stateService.getTotalRwa();
     await this.checkAdminBalance(vault.rwaAmount, totalRwa);
     let balance = await this.stateService.getBalance(tx.sender);
-    balance += vault.eastAmount;
-    totalSupply += vault.eastAmount;
-    totalRwa += vault.rwaAmount;
+    balance = add(balance, vault.eastAmount)
+    totalSupply = add(totalSupply, vault.eastAmount);
+    totalRwa = add(totalRwa, vault.rwaAmount);
     return [
       {
         key: StateKeys.totalSupply,
-        string_value: '' + roundValue(totalSupply)
+        string_value: totalSupply.decimalPlaces(EAST_DECIMALS).toString()
       },
       {
         key: StateKeys.totalRwa,
-        string_value: '' + roundValue(totalRwa)
+        string_value: totalRwa.decimalPlaces(EAST_DECIMALS).toString()
       },
       {
         key: `${StateKeys.balance}_${tx.sender}`,
-        string_value: '' + roundValue(balance)
+        string_value: balance.decimalPlaces(EAST_DECIMALS).toString()
       },
       {
         key: `${StateKeys.vault}_${tx.sender}`,
@@ -399,7 +446,10 @@ export class RPCService {
 
   async reissue(tx: Transaction, param: ReissueParam): Promise<DataEntryRequest[]> {
     await this.validate(ReissueDto, param)
-    const { maxWestToExchange } = param
+    let maxWestToExchange;
+    if (param.maxWestToExchange !== undefined) {
+      maxWestToExchange = new BigNumber(param.maxWestToExchange.toString());
+    }
     const oldVault = await this.stateService.getVault(tx.sender);
 
     let newVault: Vault = await this.recalculateVault(oldVault) as Vault
@@ -408,15 +458,15 @@ export class RPCService {
       throw new Error(`Cannot increase east amount`);
     }
 
-    const westAmountDelta = oldVault.westAmount - newVault.westAmount;
+    const westAmountDelta = subtract(oldVault.westAmount, newVault.westAmount);
 
-    if (maxWestToExchange && westAmountDelta > maxWestToExchange) {
+    if (maxWestToExchange !== undefined && westAmountDelta.isGreaterThan(maxWestToExchange)) {
       const exchange = await this.exchangeWest(maxWestToExchange);
       newVault = {
         ...oldVault,
-        eastAmount: roundValue(oldVault.eastAmount + exchange.eastAmount),
-        westAmount: roundValue(oldVault.westAmount - maxWestToExchange),
-        rwaAmount: roundValue(oldVault.rwaAmount + exchange.rwaAmount),
+        eastAmount: add(oldVault.eastAmount, exchange.eastAmount),
+        westAmount: subtract(oldVault.westAmount, maxWestToExchange),
+        rwaAmount: add(oldVault.rwaAmount, exchange.rwaAmount),
         westRate: exchange.westRate,
         rwaRate: exchange.rwaRate
       }
@@ -424,27 +474,27 @@ export class RPCService {
 
     let totalSupply = await this.stateService.getTotalSupply();
     let totalRwa = await this.stateService.getTotalRwa();
-    await this.checkAdminBalance(newVault.rwaAmount - oldVault.rwaAmount, totalRwa);
+    await this.checkAdminBalance(subtract(newVault.rwaAmount, oldVault.rwaAmount), totalRwa);
     let balance = await this.stateService.getBalance(tx.sender);
-    const diff = newVault.eastAmount - oldVault.eastAmount;
+    const diff = subtract(newVault.eastAmount, oldVault.eastAmount);
     newVault.updatedAt = this.txTimestamp;
 
-    balance += diff;
-    totalSupply += diff;
-    totalRwa +=  newVault.rwaAmount - oldVault.rwaAmount;
+    balance = add(balance, diff);
+    totalSupply = add(totalSupply, diff);
+    totalRwa = add(totalRwa, subtract(newVault.rwaAmount, oldVault.rwaAmount));
 
     return [
       {
         key: StateKeys.totalSupply,
-        string_value: '' + roundValue(totalSupply)
+        string_value: totalSupply.decimalPlaces(EAST_DECIMALS).toString()
       },
       {
         key: StateKeys.totalRwa,
-        string_value: '' + roundValue(totalRwa)
+        string_value: totalRwa.decimalPlaces(EAST_DECIMALS).toString()
       },
       {
         key: `${StateKeys.balance}_${tx.sender}`,
-        string_value: '' + roundValue(balance)
+        string_value: balance.decimalPlaces(EAST_DECIMALS).toString()
       },
       {
         key: `${StateKeys.vault}_${tx.sender}`,
@@ -479,7 +529,7 @@ export class RPCService {
     if (westTransferId !== undefined) {
       const {
         sender_public_key: westSenderPubKey,
-        amount: westTransferAmount,
+        amount: _westTransferAmount,
         recipient: westRecipient,
         asset_id: westAssetId,
       } = await this.stateService.getTransactionInfoOrFail<TransferTx>(westTransferId);
@@ -496,16 +546,18 @@ export class RPCService {
         throw new Error(`Expected transfer asset to be WEST, now: ${westAssetId}`);
       }
 
-      if (roundValue(parseValue(westTransferAmount)) !== roundValue(westAmount - CLOSE_COMISSION)) {
+      const westTransferAmount = new BigNumber((_westTransferAmount / Math.pow(10, WEST_DECIMALS)).toString())
+      
+      if (!westTransferAmount.isEqualTo(subtract(westAmount, new BigNumber(CLOSE_COMISSION.toString())))) {
         throw new Error(`west transfer amount must be more or equal vault amount, 
-          westAmount: ${westAmount}, westTransferAmount: ${westTransferAmount}`)
+          westAmount: ${westAmount.toString()}, westTransferAmount: ${westTransferAmount.toString()}`)
       }
     }
 
     if (rwaTransferId !== undefined) {
       const {
         sender_public_key: rwaSenderPubKey,
-        amount: rwaTransferAmount,
+        amount: _rwaTransferAmount,
         recipient: rwaRecipient,
         asset_id: rwaAssetId,
       } = await this.stateService.getTransactionInfoOrFail<TransferTx>(rwaTransferId);
@@ -522,7 +574,9 @@ export class RPCService {
         throw new Error(`Expected transfer asset to be ${rwaTokenId}, got: ${rwaAssetId}`);
       }
 
-      if (roundValue(parseValue(rwaTransferAmount)) !== roundValue(rwaAmount)) {
+      const rwaTransferAmount = new BigNumber((_rwaTransferAmount / Math.pow(10, EAST_DECIMALS)).toString());
+      
+      if (!rwaTransferAmount.isEqualTo(rwaAmount)) {
         throw new Error(`rwa transfer amount not equal to vault amount, 
           rwaAmount: ${rwaAmount}, rwaTransferAmount: ${rwaTransferAmount}`)
       }
@@ -533,25 +587,25 @@ export class RPCService {
     let balance = await this.stateService.getBalance(address);
 
     // check balance
-    if (balance < eastAmount) {
-      throw new Error(`Not enought EAST amount(${eastAmount}) on ${address} to burn vault: ${address}`);
+    if (balance.isLessThan(eastAmount)) {
+      throw new Error(`Not enought EAST amount(${eastAmount.toString()}) on ${address} to burn vault: ${address}`);
     }
 
-    balance -= eastAmount;
-    totalSupply -= eastAmount;
-    totalRwa -= rwaAmount;
+    balance = subtract(balance, eastAmount);
+    totalSupply = subtract(totalSupply, eastAmount);
+    totalRwa = subtract(totalRwa, rwaAmount);
     return [
       {
         key: StateKeys.totalSupply,
-        string_value: '' + roundValue(Math.max(totalSupply, 0))
+        string_value: BigNumber.maximum(totalSupply, '0').decimalPlaces(EAST_DECIMALS).toString()
       },
       {
         key: StateKeys.totalRwa,
-        string_value: '' + roundValue(totalRwa)
+        string_value: totalRwa.decimalPlaces(EAST_DECIMALS).toString()
       },
       {
         key: `${StateKeys.balance}_${address}`,
-        string_value: '' + roundValue(Math.max(balance, 0))
+        string_value: BigNumber.maximum(balance, 0).decimalPlaces(EAST_DECIMALS).toString()
       },
       {
         key: `${StateKeys.vault}_${address}`,
@@ -562,23 +616,24 @@ export class RPCService {
 
   async transfer(tx: Transaction, value: TransferParam): Promise<DataEntryRequest[]> {
     await this.validate(TransferDto, value)
-    const { to, amount } = value
+    const { to, amount: _amount } = value
     const from = tx.sender
+    const amount = new BigNumber(_amount.toString())
 
     let fromBalance = await this.stateService.getBalance(from);
-    if(fromBalance < amount) {
-      throw new Error(`Insufficient funds to transfer from "${from}": balance "${fromBalance}", amount "${amount}"`);
+    if (fromBalance.isLessThan(amount)) {
+      throw new Error(`Insufficient funds to transfer from "${from}": balance "${fromBalance.toString()}", amount "${amount}"`);
     }
     let toBalance = await this.stateService.getBalance(to);
 
-    fromBalance -= amount;
-    toBalance += amount;
+    fromBalance = subtract(fromBalance, amount);
+    toBalance = add(toBalance, amount);
     return [{
       key: `${StateKeys.balance}_${from}`,
-      string_value: '' + roundValue(fromBalance)
+      string_value: fromBalance.decimalPlaces(EAST_DECIMALS).toString()
     }, {
       key: `${StateKeys.balance}_${to}`,
-      string_value: '' + roundValue(toBalance)
+      string_value: toBalance.decimalPlaces(EAST_DECIMALS).toString()
     }];
   }
 
@@ -592,25 +647,27 @@ export class RPCService {
     }
 
     const { eastAmount, westAmount, rwaAmount } = await this.stateService.getVault(address);
-    const { rwaTokenId, oracleContractId, rwaPart, liquidationCollateral } = await this.stateService.getConfig();
+    const { rwaTokenId, oracleContractId, rwaPart, liquidationCollateral, oracleTimestampMaxDiff } = await this.stateService.getConfig();
     const transferAmount = await this.checkTransfer(tx, transferId, rwaTokenId);
-    const parsedTransferAmount = parseFloat(transferAmount + '') / Math.pow(10, WEST_DECIMALS);
 
-    if (parsedTransferAmount !== eastAmount) {
-      throw new Error(`Cannot liquidate vault ${address}: expected transfer amount: ${eastAmount}, received: ${parsedTransferAmount}`)
+    if (!transferAmount.isEqualTo(eastAmount)) {
+      throw new Error(`Cannot liquidate vault ${address}: expected transfer amount: ${eastAmount.toString()}, received: ${transferAmount.toString()}`)
     }
 
-    const westRate = JSON.parse(await this.stateService.getContractKeyValue(WEST_ORACLE_STREAM, oracleContractId));
-    const westPart = 1 - rwaPart;
-    const currentWestCollateral = (westAmount * westRate.value) / (westPart * eastAmount);
+    const { westRate } = await this.getLastOracles(oracleTimestampMaxDiff, oracleContractId)
+    const westPart = subtract(new BigNumber(1), rwaPart);
+    const currentWestCollateral = divide(
+      multiply(westAmount, westRate.value),
+      multiply(westPart, eastAmount),
+    );
 
-    if (currentWestCollateral > liquidationCollateral) {
-      throw new Error(`Cannot liquidate vault ${address}, currentWestCollateral: ${currentWestCollateral}, liquidationCollateral: ${liquidationCollateral}`);
+    if (currentWestCollateral.isGreaterThan(liquidationCollateral)) {
+      throw new Error(`Cannot liquidate vault ${address}, currentWestCollateral: ${currentWestCollateral.toString()}, liquidationCollateral: ${liquidationCollateral.toString()}`);
     }
 
     const liquidatedVault = {
-      eastAmount: roundValue(eastAmount),
-      rwaAmount: roundValue(eastAmount),
+      eastAmount: eastAmount.decimalPlaces(EAST_DECIMALS),
+      rwaAmount: eastAmount.decimalPlaces(EAST_DECIMALS),
       address,
       liquidated: true,
       westRate,
@@ -619,12 +676,12 @@ export class RPCService {
     }
 
     let totalRwa = await this.stateService.getTotalRwa();
-    totalRwa += liquidatedVault.rwaAmount - rwaAmount;
+    totalRwa = add(totalRwa, subtract(liquidatedVault.rwaAmount, rwaAmount));
 
     return [
       {
         key: StateKeys.totalRwa,
-        string_value: '' + roundValue(totalRwa)
+        string_value: totalRwa.decimalPlaces(EAST_DECIMALS).toString()
       },
       {
         key: `${StateKeys.vault}_${address}`,
@@ -642,7 +699,7 @@ export class RPCService {
     const { transferId } = param
     const vault = await this.stateService.getVault(tx.sender);
     const transferAmount = await this.checkTransfer(tx, transferId);
-    vault.westAmount = roundValue(vault.westAmount + (Number(transferAmount) / Math.pow(10, WEST_DECIMALS)));
+    vault.westAmount = add(vault.westAmount, transferAmount).decimalPlaces(WEST_DECIMALS);
 
     return [
       {
@@ -666,7 +723,7 @@ export class RPCService {
     const {
       sender_public_key: senderPubKey,
       asset_id: assetId,
-      amount,
+      amount: _amount,
       recipient,
       attachment,
     } = await this.stateService.getTransactionInfoOrFail<TransferTx>(transferId);
@@ -690,26 +747,27 @@ export class RPCService {
       throw new Error(`Transfer ${transferId} is already used for accounting`);
     }
 
-    const amountParsed = amount / Math.pow(10, WEST_DECIMALS);
-    // check claim overpay limits
+    const amount = new BigNumber((_amount / Math.pow(10, WEST_DECIMALS)).toString());
+
     const { oracleContractId, rwaPart, westCollateral } = await this.stateService.getConfig();
     const westRate = JSON.parse(await this.stateService.getContractKeyValue(WEST_ORACLE_STREAM, oracleContractId))
     const rwaRate = JSON.parse(await this.stateService.getContractKeyValue(RWA_ORACLE_STREAM, oracleContractId))
-    const westPart = 1 - rwaPart;
-    let westExpectedValue = vault.eastAmount * westPart * rwaRate.value * westCollateral
-    if (rwaPart === 0) {
-      westExpectedValue = vault.eastAmount * westPart * westCollateral
+    const westPart = subtract(new BigNumber(1), rwaPart);
+    let westExpectedValue = vault.eastAmount.multipliedBy(westPart).multipliedBy(rwaRate.value).multipliedBy(westCollateral)
+    if (rwaPart.isEqualTo(0)) {
+      westExpectedValue = vault.eastAmount.multipliedBy(westPart).multipliedBy(westCollateral)
     }
-    const expectedWestAmount = westExpectedValue / westRate.value
-    const expectedTransferAmount = vault.westAmount - expectedWestAmount
+    const expectedWestAmount = divide(westExpectedValue, westRate.value);
+    const expectedTransferAmount = subtract(vault.westAmount, expectedWestAmount);
 
-    if (amountParsed > expectedTransferAmount * CLAIM_OVERPAY_INACCURACY) {
-      throw new Error(`Maximum allowable withdrawal: ${expectedTransferAmount * CLAIM_OVERPAY_INACCURACY}, received: ${amountParsed}`);
+    const maxWithdrawal = multiply(expectedTransferAmount, new BigNumber(CLAIM_OVERPAY_INACCURACY.toString()))
+    if (amount.isGreaterThan(maxWithdrawal)) {
+      throw new Error(`Maximum allowable withdrawal: ${maxWithdrawal.toString()}, received: ${amount.toString()}`);
     }
 
-    const newWestAmount = roundValue(vault.westAmount - amountParsed - CLAIM_OVERPAY_COMISSION);
-    if (newWestAmount <= 0) {
-      throw new Error(`newWestAmount less than 0, newWestAmount: ${newWestAmount}, amountParsed: ${amountParsed}`);
+    const newWestAmount = vault.westAmount.minus(amount).minus(new BigNumber(CLAIM_OVERPAY_COMISSION.toString()));
+    if (newWestAmount.isLessThanOrEqualTo(0)) {
+      throw new Error(`newWestAmount less than 0, newWestAmount: ${newWestAmount.toString()}, amountParsed: ${amount.toString()}`);
     }
 
     vault.westAmount = newWestAmount;
@@ -729,11 +787,17 @@ export class RPCService {
   async updateConfig(tx: Transaction, newConfig: Partial<ConfigParam>): Promise<DataEntryRequest[]> {
     await this.checkAdminPermissions(tx);
     const oldConfig = await this.stateService.getConfig();
+    const oldConfigJson = {
+      ...oldConfig,
+      rwaPart: parseFloat(oldConfig.rwaPart.toString()),
+      westCollateral: parseFloat(oldConfig.westCollateral.toString()),
+      liquidationCollateral: parseFloat(oldConfig.liquidationCollateral.toString()),
+    } as ConfigDto
 
     const config = {
-      ...oldConfig,
+      ...oldConfigJson,
       ...newConfig
-    }
+    } as ConfigDto
     await this.validateConfig(config);
 
     return [
@@ -773,7 +837,7 @@ export class RPCService {
         await this.checkIsContractEnabled();
       }
       const value = JSON.parse(param.string_value || '{}');
-      switch(param.key) {
+      switch (param.key) {
         case Operations.update_config:
           results = await this.updateConfig(tx, value);
           break;
@@ -826,7 +890,7 @@ export class RPCService {
     logger.info(`Transaction ${tx.type} income: ${tx.id}, data: ${JSON.stringify(tx)}`);
     const start = Date.now();
     try {
-      switch(tx.type) {
+      switch (tx.type) {
         case TxType.DockerCreate:
           await this.handleDockerCreate(tx);
           break;
@@ -835,8 +899,8 @@ export class RPCService {
           await this.handleDockerCall(tx);
           break;
       }
-      logger.info(`Tx "${tx.id}" (type ${tx.type}) successfully mined, elapsed time: ${Date.now() -  start}ms`);
-    } catch(e) {
+      logger.info(`Tx "${tx.id}" (type ${tx.type}) successfully mined, elapsed time: ${Date.now() - start}ms`);
+    } catch (e) {
       logger.info(`Tx "${tx.id}" (type ${tx.type}) error: ${e.message}`);
       await this.stateService.commitError(tx.id, e.message);
     }

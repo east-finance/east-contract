@@ -3,6 +3,11 @@ config();
 
 import { RPCService } from './services/RPCService';
 import { createLogger } from './utils/logger';
+import { BigNumber } from 'bignumber.js';
+
+BigNumber.config({
+  ROUNDING_MODE: BigNumber.ROUND_DOWN
+})
 
 const logger = createLogger('Main Service');
 
