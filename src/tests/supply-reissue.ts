@@ -122,7 +122,7 @@ async function main() {
    * REISSUE
    */
   await (async () => {
-    const reissueTxId = await contractApi.reissue(userSeed, 5)
+    const reissueTxId = await contractApi.reissue(userSeed)
     const pollingResult = await runPolling<GetTxStatusResponse>({
       sourceFn: async () => {
         return getTxStatus(reissueTxId)
