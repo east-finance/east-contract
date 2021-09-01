@@ -26,7 +26,7 @@ import {
 import { CONNECTION_ID, CONNECTION_TOKEN, NODE, NODE_PORT, HOST_NETWORK } from '../config';
 import { StateService } from './StateService';
 import { ConfigDto } from '../dto/config.dto';
-import { validate } from 'class-validator';
+import { max, validate } from 'class-validator';
 import { plainToClass } from 'class-transformer';
 import { MintDto } from '../dto/mint.dto';
 import { TransferDto } from '../dto/transfer.dto';
@@ -186,7 +186,7 @@ export class RPCService {
         westRate: ${JSON.stringify(westRate)}, rwaRate: ${JSON.stringify(rwaRate)}, ${westTimeDiff}, ${rwaTimeDiff}, ${oracleTimestampMaxDiff}`)
     }
     westRate.value = new BigNumber(westRate.value.toString())
-    rwaRate.value = new BigNumber(westRate.value.toString())
+    rwaRate.value = new BigNumber(rwaRate.value.toString())
     return { westRate, rwaRate }
   }
 
@@ -206,6 +206,23 @@ export class RPCService {
     return eastAmount.decimalPlaces(EAST_DECIMALS)
   }
 
+  calculateWestAmount(namedArgs: { eastAmount: BigNumber, rwaPart: BigNumber, westCollateral: BigNumber, westRate: Oracle }) {
+    const { eastAmount, rwaPart, westCollateral, westRate } = namedArgs;
+    return multiply(
+      eastAmount,
+      add(
+        divide(rwaPart, westRate.value),
+        multiply(
+          divide(
+            subtract(new BigNumber(1), rwaPart),
+            westRate.value,
+          ),
+          westCollateral
+        )  
+      )  
+    )
+  }
+  
   async calculateVault(transferAmount: BigNumber): Promise<{
     eastAmount: BigNumber,
     rwaAmount: BigNumber,
@@ -247,39 +264,6 @@ export class RPCService {
       westRate,
       rwaRate,
       liquidationCollateral
-    }
-  }
-
-  async exchangeWest(westToRwaAmount: BigNumber): Promise<{
-    eastAmount: BigNumber,
-    rwaAmount: BigNumber,
-    westRate: Oracle,
-    rwaRate: Oracle,
-  }> {
-    const {
-      oracleContractId,
-      oracleTimestampMaxDiff,
-      rwaPart,
-      westCollateral,
-    } = await this.stateService.getConfig()
-    const { westRate, rwaRate } = await this.getLastOracles(oracleTimestampMaxDiff, oracleContractId);
-    const eastPriceInWest = add(
-      divide(rwaPart, westRate.value),
-      multiply(
-        divide(
-          subtract(new BigNumber(1), rwaPart),
-          westRate.value
-        ),
-        westCollateral
-      )
-    );
-    const eastAmount = divide(westToRwaAmount, eastPriceInWest);
-    const rwaAmount = divide(multiply(westToRwaAmount, westRate.value), rwaRate.value);
-    return {
-      eastAmount: eastAmount.decimalPlaces(EAST_DECIMALS),
-      rwaAmount: rwaAmount.decimalPlaces(EAST_DECIMALS),
-      westRate,
-      rwaRate
     }
   }
 
@@ -458,14 +442,25 @@ export class RPCService {
       throw new Error(`Cannot increase east amount`);
     }
 
-    const westAmountDelta = subtract(oldVault.westAmount, newVault.westAmount);
-
-    if (maxWestToExchange !== undefined && westAmountDelta.isGreaterThan(maxWestToExchange)) {
-      const exchange = await this.exchangeWest(maxWestToExchange);
+    const { westCollateral, rwaPart, oracleContractId, oracleTimestampMaxDiff } = await this.stateService.getConfig();
+    const { westRate } = await this.getLastOracles(oracleTimestampMaxDiff, oracleContractId);
+    const westAmountFromEast = this.calculateWestAmount({
+      eastAmount: oldVault.eastAmount,
+      rwaPart,
+      westCollateral,
+      westRate
+    });
+    const westAmountDelta = subtract(oldVault.westAmount, westAmountFromEast);
+    
+    if (maxWestToExchange !== undefined) {
+      if (maxWestToExchange.isGreaterThan(westAmountDelta)) {
+        throw new Error(`"maxWestToExchange" can't be greater than ${westAmountDelta.decimalPlaces(WEST_DECIMALS).toString()}`)
+      }
+      const exchange = await this.calculateVault(maxWestToExchange);
       newVault = {
         ...oldVault,
         eastAmount: add(oldVault.eastAmount, exchange.eastAmount),
-        westAmount: subtract(oldVault.westAmount, maxWestToExchange),
+        westAmount: oldVault.westAmount,
         rwaAmount: add(oldVault.rwaAmount, exchange.rwaAmount),
         westRate: exchange.westRate,
         rwaRate: exchange.rwaRate
