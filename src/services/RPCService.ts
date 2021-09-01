@@ -399,15 +399,16 @@ export class RPCService {
         westRate: oldVault.westRate
       })
     )).westAmount
-    
+
     let maxWestToExchange;
     if (param.maxWestToExchange !== undefined) {
       maxWestToExchange = new BigNumber(param.maxWestToExchange.toString());
     } else {
       maxWestToExchange = subtract(oldVault.westAmount, vaultWestAmount)
     }
-
+    
     let newVault: Vault = await this.recalculateVault(oldVault, maxWestToExchange) as Vault
+
     newVault = {
       ...oldVault,
       eastAmount: add(newVault.eastAmount, oldVault.eastAmount),
@@ -415,9 +416,6 @@ export class RPCService {
       westAmount: add(newVault.westAmount, vaultWestAmount),
     }
       
-    if (!newVault) {
-      throw new Error(`Cannot increase east amount`);
-    }
     
     let totalSupply = await this.stateService.getTotalSupply();
     let totalRwa = await this.stateService.getTotalRwa();
