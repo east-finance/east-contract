@@ -267,63 +267,21 @@ export class RPCService {
     }
   }
 
-  async recalculateVault(oldVault: Vault): Promise<{
+  async recalculateVault(oldVault: Vault, westToExchange: BigNumber): Promise<{
     eastAmount: BigNumber,
     rwaAmount: BigNumber,
     westAmount: BigNumber,
     westRate: Oracle,
     rwaRate: Oracle
   } | false> {
-    const {
-      oracleContractId,
-      oracleTimestampMaxDiff,
-      rwaPart,
-      westCollateral
-    } = await this.stateService.getConfig();
-
-    const { westRate, rwaRate } = await this.getLastOracles(oracleTimestampMaxDiff, oracleContractId);
-    const {
-      eastAmount: oldEastAmount,
-      rwaAmount: oldRwaAmount,
-      westAmount: oldWestAmount
-    } = oldVault;
-
-    const usdTotal = add(
-      multiply(oldRwaAmount, rwaRate.value),
-      multiply(oldWestAmount, westRate.value)
-    );
-    const rwaPartInPosition = divide(
-      rwaPart,
-      add(
-        multiply(
-          subtract(new BigNumber(1), rwaPart), 
-          westCollateral
-        ),
-        rwaPart
-      )
-    );
-    const usdToRwaAmount = multiply(rwaPartInPosition, usdTotal)
-    const rwaAmount = divide(usdToRwaAmount, rwaRate.value)
-    const eastPriceInWest = add(
-      divide(rwaPart, westRate.value),
-      multiply(
-        divide(
-          subtract(new BigNumber(1), rwaPart),
-          westRate.value
-        ),
-        westCollateral
-      )
-    );
-    const westAmount = divide(subtract(usdTotal, usdToRwaAmount), westRate.value)
-    const eastAmount = divide(westAmount, eastPriceInWest)
-
-    if (eastAmount.isGreaterThan(oldEastAmount)) {
+    const newVault = await this.calculateVault(westToExchange);
+    if (newVault.eastAmount.isGreaterThan(oldVault.eastAmount)) {
       return {
-        eastAmount: eastAmount.decimalPlaces(EAST_DECIMALS),
-        rwaAmount: rwaAmount.decimalPlaces(EAST_DECIMALS),
-        westAmount: westAmount.decimalPlaces(WEST_DECIMALS),
-        westRate,
-        rwaRate
+        eastAmount: newVault.eastAmount.decimalPlaces(EAST_DECIMALS),
+        rwaAmount: newVault.rwaAmount.decimalPlaces(EAST_DECIMALS),
+        westAmount: newVault.westAmount.decimalPlaces(WEST_DECIMALS),
+        westRate: newVault.westRate,
+        rwaRate: newVault.rwaRate,
       }
     } else {
       return false;
@@ -430,43 +388,37 @@ export class RPCService {
 
   async reissue(tx: Transaction, param: ReissueParam): Promise<DataEntryRequest[]> {
     await this.validate(ReissueDto, param)
+    const { westCollateral, rwaPart, oracleContractId, oracleTimestampMaxDiff } = await this.stateService.getConfig();
+    const oldVault = await this.stateService.getVault(tx.sender);
+
+    const vaultWestAmount = (await this.calculateVault(
+      this.calculateWestAmount({
+        eastAmount: oldVault.eastAmount,
+        rwaPart,
+        westCollateral,
+        westRate: oldVault.westRate
+      })
+    )).westAmount
+    
     let maxWestToExchange;
     if (param.maxWestToExchange !== undefined) {
       maxWestToExchange = new BigNumber(param.maxWestToExchange.toString());
+    } else {
+      maxWestToExchange = subtract(oldVault.westAmount, vaultWestAmount)
     }
-    const oldVault = await this.stateService.getVault(tx.sender);
 
-    let newVault: Vault = await this.recalculateVault(oldVault) as Vault
-
+    let newVault: Vault = await this.recalculateVault(oldVault, maxWestToExchange) as Vault
+    newVault = {
+      ...oldVault,
+      eastAmount: add(newVault.eastAmount, oldVault.eastAmount),
+      rwaAmount: add(newVault.rwaAmount, oldVault.rwaAmount),
+      westAmount: add(newVault.westAmount, vaultWestAmount),
+    }
+      
     if (!newVault) {
       throw new Error(`Cannot increase east amount`);
     }
-
-    const { westCollateral, rwaPart, oracleContractId, oracleTimestampMaxDiff } = await this.stateService.getConfig();
-    const { westRate } = await this.getLastOracles(oracleTimestampMaxDiff, oracleContractId);
-    const westAmountFromEast = this.calculateWestAmount({
-      eastAmount: oldVault.eastAmount,
-      rwaPart,
-      westCollateral,
-      westRate
-    });
-    const westAmountDelta = subtract(oldVault.westAmount, westAmountFromEast);
     
-    if (maxWestToExchange !== undefined) {
-      if (maxWestToExchange.isGreaterThan(westAmountDelta)) {
-        throw new Error(`"maxWestToExchange" can't be greater than ${westAmountDelta.decimalPlaces(WEST_DECIMALS).toString()}`)
-      }
-      const exchange = await this.calculateVault(maxWestToExchange);
-      newVault = {
-        ...oldVault,
-        eastAmount: add(oldVault.eastAmount, exchange.eastAmount),
-        westAmount: oldVault.westAmount,
-        rwaAmount: add(oldVault.rwaAmount, exchange.rwaAmount),
-        westRate: exchange.westRate,
-        rwaRate: exchange.rwaRate
-      }
-    }
-
     let totalSupply = await this.stateService.getTotalSupply();
     let totalRwa = await this.stateService.getTotalRwa();
     await this.checkAdminBalance(subtract(newVault.rwaAmount, oldVault.rwaAmount), totalRwa);
