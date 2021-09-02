@@ -209,6 +209,11 @@ export async function initGlobals() {
   const utils = {
     createRandomSeed: () => {
       return createRandomSeed(weSdk)
+    },
+    sleep: (time: number) => {
+      return new Promise(resolve => {
+        setTimeout(resolve, time)
+      })
     }
   }
   return {
