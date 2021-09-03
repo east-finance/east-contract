@@ -48,4 +48,7 @@ export class ConfigDto implements Omit<ConfigParam, 'adminAddress' | 'adminPubli
   @IsOptional()
   @IsPositive()
   txTimestampMaxDiff!: number
+
+  @IsPositive()
+  decimals!: number
 }
