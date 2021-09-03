@@ -99,6 +99,7 @@ async function main() {
     console.log('MINT')
     console.log(pollingResult)
   })();
+  await utils.sleep(1000 * 15)
   /**
    * SUPPLY
    */
@@ -118,6 +119,7 @@ async function main() {
     console.log('SUPPLY')
     console.log(pollingResult)
   })();
+  await utils.sleep(1000 * 15)
   /** 
    * REISSUE
    */
