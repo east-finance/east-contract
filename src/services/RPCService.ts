@@ -37,6 +37,7 @@ import { ClaimOverpayDto } from '../dto/claim-overpay.dto';
 import { LiquidateDto } from '../dto/liquidate.dto';
 import { BigNumber } from 'bignumber.js';
 import { add, divide, multiply, subtract } from './math';
+import { stringifyVault } from '../utils/transform-vault';
 
 
 const logger = createLogger('GRPC service');
@@ -71,23 +72,13 @@ const ContractUtilService = proto.UtilService as ServiceClientConstructor;
 // CONSTS
 const WEST_DECIMALS = 8
 const EAST_DECIMALS = 8
+export const MULTIPLIER = Math.pow(10, EAST_DECIMALS)
 const WEST_ORACLE_STREAM = '000003_latest'
 const RWA_ORACLE_STREAM = '000010_latest'
 const MINIMUM_EAST_AMOUNT_TO_BUY = 1
 const CLAIM_OVERPAY_COMISSION = 0.2
 const CLOSE_COMISSION = 0.3
 const CLAIM_OVERPAY_INACCURACY = 1.05
-
-function roundValue(num: number) {
-  if (typeof num === 'string') {
-    num = parseFloat(num);
-  }
-  return +num.toFixed(WEST_DECIMALS);
-}
-
-function parseValue(num: number, decimalPlaces: number = WEST_DECIMALS) {
-  return parseFloat(num + '') / Math.pow(10, decimalPlaces)
-}
 
 export class RPCService {
   // eslint-disable-next-line
@@ -138,7 +129,8 @@ export class RPCService {
   async handleDockerCreate(tx: Transaction): Promise<void> {
     const defaultVals = {
       isContractEnabled: true,
-      txTimestampMaxDiff: 1000 * 60 * 5
+      txTimestampMaxDiff: 1000 * 60 * 5,
+      decimals: EAST_DECIMALS,
     }
     const paramConfig = tx.params[0];
     const config = JSON.parse(paramConfig.string_value || '{}');
@@ -344,19 +336,19 @@ export class RPCService {
     return [
       {
         key: StateKeys.totalSupply,
-        string_value: totalSupply.decimalPlaces(EAST_DECIMALS).toString()
+        string_value: totalSupply.decimalPlaces(EAST_DECIMALS).multipliedBy(MULTIPLIER).toString()
       },
       {
         key: StateKeys.totalRwa,
-        string_value: totalRwa.decimalPlaces(EAST_DECIMALS).toString()
+        string_value: totalRwa.decimalPlaces(EAST_DECIMALS).multipliedBy(MULTIPLIER).toString()
       },
       {
         key: `${StateKeys.balance}_${tx.sender}`,
-        string_value: balance.decimalPlaces(EAST_DECIMALS).toString()
+        string_value: balance.decimalPlaces(EAST_DECIMALS).multipliedBy(MULTIPLIER).toString()
       },
       {
         key: `${StateKeys.vault}_${tx.sender}`,
-        string_value: JSON.stringify(vault)
+        string_value: stringifyVault(vault)
       },
       {
         key: `${StateKeys.exchange}_${transferId}`,
@@ -382,7 +374,7 @@ export class RPCService {
     const limit = subtract(oldVault.westAmount, oldVaultWestAmount)
     let maxWestToExchange;
     if (param.maxWestToExchange !== undefined) {
-      maxWestToExchange = new BigNumber(param.maxWestToExchange.toString());
+      maxWestToExchange = new BigNumber(param.maxWestToExchange.toString()).dividedBy(MULTIPLIER);
       if (maxWestToExchange.isGreaterThan(limit)) {
         throw new Error(`"maxWestToExchange" must be less than or equal ${limit.toString()}`)
       }
@@ -416,19 +408,19 @@ export class RPCService {
     return [
       {
         key: StateKeys.totalSupply,
-        string_value: totalSupply.decimalPlaces(EAST_DECIMALS).toString()
+        string_value: totalSupply.decimalPlaces(EAST_DECIMALS).multipliedBy(MULTIPLIER).toString()
       },
       {
         key: StateKeys.totalRwa,
-        string_value: totalRwa.decimalPlaces(EAST_DECIMALS).toString()
+        string_value: totalRwa.decimalPlaces(EAST_DECIMALS).multipliedBy(MULTIPLIER).toString()
       },
       {
         key: `${StateKeys.balance}_${tx.sender}`,
-        string_value: balance.decimalPlaces(EAST_DECIMALS).toString()
+        string_value: balance.decimalPlaces(EAST_DECIMALS).multipliedBy(MULTIPLIER).toString()
       },
       {
         key: `${StateKeys.vault}_${tx.sender}`,
-        string_value: JSON.stringify(newVault)
+        string_value: stringifyVault(newVault)
       }
     ];
   }
@@ -527,15 +519,15 @@ export class RPCService {
     return [
       {
         key: StateKeys.totalSupply,
-        string_value: BigNumber.maximum(totalSupply, '0').decimalPlaces(EAST_DECIMALS).toString()
+        string_value: BigNumber.maximum(totalSupply, '0').decimalPlaces(EAST_DECIMALS).multipliedBy(MULTIPLIER).toString()
       },
       {
         key: StateKeys.totalRwa,
-        string_value: totalRwa.decimalPlaces(EAST_DECIMALS).toString()
+        string_value: totalRwa.decimalPlaces(EAST_DECIMALS).multipliedBy(MULTIPLIER).toString()
       },
       {
         key: `${StateKeys.balance}_${address}`,
-        string_value: BigNumber.maximum(balance, 0).decimalPlaces(EAST_DECIMALS).toString()
+        string_value: BigNumber.maximum(balance, 0).decimalPlaces(EAST_DECIMALS).multipliedBy(MULTIPLIER).toString()
       },
       {
         key: `${StateKeys.vault}_${address}`,
@@ -548,7 +540,7 @@ export class RPCService {
     await this.validate(TransferDto, value)
     const { to, amount: _amount } = value
     const from = tx.sender
-    const amount = new BigNumber(_amount.toString())
+    const amount = new BigNumber(_amount.toString()).dividedBy(MULTIPLIER)
 
     let fromBalance = await this.stateService.getBalance(from);
     if (fromBalance.isLessThan(amount)) {
@@ -560,10 +552,10 @@ export class RPCService {
     toBalance = add(toBalance, amount);
     return [{
       key: `${StateKeys.balance}_${from}`,
-      string_value: fromBalance.decimalPlaces(EAST_DECIMALS).toString()
+      string_value: fromBalance.decimalPlaces(EAST_DECIMALS).multipliedBy(MULTIPLIER).toString()
     }, {
       key: `${StateKeys.balance}_${to}`,
-      string_value: toBalance.decimalPlaces(EAST_DECIMALS).toString()
+      string_value: toBalance.decimalPlaces(EAST_DECIMALS).multipliedBy(MULTIPLIER).toString()
     }];
   }
 
@@ -602,7 +594,7 @@ export class RPCService {
       liquidated: true,
       westRate,
       liquidationCollateral,
-      liquidatedWestAmount: westAmount
+      liquidatedWestAmount: westAmount.multipliedBy(MULTIPLIER).toString()
     }
 
     let totalRwa = await this.stateService.getTotalRwa();
@@ -611,7 +603,7 @@ export class RPCService {
     return [
       {
         key: StateKeys.totalRwa,
-        string_value: totalRwa.decimalPlaces(EAST_DECIMALS).toString()
+        string_value: totalRwa.decimalPlaces(EAST_DECIMALS).multipliedBy(MULTIPLIER).toString()
       },
       {
         key: `${StateKeys.vault}_${address}`,
@@ -619,7 +611,7 @@ export class RPCService {
       },
       {
         key: `${StateKeys.liquidatedVault}_${address}_${this.txTimestamp}`,
-        string_value: JSON.stringify(liquidatedVault)
+        string_value: stringifyVault(liquidatedVault as unknown as Vault)
       }
     ];
   }
@@ -634,7 +626,7 @@ export class RPCService {
     return [
       {
         key: `${StateKeys.vault}_${tx.sender}`,
-        string_value: JSON.stringify(vault)
+        string_value: stringifyVault(vault)
       },
       {
         key: `${StateKeys.exchange}_${transferId}`,
@@ -705,7 +697,7 @@ export class RPCService {
     return [
       {
         key: `${StateKeys.vault}_${address}`,
-        string_value: JSON.stringify(vault)
+        string_value: stringifyVault(vault)
       },
       {
         key: `${StateKeys.exchange}_${transferId}`,
