@@ -6,7 +6,7 @@ import { createLogger } from './utils/logger';
 import { BigNumber } from 'bignumber.js';
 
 BigNumber.config({
-  ROUNDING_MODE: BigNumber.ROUND_DOWN
+  ROUNDING_MODE: BigNumber.ROUND_HALF_EVEN
 })
 
 const logger = createLogger('Main Service');
