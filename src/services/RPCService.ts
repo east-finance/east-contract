@@ -133,17 +133,18 @@ export class RPCService {
       decimals: EAST_DECIMALS,
     }
     const paramConfig = tx.params[0];
-    const config = JSON.parse(paramConfig.string_value || '{}');
+    let config = JSON.parse(paramConfig.string_value || '{}');
+    config = {
+      ...config,
+      defaultVals,
+    }
     await this.validateConfig(config)
     config.adminAddress = tx.sender;
     config.adminPublicKey = tx.sender_public_key;
     await this.stateService.commitSuccess(tx.id, [
       {
         key: StateKeys.config,
-        string_value: JSON.stringify({
-          ...defaultVals,
-          ...config
-        })
+        string_value: JSON.stringify(config)
       },
       {
         key: StateKeys.totalSupply,
