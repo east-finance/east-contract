@@ -196,7 +196,8 @@ export class StateService {
       rwaPart === undefined ||
       westCollateral === undefined ||
       liquidationCollateral === undefined ||
-      decimals === undefined
+      decimals === undefined ||
+      txTimestampMaxDiff === undefined
     ) {
       throw new Error('Wrong config contract param')
     }
@@ -286,8 +287,8 @@ export class StateService {
           }
           const { ntp, system } = response;
           resolve({
-            ntp,
-            system,
+            ntp: parseInt(ntp),
+            system: parseInt(system),
           })
         }
       )

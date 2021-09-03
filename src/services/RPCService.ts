@@ -133,18 +133,17 @@ export class RPCService {
       decimals: EAST_DECIMALS,
     }
     const paramConfig = tx.params[0];
-    let config = JSON.parse(paramConfig.string_value || '{}');
-    config = {
-      ...config,
-      defaultVals,
-    }
+    const config = JSON.parse(paramConfig.string_value || '{}');
     await this.validateConfig(config)
     config.adminAddress = tx.sender;
     config.adminPublicKey = tx.sender_public_key;
     await this.stateService.commitSuccess(tx.id, [
       {
         key: StateKeys.config,
-        string_value: JSON.stringify(config)
+        string_value: JSON.stringify({
+          ...defaultVals,
+          ...config
+        })
       },
       {
         key: StateKeys.totalSupply,
@@ -818,7 +817,7 @@ export class RPCService {
           await this.handleDockerCreate(tx);
           break;
         case TxType.DockerCall:
-          await this.setTxTimestamp(tx.timestamp);
+          await this.setTxTimestamp(parseInt(tx.timestamp));
           await this.handleDockerCall(tx);
           break;
       }

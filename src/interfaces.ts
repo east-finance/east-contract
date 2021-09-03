@@ -39,7 +39,7 @@ export type Transaction = {
   fee: number,
   version: number,
   proofs: Buffer,
-  timestamp: number,
+  timestamp: string,
   fee_asset_id: {
     value: string,
   },
