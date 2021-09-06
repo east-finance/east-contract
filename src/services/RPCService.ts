@@ -512,26 +512,25 @@ export class RPCService {
     let totalRwa = await this.stateService.getTotalRwa();
     let balance = await this.stateService.getBalance(address);
 
-    // check balance
-    if (balance.isLessThan(eastAmount)) {
+    if (balance.isLessThan(eastAmount.multipliedBy(MULTIPLIER))) {
       throw new Error(`Not enought EAST amount(${eastAmount.toString()}) on ${address} to burn vault: ${address}`);
     }
 
-    balance = subtract(balance, eastAmount);
-    totalSupply = subtract(totalSupply, eastAmount);
-    totalRwa = subtract(totalRwa, rwaAmount);
+    balance = subtract(balance, eastAmount.multipliedBy(MULTIPLIER));
+    totalSupply = subtract(totalSupply, eastAmount.multipliedBy(MULTIPLIER));
+    totalRwa = subtract(totalRwa, rwaAmount.multipliedBy(MULTIPLIER));
     return [
       {
         key: StateKeys.totalSupply,
-        string_value: BigNumber.maximum(totalSupply, '0').decimalPlaces(EAST_DECIMALS).multipliedBy(MULTIPLIER).toString()
+        string_value: BigNumber.maximum(totalSupply, '0').toString()
       },
       {
         key: StateKeys.totalRwa,
-        string_value: totalRwa.decimalPlaces(EAST_DECIMALS).multipliedBy(MULTIPLIER).toString()
+        string_value: totalRwa.toString()
       },
       {
         key: `${StateKeys.balance}_${address}`,
-        string_value: BigNumber.maximum(balance, 0).decimalPlaces(EAST_DECIMALS).multipliedBy(MULTIPLIER).toString()
+        string_value: BigNumber.maximum(balance, 0).toString()
       },
       {
         key: `${StateKeys.vault}_${address}`,
