@@ -328,7 +328,7 @@ export class RPCService {
     vault.updatedAt = this.txTimestamp;
     let totalSupply = await this.stateService.getTotalSupply();
     let totalRwa = await this.stateService.getTotalRwa();
-    await this.checkAdminBalance(vault.rwaAmount, totalRwa);
+    await this.checkAdminBalance(vault.rwaAmount, totalRwa.dividedBy(MULTIPLIER));
     let balance = await this.stateService.getBalance(tx.sender);
     balance = add(balance, vault.eastAmount)
     totalSupply = add(totalSupply, vault.eastAmount);
@@ -361,6 +361,11 @@ export class RPCService {
     await this.validate(ReissueDto, param)
     const { westCollateral, rwaPart } = await this.stateService.getConfig();
     const oldVault = await this.stateService.getVault(tx.sender);
+    logger.info(
+      `===================================================
+      oldVault - ${JSON.stringify(oldVault, null, 2)}
+      ===================================================`
+    );
 
     const oldVaultWestAmount = (await this.calculateVault(
       this.calculateWestAmount({
@@ -371,7 +376,21 @@ export class RPCService {
       })
     )).westAmount
 
+    logger.info(
+      `===================================================
+      oldVaultWestAmount - ${oldVaultWestAmount}
+      ===================================================`
+    );
+
     const limit = subtract(oldVault.westAmount, oldVaultWestAmount)
+
+    logger.info(
+      `===================================================
+      limit - ${limit}
+      ===================================================`
+    );
+
+    
     let maxWestToExchange;
     if (param.maxWestToExchange !== undefined) {
       maxWestToExchange = new BigNumber(param.maxWestToExchange.toString()).dividedBy(MULTIPLIER);
@@ -389,34 +408,61 @@ export class RPCService {
       rwaAmount: add(newVault.rwaAmount, oldVault.rwaAmount),
       westAmount: add(newVault.westAmount, oldVaultWestAmount),
     }
-      
+    
+    logger.info(
+      `===================================================
+      newVault - ${JSON.stringify(newVault, null, 2)}
+      ===================================================`
+    );
+    
     if (newVault.eastAmount.isLessThan(oldVault.eastAmount)) {
       throw new Error('Can\'t increase east amount.')
     }
     
     let totalSupply = await this.stateService.getTotalSupply();
+
+    logger.info(
+      `===================================================
+      totalSupply - ${totalSupply}
+      ===================================================`
+    );
+    
     let totalRwa = await this.stateService.getTotalRwa();
-    await this.checkAdminBalance(subtract(newVault.rwaAmount, oldVault.rwaAmount), totalRwa);
+
+    logger.info(
+      `===================================================
+      totalRwa - ${totalRwa}
+      ===================================================`
+    );
+    
+    await this.checkAdminBalance(subtract(newVault.rwaAmount, oldVault.rwaAmount), totalRwa.dividedBy(MULTIPLIER));
     let balance = await this.stateService.getBalance(tx.sender);
-    const diff = subtract(newVault.eastAmount, oldVault.eastAmount);
+    const diff = subtract(newVault.eastAmount, oldVault.eastAmount).multipliedBy(MULTIPLIER);
+
+    logger.info(
+      `===================================================
+      diff - ${diff}
+      ===================================================`
+    );
+    
     newVault.updatedAt = this.txTimestamp;
 
     balance = add(balance, diff);
     totalSupply = add(totalSupply, diff);
-    totalRwa = add(totalRwa, subtract(newVault.rwaAmount, oldVault.rwaAmount));
+    totalRwa = add(totalRwa, subtract(newVault.rwaAmount, oldVault.rwaAmount).multipliedBy(MULTIPLIER));
 
     return [
       {
         key: StateKeys.totalSupply,
-        string_value: totalSupply.decimalPlaces(EAST_DECIMALS).multipliedBy(MULTIPLIER).toString()
+        string_value: totalSupply.toString()
       },
       {
         key: StateKeys.totalRwa,
-        string_value: totalRwa.decimalPlaces(EAST_DECIMALS).multipliedBy(MULTIPLIER).toString()
+        string_value: totalRwa.toString()
       },
       {
         key: `${StateKeys.balance}_${tx.sender}`,
-        string_value: balance.decimalPlaces(EAST_DECIMALS).multipliedBy(MULTIPLIER).toString()
+        string_value: balance.toString()
       },
       {
         key: `${StateKeys.vault}_${tx.sender}`,
