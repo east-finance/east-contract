@@ -823,8 +823,9 @@ export class RPCService {
       }
       logger.info(`Tx "${tx.id}" (type ${tx.type}) successfully mined, elapsed time: ${Date.now() - start}ms`);
     } catch (e) {
-      logger.info(`Tx "${tx.id}" (type ${tx.type}) error: ${e.message}`);
-      await this.stateService.commitError(tx.id, e.message);
+      const _e= e as Error
+      logger.info(`Tx "${tx.id}" (type ${tx.type}) error: ${_e.message}`);
+      await this.stateService.commitError(tx.id, _e.message);
     }
   }
 
