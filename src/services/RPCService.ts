@@ -571,7 +571,7 @@ export class RPCService {
       throw new Error(`Vault for user ${address} doesn't exist`);
     }
 
-    const { eastAmount, westAmount, rwaAmount } = await this.stateService.getVault(address);
+    const { eastAmount, westAmount, rwaAmount, rwaRate } = await this.stateService.getVault(address);
     const { rwaTokenId, oracleContractId, rwaPart, liquidationCollateral, oracleTimestampMaxDiff } = await this.stateService.getConfig();
     const transferAmount = await this.checkTransfer(tx, transferId, rwaTokenId);
 
@@ -593,20 +593,28 @@ export class RPCService {
     const liquidatedVault = {
       eastAmount: eastAmount.decimalPlaces(EAST_DECIMALS),
       rwaAmount: eastAmount.decimalPlaces(EAST_DECIMALS),
+      westAmount: new BigNumber('0'),
       address,
       liquidated: true,
       westRate,
+      rwaRate,
       liquidationCollateral,
-      liquidatedWestAmount: westAmount.multipliedBy(MULTIPLIER).toString()
+      liquidatedWestAmount: westAmount.multipliedBy(MULTIPLIER).toString(),
     }
 
     let totalRwa = await this.stateService.getTotalRwa();
-    totalRwa = add(totalRwa, subtract(liquidatedVault.rwaAmount, rwaAmount));
-
+    totalRwa = add(
+      totalRwa,
+      multiply(
+        subtract(liquidatedVault.rwaAmount, rwaAmount),
+        new BigNumber(MULTIPLIER)
+      )
+    );
+    
     return [
       {
         key: StateKeys.totalRwa,
-        string_value: totalRwa.decimalPlaces(EAST_DECIMALS).multipliedBy(MULTIPLIER).toString()
+        string_value: totalRwa.toString()
       },
       {
         key: `${StateKeys.vault}_${address}`,
