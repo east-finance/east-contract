@@ -3,6 +3,7 @@ import { BigNumber } from 'bignumber.js';
 import { ConfigParam, DataEntryRequest, DataEntryResponse, StateKeys, Vault, VaultJson } from '../interfaces';
 import { Base58 } from '../utils/base58';
 import { createLogger } from '../utils/logger';
+import { parseVault } from '../utils/transform-vault';
 
 const logger = createLogger('State service');
 
@@ -186,14 +187,17 @@ export class StateService {
       adminPublicKey,
       isContractEnabled,
       rwaTokenId,
-      txTimestampMaxDiff
+      txTimestampMaxDiff,
+      decimals,
     } = JSON.parse(value as string)
     if (
       oracleContractId === undefined ||
       oracleTimestampMaxDiff === undefined ||
       rwaPart === undefined ||
       westCollateral === undefined ||
-      liquidationCollateral === undefined
+      liquidationCollateral === undefined ||
+      decimals === undefined ||
+      txTimestampMaxDiff === undefined
     ) {
       throw new Error('Wrong config contract param')
     }
@@ -208,34 +212,16 @@ export class StateService {
       adminPublicKey,
       isContractEnabled,
       rwaTokenId,
-      txTimestampMaxDiff
+      txTimestampMaxDiff,
+      decimals
     }
   }
 
   async getVault(vaultId: string): Promise<Vault> {
     const value = await this.getContractKeyValue(`${StateKeys.vault}_${vaultId}`);
-    const vaultJson = JSON.parse(value as string) as VaultJson;
-    if (!vaultJson) {
-      throw new Error(`vault ${vaultId} does not exist`);
-    }
-    if (vaultJson.liquidated) {
+    const vault = parseVault(value as string)
+    if (vault.liquidated) {
       throw new Error(`vault ${vaultId} liquidated`);
-    }
-    const vault: Vault = {
-      eastAmount: new BigNumber(vaultJson.eastAmount),
-      rwaAmount: new BigNumber(vaultJson.rwaAmount),
-      westAmount: new BigNumber(vaultJson.westAmount),
-      rwaRate: {
-        timestamp: vaultJson.rwaRate.timestamp,
-        value: new BigNumber(vaultJson.rwaRate.value)
-      },
-      westRate: {
-        timestamp: vaultJson.westRate.timestamp,
-        value: new BigNumber(vaultJson.westRate.value)
-      },
-      liquidationCollateral: new BigNumber(vaultJson.liquidationCollateral),
-      updatedAt: vaultJson.updatedAt,
-      liquidated: vaultJson.liquidated,
     }
     return vault;
   }
@@ -301,8 +287,8 @@ export class StateService {
           }
           const { ntp, system } = response;
           resolve({
-            ntp,
-            system,
+            ntp: parseInt(ntp),
+            system: parseInt(system),
           })
         }
       )

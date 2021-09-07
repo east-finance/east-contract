@@ -19,7 +19,7 @@ export async function reissue(namedArgs: ReissueArgs) {
     params: [{
       type: 'string',
       key: 'reissue',
-      value: maxWestToExchange ? JSON.stringify({ maxWestToExchange }) : ''
+      value: maxWestToExchange ? JSON.stringify({ maxWestToExchange: maxWestToExchange * Math.pow(10, 8) }) : ''
     }]
   })
   reissueCall.broadcast(userSeed.keyPair);

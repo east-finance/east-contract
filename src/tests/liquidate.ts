@@ -1,3 +1,4 @@
+import { utils } from "@wavesenterprise/js-sdk";
 import { NODE_ADDRESS, RWA_TOKEN_ID } from "./config";
 import { initGlobals } from "./utils";
 import { Vault } from "./utils/east-service-api/get-liquidatable-vaults";
@@ -29,7 +30,7 @@ const RWA_AMOUNT = 2
 
 async function main() {
   const globals = await initGlobals();
-  const { contractApi, weSdk, oracleContractApi, eastServiceApi, seed: ownerSeed, minimumFee, fetch } = globals
+  const { contractApi, weSdk, oracleContractApi, eastServiceApi, seed: ownerSeed, minimumFee, fetch, utils} = globals
 
   const userSeedPhrase = generateUserSeedPhrase()
   const userSeed = weSdk.Seed.fromExistingPhrase(userSeedPhrase)
@@ -142,6 +143,7 @@ async function main() {
     console.log('MINT')
     console.log(pollingResult)
   })();
+  await utils.sleep(1000 * 15);
   /**
    * UPDATE ORACLE CONTRACT RATES
    */
@@ -163,6 +165,7 @@ async function main() {
     console.log('UPDATE ORACLE CONTRACT RATES')
     console.log(pollingResult)
   })();
+  await utils.sleep(1000 * 15);
   /**
    * LIQUIDATE
    */

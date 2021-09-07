@@ -39,7 +39,7 @@ export type Transaction = {
   fee: number,
   version: number,
   proofs: Buffer,
-  timestamp: number,
+  timestamp: string,
   fee_asset_id: {
     value: string,
   },
@@ -103,6 +103,22 @@ export interface Vault {
   liquidated?: boolean
 }
 
+export interface OracleView {
+  value: number,
+  timestamp: number,
+}
+
+export interface VaultView {
+  eastAmount: string,
+  westAmount: string,
+  rwaAmount: string,
+  westRate: OracleView,
+  rwaRate: OracleView,
+  updatedAt: number,
+  liquidationCollateral: number,
+  liquidated?: boolean,
+}
+
 export interface MintParam {
   transferId: string,
 }
@@ -158,7 +174,8 @@ export interface ConfigParam {
   isContractEnabled: boolean,
   adminAddress: string,
   adminPublicKey: string,
-  txTimestampMaxDiff: number
+  txTimestampMaxDiff: number,
+  decimals: number,
 }
 
 export type TransferTx = {
