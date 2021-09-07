@@ -388,7 +388,7 @@ export class RPCService {
       ...oldVault,
       eastAmount: add(newVault.eastAmount, oldVault.eastAmount),
       rwaAmount: add(newVault.rwaAmount, oldVault.rwaAmount),
-      westAmount: add(newVault.westAmount, oldVaultWestAmount),
+      westAmount: newVault.westAmount.plus(oldVaultWestAmount).plus(limit).minus(maxWestToExchange),
     }
     
     if (newVault.eastAmount.isLessThan(oldVault.eastAmount)) {
