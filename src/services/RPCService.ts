@@ -543,7 +543,7 @@ export class RPCService {
     await this.validate(TransferDto, value)
     const { to, amount: _amount } = value
     const from = tx.sender
-    const amount = new BigNumber(_amount.toString()).dividedBy(MULTIPLIER)
+    const amount = new BigNumber(_amount.toString())
 
     let fromBalance = await this.stateService.getBalance(from);
     if (fromBalance.isLessThan(amount)) {
@@ -555,10 +555,10 @@ export class RPCService {
     toBalance = add(toBalance, amount);
     return [{
       key: `${StateKeys.balance}_${from}`,
-      string_value: fromBalance.decimalPlaces(EAST_DECIMALS).multipliedBy(MULTIPLIER).toString()
+      string_value: fromBalance.toString()
     }, {
       key: `${StateKeys.balance}_${to}`,
-      string_value: toBalance.decimalPlaces(EAST_DECIMALS).multipliedBy(MULTIPLIER).toString()
+      string_value: toBalance.toString()
     }];
   }
 
