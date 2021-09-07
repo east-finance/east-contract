@@ -29,7 +29,8 @@
     minHoldTime: 1000 * 60 * 60,
     rwaTokenId: 'Rwa token id',
     isContractEnabled: true,
-    txTimestampMaxDiff: 1000 * 60 * 5
+    txTimestampMaxDiff: 1000 * 60 * 5,
+    decimals: 8
   })
 }
 ```
@@ -44,6 +45,7 @@
 - rwaTokenId - пользовательский токен, аналог RWA в блокчейне WE. Decimals = 8
 - isContractEnabled - если стоит false, то все операции с контрактом будут заблокированы.
 - txTimestampMaxDiff - **опциональный параметр**, по  умолчанию равен `1000 * 60 * 5` мс (5 минут). Максимальное различие времени DockerCall транзакции от текущего времени ноды.
+- decimals - кол-во знаков после запятой в токене EAST
 
 ### Методы контракта:
 Метод = ключ параметра вызова контракта.  
@@ -213,7 +215,8 @@ maxWestToExchange - максимальное колличество west для 
   liquidationCollateral: number,
   minHoldTime: number,
   rwaTokenId: string,
-  isContractEnabled: boolean
+  isContractEnabled: boolean,
+  decimals: number
 ```  
 <b>Результат выполнения: </b>
 - обновляет ключ `config` хранящего в себе информацию о параметрах контракта
