@@ -38,7 +38,7 @@ import { LiquidateDto } from '../dto/liquidate.dto';
 import { BigNumber } from 'bignumber.js';
 import { add, divide, multiply, subtract } from './math';
 import { stringifyVault } from '../utils/transform-vault';
-import { Base58 } from 'src/utils/base58';
+import { Base58 } from '../utils/base58';
 
 
 const logger = createLogger('GRPC service');
