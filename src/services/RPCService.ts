@@ -38,6 +38,7 @@ import { LiquidateDto } from '../dto/liquidate.dto';
 import { BigNumber } from 'bignumber.js';
 import { add, divide, multiply, subtract } from './math';
 import { stringifyVault } from '../utils/transform-vault';
+import { Base58 } from 'src/utils/base58';
 
 
 const logger = createLogger('GRPC service');
@@ -120,6 +121,15 @@ export class RPCService {
     if (errors.length > 0) {
       throw new Error(`Validation error: ${errors.map(error => Object.values(error.constraints as Object)).join(', ')}`)
     }
+  }
+
+  isAddressValid (targetAddress: string, validAddress: string) {
+    const [, networkByte] = Base58.decode(validAddress)
+    const targetAddressBytes = Base58.decode(targetAddress)
+    if (targetAddressBytes && targetAddressBytes.length === 26 && targetAddressBytes[1] === networkByte) {
+      return true
+    }
+    return false
   }
 
   validateConfig(config: ConfigDto) {
@@ -210,11 +220,11 @@ export class RPCService {
             westRate.value,
           ),
           westCollateral
-        )  
-      )  
+        )
+      )
     )
   }
-  
+
   async calculateVault(transferAmount: BigNumber): Promise<{
     eastAmount: BigNumber,
     rwaAmount: BigNumber,
@@ -236,7 +246,7 @@ export class RPCService {
       rwaPart,
       add(
         multiply(
-          subtract(new BigNumber(1), rwaPart), 
+          subtract(new BigNumber(1), rwaPart),
           westCollateral
         ),
         rwaPart
@@ -390,15 +400,15 @@ export class RPCService {
       rwaAmount: add(newVault.rwaAmount, oldVault.rwaAmount),
       westAmount: newVault.westAmount.plus(oldVaultWestAmount).plus(limit).minus(maxWestToExchange),
     }
-    
+
     if (newVault.eastAmount.isLessThan(oldVault.eastAmount)) {
       throw new Error('Can\'t increase east amount.')
     }
-    
+
     let totalSupply = await this.stateService.getTotalSupply();
-    
+
     let totalRwa = await this.stateService.getTotalRwa();
-    
+
     await this.checkAdminBalance(subtract(newVault.rwaAmount, oldVault.rwaAmount), totalRwa.dividedBy(MULTIPLIER));
     let balance = await this.stateService.getBalance(tx.sender);
     const diff = subtract(newVault.eastAmount, oldVault.eastAmount).multipliedBy(MULTIPLIER);
@@ -473,7 +483,7 @@ export class RPCService {
       }
 
       const westTransferAmount = new BigNumber((_westTransferAmount / Math.pow(10, WEST_DECIMALS)).toString())
-      
+
       if (!westTransferAmount.isEqualTo(subtract(westAmount, new BigNumber(CLOSE_COMISSION.toString())))) {
         throw new Error(`west transfer amount must be more or equal vault amount, 
           westAmount: ${westAmount.toString()}, westTransferAmount: ${westTransferAmount.toString()}`)
@@ -501,7 +511,7 @@ export class RPCService {
       }
 
       const rwaTransferAmount = new BigNumber((_rwaTransferAmount / Math.pow(10, EAST_DECIMALS)).toString());
-      
+
       if (!rwaTransferAmount.isEqualTo(rwaAmount)) {
         throw new Error(`rwa transfer amount not equal to vault amount, 
           rwaAmount: ${rwaAmount}, rwaTransferAmount: ${rwaTransferAmount}`)
@@ -542,6 +552,11 @@ export class RPCService {
   async transfer(tx: Transaction, value: TransferParam): Promise<DataEntryRequest[]> {
     await this.validate(TransferDto, value)
     const { to, amount: _amount } = value
+
+    if(!this.isAddressValid(to, tx.sender)) {
+      throw new Error(`Invalid transfer target address: ${to}`);
+    }
+
     const from = tx.sender
     const amount = new BigNumber(_amount.toString())
 
@@ -610,7 +625,7 @@ export class RPCService {
         new BigNumber(MULTIPLIER)
       )
     );
-    
+
     return [
       {
         key: StateKeys.totalRwa,
