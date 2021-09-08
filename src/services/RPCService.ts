@@ -126,10 +126,7 @@ export class RPCService {
   isAddressValid (targetAddress: string, validAddress: string) {
     const [, networkByte] = Base58.decode(validAddress)
     const targetAddressBytes = Base58.decode(targetAddress)
-    if (targetAddressBytes && targetAddressBytes.length === 26 && targetAddressBytes[1] === networkByte) {
-      return true
-    }
-    return false
+    return targetAddressBytes && targetAddressBytes.length === 26 && targetAddressBytes[1] === networkByte
   }
 
   validateConfig(config: ConfigDto) {
