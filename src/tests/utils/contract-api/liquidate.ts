@@ -17,7 +17,7 @@ export async function liquidate(namedArgs: LiquidateArgs) {
   const liquidateTransfer = weSdk.API.Transactions.Transfer.V3({
     recipient: ownerSeed.address,
     assetId: rwaTokenId,
-    amount: rwaAmount * 100000000,
+    amount: rwaAmount,
     timestamp: Date.now(),
     attachment: '',
     fee: minimumFee[4],
