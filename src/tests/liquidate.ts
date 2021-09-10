@@ -186,7 +186,7 @@ async function main() {
     const liquidateTxId = await contractApi.liquidate(
       liquidator,
       liquidatableVault.address,
-      parseFloat(liquidatableVault.east_amount as unknown as string)
+      liquidatableVault.east_amount
     );
     const pollingResult = await runPolling<GetTxStatusResponse>({
       sourceFn: async () => {
