@@ -337,21 +337,21 @@ export class RPCService {
     let totalRwa = await this.stateService.getTotalRwa();
     await this.checkAdminBalance(vault.rwaAmount, totalRwa.dividedBy(MULTIPLIER));
     let balance = await this.stateService.getBalance(tx.sender);
-    balance = add(balance, vault.eastAmount)
-    totalSupply = add(totalSupply, vault.eastAmount);
-    totalRwa = add(totalRwa, vault.rwaAmount);
+    balance = add(balance, vault.eastAmount.multipliedBy(MULTIPLIER))
+    totalSupply = add(totalSupply, vault.eastAmount.multipliedBy(MULTIPLIER));
+    totalRwa = add(totalRwa, vault.rwaAmount.multipliedBy(MULTIPLIER));
     return [
       {
         key: StateKeys.totalSupply,
-        string_value: totalSupply.decimalPlaces(EAST_DECIMALS).multipliedBy(MULTIPLIER).toString()
+        string_value: totalSupply.toString()
       },
       {
         key: StateKeys.totalRwa,
-        string_value: totalRwa.decimalPlaces(EAST_DECIMALS).multipliedBy(MULTIPLIER).toString()
+        string_value: totalRwa.toString()
       },
       {
         key: `${StateKeys.balance}_${tx.sender}`,
-        string_value: balance.decimalPlaces(EAST_DECIMALS).multipliedBy(MULTIPLIER).toString()
+        string_value: balance.toString()
       },
       {
         key: `${StateKeys.vault}_${tx.sender}`,
