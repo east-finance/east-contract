@@ -161,6 +161,7 @@ export enum StateKeys {
   liquidatedVault = 'liquidated_vault',
   totalRwa = 'total_rwa',
   liquidationExchange = 'liquidation_exchange',
+  usedCloseWestTransfer = 'used_close_west_transfer',
 }
 
 export interface ConfigParam {
