@@ -697,9 +697,8 @@ export class RPCService {
 
     const amount = new BigNumber((_amount / Math.pow(10, WEST_DECIMALS)).toString());
 
-    const { oracleContractId, rwaPart, westCollateral } = await this.stateService.getConfig();
-    const westRate = JSON.parse(await this.stateService.getContractKeyValue(WEST_ORACLE_STREAM, oracleContractId))
-    const rwaRate = JSON.parse(await this.stateService.getContractKeyValue(RWA_ORACLE_STREAM, oracleContractId))
+    const { oracleContractId, oracleTimestampMaxDiff, rwaPart, westCollateral } = await this.stateService.getConfig();
+    const { rwaRate, westRate } = await this.getLastOracles(oracleTimestampMaxDiff, oracleContractId);
     const westPart = subtract(new BigNumber(1), rwaPart);
     let westExpectedValue = vault.eastAmount.multipliedBy(westPart).multipliedBy(rwaRate.value).multipliedBy(westCollateral)
     if (rwaPart.isEqualTo(0)) {
