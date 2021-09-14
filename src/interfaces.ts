@@ -100,7 +100,8 @@ export interface Vault {
   rwaRate: Oracle,
   updatedAt: number,
   liquidationCollateral: BigNumber,
-  liquidated?: boolean
+  isBlocked: boolean,
+  liquidated?: boolean,
 }
 
 export interface OracleView {
