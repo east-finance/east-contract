@@ -36,5 +36,5 @@ export function parseVault(vaultJson: string): Vault {
       ...vaultView.rwaRate,
       value: new BigNumber(vaultView.rwaRate.value)
     }
-  }
+  } as Vault
 }
