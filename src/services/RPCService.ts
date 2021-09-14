@@ -333,6 +333,7 @@ export class RPCService {
     const vault = await this.calculateVault(transferAmount) as Vault;
 
     vault.updatedAt = this.txTimestamp;
+    vault.isBlocked = false;
     let totalSupply = await this.stateService.getTotalSupply();
     let totalRwa = await this.stateService.getTotalRwa();
     await this.checkAdminBalance(vault.rwaAmount, totalRwa.dividedBy(MULTIPLIER));
@@ -439,12 +440,19 @@ export class RPCService {
   async closeInit(tx: Transaction): Promise<DataEntryRequest[]> {
     const { updatedAt } = await this.stateService.getVault(tx.sender);
     const { minHoldTime } = await this.stateService.getConfig();
+    const vault = await this.stateService.getVault(tx.sender);
+    vault.isBlocked = true;
 
     const holdTime = this.txTimestamp - updatedAt;
     if (holdTime < minHoldTime) {
       throw new Error(`minHoldTime more than holdTime: ${holdTime}`);
     }
-    return []
+    return [
+      {
+        key: `${StateKeys.vault}_${tx.sender}`,
+        string_value: stringifyVault(vault)
+      },
+    ]
   }
 
   async close(tx: Transaction, param: CloseParam): Promise<DataEntryRequest[]> {
@@ -774,15 +782,24 @@ export class RPCService {
     }
   }
 
+  async checkVaultBlock(vaultId: string) {
+    const vault = await this.stateService.getVault(vaultId);
+    if (vault.isBlocked) {
+      throw new Error('Can not perform operation. Vault is blocked.')
+    }
+  }
+
   async handleDockerCall(tx: Transaction): Promise<void> {
     const { params } = tx;
     let results: DataEntryRequest[] = [];
 
-    // TODO: iterate params
     const param = params[0] || {};
     if (param) {
       if (Object.keys(Operations).filter(operationName => operationName !== Operations.update_config).includes(param.key)) {
         await this.checkIsContractEnabled();
+      }
+      if ([Operations.transfer, Operations.reissue, Operations.close_init, Operations.claim_overpay_init, Operations.supply].includes(param.key as Operations)) {
+        await this.checkVaultBlock(tx.sender);
       }
       const value = JSON.parse(param.string_value || '{}');
       switch (param.key) {
