@@ -468,6 +468,10 @@ export class RPCService {
       if (westTransferId === undefined) {
         throw new Error('westTransferId is missing')
       }
+      const isTransferUsedForClose = await this.stateService.isTransferUsedForClose(westTransferId);
+      if (isTransferUsedForClose) {
+        throw new Error(`Transfer ${westTransferId} is already used for close`);
+      }
       const {
         sender_public_key: westSenderPubKey,
         amount: _westTransferAmount,
@@ -553,6 +557,10 @@ export class RPCService {
       {
         key: `${StateKeys.vault}_${address}`,
         string_value: ''
+      },
+      {
+        key: `${StateKeys.usedCloseWestTransfer}_${westTransferId}`,
+        bool_value: true
       }
     ];
   }
