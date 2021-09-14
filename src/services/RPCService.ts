@@ -452,14 +452,14 @@ export class RPCService {
     // only contract creator allowed
     const { address, rwaTransferId, westTransferId } = param
     await this.checkAdminPermissions(tx);
-    const { rwaTokenId } = await this.stateService.getConfig();
+    const { rwaTokenId, rwaPart } = await this.stateService.getConfig();
 
-    /**
-     * check transfers
-     */
     const { eastAmount, rwaAmount, westAmount } = await this.stateService.getVault(address);
-
-    if (westTransferId !== undefined) {
+        
+    if (rwaPart.isGreaterThanOrEqualTo(0) && rwaPart.isLessThan(1)) {
+      if (westTransferId === undefined) {
+        throw new Error('westTransferId is missing')
+      }
       const {
         sender_public_key: westSenderPubKey,
         amount: _westTransferAmount,
@@ -487,7 +487,10 @@ export class RPCService {
       }
     }
 
-    if (rwaTransferId !== undefined) {
+    if (rwaPart.isGreaterThan(0) && rwaPart.isLessThanOrEqualTo(1)) {
+      if (rwaTransferId === undefined) {
+        throw new Error('rwaTransferId is missing')
+      }
       const {
         sender_public_key: rwaSenderPubKey,
         amount: _rwaTransferAmount,
