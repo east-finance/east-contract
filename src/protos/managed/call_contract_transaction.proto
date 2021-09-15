@@ -2,7 +2,7 @@ syntax = "proto3";
 package wavesenterprise;
 
 option java_multiple_files = true;
-option java_package = "com.wavesplatform.transaction.protobuf.docker";
+option java_package = "com.wavesenterprise.transaction.protobuf.docker";
 option csharp_namespace = "WavesEnterprise";
 option go_package = "wavesenterprise.com/weproto";
 
@@ -21,4 +21,5 @@ message CallContractTransaction {
   google.protobuf.BytesValue fee_asset_id = 8;
   AtomicBadge atomic_badge = 9;
   repeated bytes proofs = 10;
+  bytes sender_address = 11;
 }

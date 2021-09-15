@@ -2,7 +2,7 @@ syntax = "proto3";
 package wavesenterprise;
 
 option java_multiple_files = true;
-option java_package = "com.wavesplatform.transaction.protobuf.assets";
+option java_package = "com.wavesenterprise.transaction.protobuf.assets";
 option csharp_namespace = "WavesEnterprise";
 option go_package = "wavesenterprise.com/weproto";
 
@@ -17,4 +17,5 @@ message SetAssetScriptTransaction {
   int64 fee = 6;
   int64 timestamp = 7;
   repeated bytes proofs = 8;
+  bytes sender_address = 9;
 }

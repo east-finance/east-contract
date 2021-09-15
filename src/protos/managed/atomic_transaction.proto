@@ -2,7 +2,7 @@ syntax = "proto3";
 package wavesenterprise;
 
 option java_multiple_files = true;
-option java_package = "com.wavesplatform.transaction.protobuf";
+option java_package = "com.wavesenterprise.transaction.protobuf";
 option csharp_namespace = "WavesEnterprise";
 option go_package = "wavesenterprise.com/weproto";
 
@@ -16,4 +16,5 @@ message AtomicTransaction {
   repeated AtomicInnerTransaction transactions = 4;
   int64 timestamp = 5;
   repeated bytes proofs = 6;
+  bytes sender_address = 7;
 }
