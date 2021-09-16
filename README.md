@@ -279,3 +279,69 @@ docker build --build-arg HOST_NETWORK=192.168.1.3 -t vostok-sc/east-contract:0.8
 
 ##### Get image hash
 `docker inspect east-contract:0.1` -> "Id"
+
+
+### Автотесты
+
+#### env variables: 
+
+Файл с переменными окружения должен находится в корне проекти и называться ".env.test"
+
+```
+IS_TESTING_ENV="true"
+
+NODE_ADDRESS="http://localhost/node-0"
+
+AUTH_SERVICE_ADDRESS="http://localhost/authServiceAddress"
+
+AUTH_USERNAME="mtokarev@web3tech.ru"
+AUTH_PASSWORD="9m&A;nC{=bwe'+5YcHREL$oie=9u0R-N&CqaQm"
+
+SEED_PHRASE="examples seed phrase" # сид фраза владельца контракта
+
+IMAGE_NAME="vostok-sc/east-contract:0.8"
+IMAGE_HASH="f6786c5735f3cfa19f744ac4511f9091c52a40b1748f37b1d284cedd7c4b28e6"
+
+ORACLE_CONTRACT_ID="8BTtjyn1yr2zt6yCygDUtYJbeRbL1GgWSwxV8yeB9cjZ"
+
+RWA_TOKEN_ID="9v1RL1YQNpsqhKHYQAsLzmhmipkrarYumSonfkRxw5i5"
+
+ # OPTIONAL
+CONTRACT_ID="2w7SWWkv4SjChL8Dr2hGg4TP9sNVzh6LXu7fKDtdhVLF"
+
+PATH_TO_USER_SEEDS="./user-seeds.json" # DEPRECATED
+
+EAST_SERVICE_ADDRESS="http://localhost:3000"
+```
+
+#### Подготовка к запуску тестов.
+
+1. Запустить логгер командой npm run logger.
+2. Затем узнать свой ip командой ipconfig getifaddr en0.
+3. Затем сбилдить докер образ командой docker build --build-arg HOST_NETWORK=<тут_ваш_ip_адрес> -t <НАЗВАНИЕ_КОТОРЫЕ_ВЫ_ВПИШЕТЕ_В_ПЕРЕМЕННУЮ_IMAGE_NAME> .
+4. Затем скопировать hash из вывода предыдущей команды
+```
+ => => writing image sha256:f6786c5735f3cfa19f744ac4511f9091c52a40b1748f37b1d284cedd7c4b28e6
+                            ================================================================
+                            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^                                                   
+```
+5. Вписать IMAGE_NAME и IMAGE_HASH в переменные окружения.
+6. Запустить команду npm run cc
+7. Из вывода предыдущей команды скопировать txId и вписать в переменную  CONTRACT_ID в ист контракте.
+В ист сервисе вписать в переменную EAST_CONTRACT_ID скопированный txId.
+                                                        
+#### Команды для запуска тестов:
+- npx ts-node src/tests/liquidate.ts
+- npx ts-node src/tests/close.ts
+- npx ts-node src/tests/status-polling.ts
+- npx ts-node src/tests/mint.ts
+- npx ts-node src/tests/mint-transfer.ts
+- npx ts-node src/tests/disble-enable-contract.ts
+- npx ts-node src/tests/supply-reissue.ts
+
+#### Куда смотреть.
+
+Запускаем одну из команд выше. И смотрим логи.
+Сообщения вида "1631793116957: {"error":605,"message":"Contract execution result is not found for transaction with txId = 'GHyusW1ShHRftcSEh8oYenU1P8GSgSnz7rSq3yUSTCMC'"}" в логах означают, что идет поллинг статуса транзакции, если сообщение висит дольше
+пары минут, то тест необходимо прервать и посмотреть лог докер контейнера, скорее всего транзакция не майнится из-за ошибки в
+контракте. Также полезно через бч клиент смотреть все транзы и изменяющийся в процессе тестов стейт.
