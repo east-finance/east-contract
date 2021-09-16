@@ -329,6 +329,7 @@ EAST_SERVICE_ADDRESS="http://localhost:3000"
 6. Запустить команду npm run cc
 7. Из вывода предыдущей команды скопировать txId и вписать в переменную  CONTRACT_ID в ист контракте.
 В ист сервисе вписать в переменную EAST_CONTRACT_ID скопированный txId.
+8. Запустить ист сервис.
                                                         
 #### Команды для запуска тестов:
 - npx ts-node src/tests/liquidate.ts
