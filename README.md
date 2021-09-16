@@ -318,7 +318,7 @@ EAST_SERVICE_ADDRESS="http://localhost:3000"
 
 1. Запустить логгер командой npm run logger.
 2. Затем узнать свой ip командой ipconfig getifaddr en0.
-3. Затем сбилдить докер образ командой docker build --build-arg HOST_NETWORK=<тут_ваш_ip_адрес> -t <НАЗВАНИЕ_КОТОРЫЕ_ВЫ_ВПИШЕТЕ_В_ПЕРЕМЕННУЮ_IMAGE_NAME> .
+3. Затем сбилдить докер образ командой docker build --build-arg HOST_NETWORK=<тут_ваш_ip_адрес> -t <НАЗВАНИЕ_КОТОРОЕ_ВЫ_ВПИШЕТЕ_В_ПЕРЕМЕННУЮ_IMAGE_NAME> .
 4. Затем скопировать hash из вывода предыдущей команды
 ```
  => => writing image sha256:f6786c5735f3cfa19f744ac4511f9091c52a40b1748f37b1d284cedd7c4b28e6
