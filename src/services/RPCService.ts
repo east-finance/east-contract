@@ -381,6 +381,10 @@ export class RPCService {
 
     const limit = subtract(oldVault.westAmount, oldVaultWestAmount)
 
+    if(limit.isLessThanOrEqualTo(new BigNumber(0))) {
+      throw new Error(`Reissue error: free vault west amount to exchange should be > 0, got: '${limit.toString()}'`)
+    }
+
     let maxWestToExchange;
     if (param.maxWestToExchange !== undefined) {
       maxWestToExchange = new BigNumber(param.maxWestToExchange.toString()).dividedBy(MULTIPLIER);
@@ -463,7 +467,7 @@ export class RPCService {
     const { rwaTokenId, rwaPart } = await this.stateService.getConfig();
 
     const { eastAmount, rwaAmount, westAmount } = await this.stateService.getVault(address);
-        
+
     if (rwaPart.isGreaterThanOrEqualTo(0) && rwaPart.isLessThan(1)) {
       if (westTransferId === undefined) {
         throw new Error('westTransferId is missing')
