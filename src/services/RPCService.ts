@@ -367,19 +367,27 @@ export class RPCService {
 
   async reissue(tx: Transaction, param: ReissueParam): Promise<DataEntryRequest[]> {
     await this.validate(ReissueDto, param)
-    const { westCollateral, rwaPart } = await this.stateService.getConfig();
+    const { westCollateral, rwaPart, oracleTimestampMaxDiff, oracleContractId } = await this.stateService.getConfig();
     const oldVault = await this.stateService.getVault(tx.sender);
+
+    const { westRate } = await this.getLastOracles(oracleTimestampMaxDiff, oracleContractId)
 
     const oldVaultWestAmount = (await this.calculateVault(
       this.calculateWestAmount({
         eastAmount: oldVault.eastAmount,
         rwaPart,
         westCollateral,
-        westRate: oldVault.westRate
+        westRate: westRate
       })
     )).westAmount
 
     const limit = subtract(oldVault.westAmount, oldVaultWestAmount)
+
+    logger.info(`REISSUE current west rate: ${JSON.stringify(westRate)}, vault west rate: ${JSON.stringify(oldVault.westRate)}, free west: ${limit.toString()}`)
+
+    if(limit.isLessThanOrEqualTo(new BigNumber(0))) {
+      throw new Error(`Reissue error: available vault west to exchange should be > 0, got: '${limit.toString()}'`)
+    }
 
     let maxWestToExchange;
     if (param.maxWestToExchange !== undefined) {
@@ -397,6 +405,7 @@ export class RPCService {
       eastAmount: add(newVault.eastAmount, oldVault.eastAmount),
       rwaAmount: add(newVault.rwaAmount, oldVault.rwaAmount),
       westAmount: newVault.westAmount.plus(oldVaultWestAmount).plus(limit).minus(maxWestToExchange),
+      westRate
     }
 
     if (newVault.eastAmount.isLessThan(oldVault.eastAmount)) {
@@ -463,7 +472,7 @@ export class RPCService {
     const { rwaTokenId, rwaPart } = await this.stateService.getConfig();
 
     const { eastAmount, rwaAmount, westAmount } = await this.stateService.getVault(address);
-        
+
     if (rwaPart.isGreaterThanOrEqualTo(0) && rwaPart.isLessThan(1)) {
       if (westTransferId === undefined) {
         throw new Error('westTransferId is missing')
