@@ -66,6 +66,10 @@ export interface CloseParam {
   rwaTransferId?: string,
 }
 
+export interface ClaimOverpayInitParam {
+  amount?: number
+}
+
 export interface ClaimOverpayParam {
   address: string,
   transferId: string,

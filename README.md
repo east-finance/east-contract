@@ -283,6 +283,20 @@ docker build --build-arg HOST_NETWORK=192.168.1.3 -t vostok-sc/east-contract:0.8
 
 ### Автотесты
 
+#### создать файл east.config.json
+```json
+{
+  "oracleTimestampMaxDiff": 1000000000,
+  "rwaPart": 0,
+  "westCollateral": 2.5,
+  "liquidationCollateral": 1.3,
+  "minHoldTime": 1000,
+  "isContractEnabled": true,
+  "decimals": 8
+}
+
+```
+
 #### env variables: 
 
 Файл с переменными окружения должен находится в корне проекти и называться ".env.test"
