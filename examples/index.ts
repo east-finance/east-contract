@@ -7,7 +7,7 @@ const network = os.networkInterfaces();
 const local = network?.en0?.filter(({ family }) => family === 'IPv4') ?? [];
 const hostIp = local[0].address;
 
-const nodeAddress = 'http://localhost/node-1';
+const nodeAddress = 'http://localhost/node-0';
 const seedPhrase = 'examples seed phrase';
 
 const fetch = (url: string, options: {}) => {
@@ -36,14 +36,15 @@ const sleep = (timeout: number): Promise<void>=> {
 
 Promise.resolve().then(async () => {
   const imageName = 'east-contract:1.111';
-  // console.log(`Building docker image ${imageName}, HOST_NETWORK=${hostIp}`);
-  // await execute(`docker build --build-arg HOST_NETWORK=${hostIp} -t ${imageName} .`);
-  //  console.log('Build image done');
+  // const imageHash = 'e8569229b08f9b78f61914d86c423515cf8f1133a665afa0ae443a1a75b5f871'
+  console.log(`Building docker image ${imageName}, HOST_NETWORK=${hostIp}`);
+  await execute(`docker build --build-arg HOST_NETWORK=${hostIp} -t ${imageName} .`);
+   console.log('Build image done');
 
-  // const inspectResult = await execute(`docker inspect ${imageName}`);
-  // const inspectData = JSON.parse(inspectResult)[0];
-  // const imageHash = inspectData.Id.replace('sha256:', '');
-  // console.log('imageHash', imageHash);
+  const inspectResult = await execute(`docker inspect ${imageName}`);
+  const inspectData = JSON.parse(inspectResult)[0];
+  const imageHash = inspectData.Id.replace('sha256:', '');
+  console.log('imageHash', imageHash);
 
   // @ts-ignore
   const { chainId, minimumFee } = await (await fetch(`${nodeAddress}/node/config`)).json();
@@ -67,8 +68,8 @@ Promise.resolve().then(async () => {
 
   const ownerSeed = Waves.Seed.fromExistingPhrase(seedPhrase);
 
-  const oracleContractId = '7JXq4esayX3WXLx4PLuSrpn19u77f2YxuoY9i4TTXebU';
-  const rwaTokenId = 'Gta54DJra9mWwmudcuWmuvfjVoL66vydGBpvkQXPZvgz';
+  const oracleContractId = 'EiuvA4yzBokBXScE3qDzxexj3xqQ4zG9K7Jr6Y6bc7is';
+  const rwaTokenId = '5Y4oMP6yvoi1gd64zGymGT93HLUgAxmARL3DHkgKZWAc';
 
   const oracleRatesInitialCall = Waves.API.Transactions.CallContract.V4({
     contractId: oracleContractId,
@@ -79,7 +80,7 @@ Promise.resolve().then(async () => {
     params: [{
       type: 'string',
       key: '000003_latest',
-      value: JSON.stringify({ 'value':'0.4', 'timestamp': Date.now() })
+      value: JSON.stringify({ 'value':'1', 'timestamp': Date.now() })
     }, {
       type: 'string',
       key: '000010_latest',
@@ -95,8 +96,8 @@ Promise.resolve().then(async () => {
 
   const txBody: Parameters<typeof Waves.API.Transactions.CreateContract.V4>[0] = {
     image: imageName,
-    imageHash: '28ad44824b873e4915ae9fdd482b5daf16b27f0d96d9e34324ea461ee03adab2',
-    contractName: 'EAST contract',
+    imageHash: imageHash,
+    contractName: 'EAST auto-test',
     timestamp: Date.now(),
     params: [
       {
@@ -104,40 +105,62 @@ Promise.resolve().then(async () => {
         key: 'config',
         value: JSON.stringify({
           oracleContractId,
-          oracleTimestampMaxDiff: 100000000000,
-          rwaPart:  0,
+          oracleTimestampMaxDiff: 1000 * 10000000,
+          rwaPart: 0,
           westCollateral: 2.5,
           liquidationCollateral: 1.3,
-          minHoldTime: 1000 * 60 * 60,
+          minHoldTime: 1000,
           rwaTokenId,
-          txTimestampMaxDiff: 1000 * 60 * 5
+          issueEnabled: true,
+          decimals: 8
         })
       }
     ],
-    validationPolicy: {
-      type: 'any' as unknown as ValidationPolicyType.majority,
-    },
-    apiVersion: "1.0",
+    // validationPolicy: {
+    //   type: 'any' as unknown as ValidationPolicyType.majority,
+    // },
+    // apiVersion: "1.0",
   };
 
-  const tx = Waves.API.Transactions.CreateContract.V4(txBody);
+  const tx = Waves.API.Transactions.CreateContract.V3(txBody);
   await tx.broadcast(ownerSeed.keyPair);
 
   console.log('Tx 103: ', tx.getBody());
-  console.log('Waiting 30 seconds...');
-  await sleep(30);
+  console.log('Waiting 60 seconds...');
+  await sleep(60);
+
+  const contractId = await tx.getId();
+  const user1Seed = Waves.Seed.fromExistingPhrase('examples seed phrase another one');
+
+  // // Claim overpay init
+  //
+  // const claimOverpayInit = await Waves.API.Transactions.CallContract.V4({
+  //   contractId,
+  //   contractVersion: 1,
+  //   timestamp: Date.now(),
+  //   params: [{
+  //     type: 'string',
+  //     key: 'reissue',
+  //     value: '' // JSON.stringify({ maxWestToExchange: 10 })
+  //   }]
+  // })
+  //
+  // await claimOverpayInit.broadcast(user1Seed.keyPair);
+  //
+  // const claimOverpayId = await claimOverpayInit.getId(user1Seed.keyPair.publicKey)
+  // console.log('claimOverpayInit id', claimOverpayId)
+  // console.log(`claimOverpayInit call: ${JSON.stringify(claimOverpayInit.getBody())}`);
+  // console.log('Waiting 15 seconds...');
+  // await sleep(15);
 
   /**
   * User1 - Mint (buy EAST)
   */
 
-  const contractId = await tx.getId();
-  const user1Seed = Waves.Seed.fromExistingPhrase('examples seed phrase another one');
-
   const mintTransfer = Waves.API.Transactions.Transfer.V3({
     recipient: ownerSeed.address,
     assetId: '',
-    amount: 100 * 100000000,
+    amount: 5 * 100000000,
     timestamp: Date.now(),
     attachment: '',
     fee: minimumFee[4],
@@ -191,7 +214,7 @@ Promise.resolve().then(async () => {
       key: 'transfer',
       value: JSON.stringify({
         to: user2Seed.address,
-        amount: 10
+        amount: 2
       })
     }]
   })
@@ -202,136 +225,193 @@ Promise.resolve().then(async () => {
   console.log('Waiting 15 seconds...');
   await sleep(15);
 
+  /*
+  * Close init
+  * */
+
+  const closeInitCall = await Waves.API.Transactions.CallContract.V4({
+    contractId,
+    contractVersion: 1,
+    timestamp: Date.now(),
+    params: [{
+      type: 'string',
+      key: 'close_init',
+      value: ''
+    }]
+  })
+
+  await closeInitCall.broadcast(user1Seed.keyPair);
+
+  const id = await closeInitCall.getId(user1Seed.keyPair.publicKey)
+  console.log('closeInitCall id', id)
+  console.log('Waiting 15 seconds...');
+  await sleep(15);
+
   /**
   *  User1 supply vault
   */
 
-  const supplyTransfer = Waves.API.Transactions.Transfer.V3({
-    recipient: ownerSeed.address,
-    assetId: '',
-    amount: 50 * 100000000,
-    timestamp: Date.now(),
-    attachment: '',
-    fee: minimumFee[4],
-    senderPublicKey: user1Seed.keyPair.publicKey,
-    atomicBadge: {
-      trustedSender: user1Seed.address
-    }
-  });
+  // const supplyTransfer = Waves.API.Transactions.Transfer.V3({
+  //   recipient: ownerSeed.address,
+  //   assetId: '',
+  //   amount: 2 * 100000000,
+  //   timestamp: Date.now(),
+  //   attachment: '',
+  //   fee: minimumFee[4],
+  //   senderPublicKey: user1Seed.keyPair.publicKey,
+  //   atomicBadge: {
+  //     trustedSender: user1Seed.address
+  //   }
+  // });
+  //
+  // const supplyCall = Waves.API.Transactions.CallContract.V4({
+  //   contractId,
+  //   contractVersion: 1,
+  //   fee: minimumFee[104],
+  //   senderPublicKey: user1Seed.keyPair.publicKey,
+  //   timestamp: Date.now(),
+  //   params: [{
+  //     type: 'string',
+  //     key: 'supply',
+  //     value: JSON.stringify({
+  //       transferId: await supplyTransfer.getId()
+  //     })
+  //   }],
+  //   atomicBadge: {
+  //     trustedSender: user1Seed.address
+  //   }
+  // });
 
-  const supplyCall = Waves.API.Transactions.CallContract.V4({
-    contractId,
-    contractVersion: 1,
-    fee: minimumFee[104],
-    senderPublicKey: user1Seed.keyPair.publicKey,
-    timestamp: Date.now(),
-    params: [{
-      type: 'string',
-      key: 'supply',
-      value: JSON.stringify({
-        transferId: await supplyTransfer.getId()
-      })
-    }],
-    atomicBadge: {
-      trustedSender: user1Seed.address
-    }
-  });
+  // const reissueCall = Waves.API.Transactions.CallContract.V4({
+  //   contractId,
+  //   contractVersion: 1,
+  //   timestamp: Date.now(),
+  //   params: [{
+  //     type: 'string',
+  //     key: 'reissue',
+  //     value: '' // JSON.stringify({ maxWestToExchange: 10 })
+  //   }],
+  //   atomicBadge: {
+  //     trustedSender: user1Seed.address
+  //   }
+  // })
 
-  const supplyAtomic = await Waves.API.Transactions.broadcastAtomic(
-    Waves.API.Transactions.Atomic.V1({transactions: [supplyTransfer, supplyCall]}),
-    user1Seed.keyPair
-  );
-
-  console.log(`Atomic supply call: ${JSON.stringify(supplyAtomic)}`);
-  console.log('Waiting 15 seconds...');
-  await sleep(15);
+  // const supplyAtomic = await Waves.API.Transactions.broadcastAtomic(
+  //   Waves.API.Transactions.Atomic.V1({transactions: [supplyTransfer, supplyCall]}),
+  //   user1Seed.keyPair
+  // );
+  //
+  // console.log(`Atomic supply call: ${JSON.stringify(supplyAtomic)}`);
+  // console.log('Waiting 15 seconds...');
+  // await sleep(15);
+  //
+  // const oracleRatesDumpCall = Waves.API.Transactions.CallContract.V4({
+  //   contractId: oracleContractId,
+  //   contractVersion: 1,
+  //   fee: minimumFee[104],
+  //   senderPublicKey: ownerSeed.keyPair.publicKey,
+  //   timestamp: Date.now(),
+  //   params: [{
+  //     type: 'string',
+  //     key: '000003_latest',
+  //     value: JSON.stringify({ 'value':'0.5', 'timestamp': Date.now() })
+  //   }]
+  // });
+  //
+  // await oracleRatesDumpCall.broadcast(ownerSeed.keyPair);
+  //
+  // console.log(`Oracle dump call: ${JSON.stringify(oracleRatesDumpCall.getBody())}`);
+  // console.log('Waiting 20 seconds...');
+  // await sleep(20);
 
   /**
   * User1 - Recalculate
   */
 
-  const reissueCall = await Waves.API.Transactions.CallContract.V4({
-    contractId,
-    contractVersion: 1,
-    timestamp: Date.now(),
-    params: [{
-      type: 'string',
-      key: 'reissue',
-      value: JSON.stringify({ maxWestToExchange: 10 })
-    }]
-  })
-
-  await reissueCall.broadcast(user1Seed.keyPair);
-
-  console.log(`recalculate call: ${JSON.stringify(reissueCall.getBody())}`);
-  console.log('Waiting 15 seconds...');
-  await sleep(15);
+  // const reissueCall = await Waves.API.Transactions.CallContract.V4({
+  //   contractId,
+  //   contractVersion: 1,
+  //   timestamp: Date.now(),
+  //   params: [{
+  //     type: 'string',
+  //     key: 'reissue',
+  //     value: '' // JSON.stringify({ maxWestToExchange: 10 })
+  //   }]
+  // })
+  //
+  // await reissueCall.broadcast(user1Seed.keyPair);
+  //
+  // const id = await reissueCall.getId(user1Seed.keyPair.publicKey)
+  // console.log('Reissue id', id)
+  // console.log(`recalculate call: ${JSON.stringify(reissueCall.getBody())}`);
+  // console.log('Waiting 15 seconds...');
+  // await sleep(15);
 
 
   /**
   * Owner - liquidate first vault
   */
 
-  const oracleRatesDumpCall = Waves.API.Transactions.CallContract.V4({
-    contractId: oracleContractId,
-    contractVersion: 1,
-    fee: minimumFee[104],
-    senderPublicKey: ownerSeed.keyPair.publicKey,
-    timestamp: Date.now(),
-    params: [{
-      type: 'string',
-      key: '000003_latest',
-      value: JSON.stringify({ 'value':'0.1', 'timestamp': Date.now() })
-    }]
-  });
-
-  await oracleRatesDumpCall.broadcast(ownerSeed.keyPair);
-
-  console.log(`Oracle dump call: ${JSON.stringify(oracleRatesDumpCall.getBody())}`);
-  console.log('Waiting 20 seconds...');
-  await sleep(20);
-
-  const liquidatorSeed = ownerSeed;
-
-  const liquidateTransfer = Waves.API.Transactions.Transfer.V3({
-    recipient: ownerSeed.address,
-    assetId: rwaTokenId,
-    amount: 24 * 100000000,
-    timestamp: Date.now(),
-    attachment: '',
-    fee: minimumFee[4],
-    senderPublicKey: liquidatorSeed.keyPair.publicKey,
-    atomicBadge: {
-      trustedSender: liquidatorSeed.address
-    }
-  });
-
-  const liquidateCall = Waves.API.Transactions.CallContract.V4({
-    contractId,
-    contractVersion: 1,
-    fee: minimumFee[104],
-    senderPublicKey: liquidatorSeed.keyPair.publicKey,
-    timestamp: Date.now(),
-    params: [{
-      type: 'string',
-      key: 'liquidate',
-      value: JSON.stringify({
-        transferId: await liquidateTransfer.getId(),
-        address: user1Seed.address
-      })
-    }],
-    atomicBadge: {
-      trustedSender: liquidatorSeed.address
-    }
-  });
-
-  const liquidateAtomic = await Waves.API.Transactions.broadcastAtomic(
-    Waves.API.Transactions.Atomic.V1({transactions: [liquidateTransfer, liquidateCall]}),
-    liquidatorSeed.keyPair
-  );
-
-  console.log(`Atomic liquidate call: ${JSON.stringify(liquidateAtomic)}`);
-  console.log('Waiting 15 seconds...');
-  await sleep(15);
+  // const oracleRatesDumpCall = Waves.API.Transactions.CallContract.V4({
+  //   contractId: oracleContractId,
+  //   contractVersion: 1,
+  //   fee: minimumFee[104],
+  //   senderPublicKey: ownerSeed.keyPair.publicKey,
+  //   timestamp: Date.now(),
+  //   params: [{
+  //     type: 'string',
+  //     key: '000003_latest',
+  //     value: JSON.stringify({ 'value':'0.1', 'timestamp': Date.now() })
+  //   }]
+  // });
+  //
+  // await oracleRatesDumpCall.broadcast(ownerSeed.keyPair);
+  //
+  // console.log(`Oracle dump call: ${JSON.stringify(oracleRatesDumpCall.getBody())}`);
+  // console.log('Waiting 20 seconds...');
+  // await sleep(20);
+  //
+  // const liquidatorSeed = ownerSeed;
+  //
+  // const liquidateTransfer = Waves.API.Transactions.Transfer.V3({
+  //   recipient: ownerSeed.address,
+  //   assetId: rwaTokenId,
+  //   amount: 24 * 100000000,
+  //   timestamp: Date.now(),
+  //   attachment: '',
+  //   fee: minimumFee[4],
+  //   senderPublicKey: liquidatorSeed.keyPair.publicKey,
+  //   atomicBadge: {
+  //     trustedSender: liquidatorSeed.address
+  //   }
+  // });
+  //
+  // const liquidateCall = Waves.API.Transactions.CallContract.V4({
+  //   contractId,
+  //   contractVersion: 1,
+  //   fee: minimumFee[104],
+  //   senderPublicKey: liquidatorSeed.keyPair.publicKey,
+  //   timestamp: Date.now(),
+  //   params: [{
+  //     type: 'string',
+  //     key: 'liquidate',
+  //     value: JSON.stringify({
+  //       transferId: await liquidateTransfer.getId(),
+  //       address: user1Seed.address
+  //     })
+  //   }],
+  //   atomicBadge: {
+  //     trustedSender: liquidatorSeed.address
+  //   }
+  // });
+  //
+  // const liquidateAtomic = await Waves.API.Transactions.broadcastAtomic(
+  //   Waves.API.Transactions.Atomic.V1({transactions: [liquidateTransfer, liquidateCall]}),
+  //   liquidatorSeed.keyPair
+  // );
+  //
+  // console.log(`Atomic liquidate call: ${JSON.stringify(liquidateAtomic)}`);
+  // console.log('Waiting 15 seconds...');
+  // await sleep(15);
 
 });

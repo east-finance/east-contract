@@ -19,6 +19,7 @@ import {
   Oracle,
   SupplyParam,
   ConfigParam,
+  ClaimOverpayInitParam,
   ClaimOverpayParam,
   ReissueParam,
   WriteLiquidationWestTransferParam
@@ -33,6 +34,7 @@ import { TransferDto } from '../dto/transfer.dto';
 import { CloseDto } from '../dto/close.dto';
 import { ReissueDto } from '../dto/reissue.dto';
 import { SupplyDto } from '../dto/supply.dto';
+import { ClaimOverpayInitDto } from '../dto/claim-overpay-init.dto';
 import { ClaimOverpayDto } from '../dto/claim-overpay.dto';
 import { LiquidateDto } from '../dto/liquidate.dto';
 import { BigNumber } from 'bignumber.js';
@@ -450,12 +452,20 @@ export class RPCService {
     const { updatedAt } = await this.stateService.getVault(tx.sender);
     const { minHoldTime } = await this.stateService.getConfig();
     const vault = await this.stateService.getVault(tx.sender);
-    vault.isBlocked = true;
 
     const holdTime = this.txTimestamp - updatedAt;
     if (holdTime < minHoldTime) {
       throw new Error(`minHoldTime more than holdTime: ${holdTime}`);
     }
+
+    const eastBalance = await this.stateService.getBalance(tx.sender);
+    const eastLockedInVault = vault.eastAmount.multipliedBy(MULTIPLIER);
+    if (eastBalance.isLessThan(eastLockedInVault)) {
+      throw new Error(`Insufficient funds on address '${tx.sender}' to close vault. Required EAST balance: '${eastLockedInVault.toString()}', on balance: '${eastBalance.toString()}'`);
+    }
+
+    vault.isBlocked = true;
+
     return [
       {
         key: `${StateKeys.vault}_${tx.sender}`,
@@ -544,7 +554,7 @@ export class RPCService {
     let balance = await this.stateService.getBalance(address);
 
     if (balance.isLessThan(eastAmount.multipliedBy(MULTIPLIER))) {
-      throw new Error(`Not enought EAST amount(${eastAmount.toString()}) on ${address} to burn vault: ${address}`);
+      throw new Error(`Not enought EAST balance on address '${address}' to close vault. Required:' ${eastAmount.multipliedBy(MULTIPLIER).toString()}', on balance: '${balance.toString()}'`);
     }
 
     balance = subtract(balance, eastAmount.multipliedBy(MULTIPLIER));
@@ -686,6 +696,13 @@ export class RPCService {
     ];
   }
 
+  async claimOverpayInit (tx: Transaction, param: ClaimOverpayInitParam) {
+    await this.validate(ClaimOverpayInitDto, param)
+
+    const { amount } = param
+
+    return []
+  }
 
   async claimOverpay(tx: Transaction, param: ClaimOverpayParam) {
     await this.validate(ClaimOverpayDto, param)
@@ -799,9 +816,13 @@ export class RPCService {
   }
 
   async checkVaultBlock(vaultId: string) {
-    const vault = await this.stateService.getVault(vaultId);
-    if (vault.isBlocked) {
-      throw new Error('Can not perform operation. Vault is blocked.')
+    try {
+      const vault = await this.stateService.getVault(vaultId);
+      if (vault.isBlocked) {
+        throw new Error(`Cannot perform operation: vault '${vaultId}' is blocked.`)
+      }
+    } catch (e) {
+      throw new Error(`Cannot perform operation: vault '${vaultId}' doesn't exist.`)
     }
   }
 
