@@ -554,7 +554,7 @@ export class RPCService {
     let balance = await this.stateService.getBalance(address);
 
     if (balance.isLessThan(eastAmount.multipliedBy(MULTIPLIER))) {
-      throw new Error(`Not enought EAST balance on address '${address}' to close vault. Required:' ${eastAmount.multipliedBy(MULTIPLIER).toString()}', on balance: '${balance.toString()}'`);
+      throw new Error(`Insufficient funds on address '${address}' to close vault. Required EAST balance:' ${eastAmount.multipliedBy(MULTIPLIER).toString()}', on balance: '${balance.toString()}'`);
     }
 
     balance = subtract(balance, eastAmount.multipliedBy(MULTIPLIER));
