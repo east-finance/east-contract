@@ -39,7 +39,7 @@ Promise.resolve().then(async () => {
   // const imageHash = 'e8569229b08f9b78f61914d86c423515cf8f1133a665afa0ae443a1a75b5f871'
   console.log(`Building docker image ${imageName}, HOST_NETWORK=${hostIp}`);
   await execute(`docker build --build-arg HOST_NETWORK=${hostIp} -t ${imageName} .`);
-   console.log('Build image done');
+  console.log('Build image done');
 
   const inspectResult = await execute(`docker inspect ${imageName}`);
   const inspectData = JSON.parse(inspectResult)[0];
@@ -63,8 +63,8 @@ Promise.resolve().then(async () => {
   });
 
   /**
-  * Create contract
-  */
+   * Create contract
+   */
 
   const ownerSeed = Waves.Seed.fromExistingPhrase(seedPhrase);
 
@@ -132,30 +132,30 @@ Promise.resolve().then(async () => {
   const contractId = await tx.getId();
   const user1Seed = Waves.Seed.fromExistingPhrase('examples seed phrase another one');
 
-  // // Claim overpay init
-  //
-  // const claimOverpayInit = await Waves.API.Transactions.CallContract.V4({
-  //   contractId,
-  //   contractVersion: 1,
-  //   timestamp: Date.now(),
-  //   params: [{
-  //     type: 'string',
-  //     key: 'reissue',
-  //     value: '' // JSON.stringify({ maxWestToExchange: 10 })
-  //   }]
-  // })
-  //
-  // await claimOverpayInit.broadcast(user1Seed.keyPair);
-  //
-  // const claimOverpayId = await claimOverpayInit.getId(user1Seed.keyPair.publicKey)
-  // console.log('claimOverpayInit id', claimOverpayId)
-  // console.log(`claimOverpayInit call: ${JSON.stringify(claimOverpayInit.getBody())}`);
-  // console.log('Waiting 15 seconds...');
-  // await sleep(15);
+  // Claim overpay init
+
+  const claimOverpayInit = await Waves.API.Transactions.CallContract.V4({
+    contractId,
+    contractVersion: 1,
+    timestamp: Date.now(),
+    params: [{
+      type: 'string',
+      key: 'claim_overpay_init',
+      value: '' // JSON.stringify({ maxWestToExchange: 10 })
+    }]
+  })
+
+  await claimOverpayInit.broadcast(user1Seed.keyPair);
+
+  const claimOverpayId = await claimOverpayInit.getId(user1Seed.keyPair.publicKey)
+  console.log('claimOverpayInit id', claimOverpayId)
+  console.log(`claimOverpayInit call: ${JSON.stringify(claimOverpayInit.getBody())}`);
+  console.log('Waiting 15 seconds...');
+  await sleep(15);
 
   /**
-  * User1 - Mint (buy EAST)
-  */
+   * User1 - Mint (buy EAST)
+   */
 
   const mintTransfer = Waves.API.Transactions.Transfer.V3({
     recipient: ownerSeed.address,
@@ -200,8 +200,8 @@ Promise.resolve().then(async () => {
   await sleep(15);
 
   /**
-  * Transfer from User1 to User2
-  */
+   * Transfer from User1 to User2
+   */
 
   const user2Seed = Waves.Seed.fromExistingPhrase('examples seed phrase another two');
 
@@ -248,8 +248,8 @@ Promise.resolve().then(async () => {
   await sleep(15);
 
   /**
-  *  User1 supply vault
-  */
+   *  User1 supply vault
+   */
 
   // const supplyTransfer = Waves.API.Transactions.Transfer.V3({
   //   recipient: ownerSeed.address,
@@ -325,8 +325,8 @@ Promise.resolve().then(async () => {
   // await sleep(20);
 
   /**
-  * User1 - Recalculate
-  */
+   * User1 - Recalculate
+   */
 
   // const reissueCall = await Waves.API.Transactions.CallContract.V4({
   //   contractId,
@@ -349,8 +349,8 @@ Promise.resolve().then(async () => {
 
 
   /**
-  * Owner - liquidate first vault
-  */
+   * Owner - liquidate first vault
+   */
 
   // const oracleRatesDumpCall = Waves.API.Transactions.CallContract.V4({
   //   contractId: oracleContractId,

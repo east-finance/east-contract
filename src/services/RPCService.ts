@@ -699,7 +699,10 @@ export class RPCService {
   async claimOverpayInit (tx: Transaction, param: ClaimOverpayInitParam) {
     await this.validate(ClaimOverpayInitDto, param)
 
-    const { amount } = param
+    const vaultExists = await this.stateService.isVaultExists(tx.sender)
+    if (!vaultExists) {
+      throw new Error(`Vault for user ${tx.sender} closed or doens't exists`);
+    }
 
     return []
   }
@@ -859,7 +862,7 @@ export class RPCService {
           results = await this.close(tx, value);
           break;
         case Operations.claim_overpay_init:
-          results = [];
+          results = await this.claimOverpayInit(tx, value);
           break;
         case Operations.claim_overpay:
           results = await this.claimOverpay(tx, value);
