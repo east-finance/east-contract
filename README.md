@@ -1,21 +1,21 @@
-## Описание [EAST смарт контракта](https://gitlab.wvservices.com/waves-enterprise/east-contract)
+## Description of the [EAST smart contract](https://gitlab.wvservices.com/waves-enterprise/east-contract)
 
-Данный смарт контракт создаёт стэйбл коин EAST с обеспечением на основе выбранного RWA(real word asset) и токена WEST, гарантирует что обеспеспечение одного EAST будет не меньше 1$ в токенах RWA. Смарт контракт регулирует отношения между пользователем и владельцем контракта (сервисом автоматизации).
+This smart contract creates EAST stablecoin collateralized by a defined RWA (real-world asset) and WEST token. The smart contract ensures that one EAST stablecoin is backed by not less than $1 in RWA tokens. It regulates the relationship between an EAST user and the smart contract owner (automation service).
 
-### Краткое описание методов:
-- [mint](#mint) - выпуск EAST, открытие позиции
-- [transfer](#transfer) - перевод EAST
-- [close_init](#close_init) - запрос на закрытие позиции
-- [close](#close) - закрытие позиции
-- [reissue](#reissue) - довыпуск EAST
-- [supply](#supply) - дообеспечить позицию токенами WEST
-- [claim_overpay_init](#claim_overpay_init) - запрос на вывод токенов WEST из позиции (при переобеспечении)
-- [claim_overpay](#claim_overpay) - вывод токенов WEST из позиции
-- [liquidate](#liquidate) - ликвидация позиции
-- [update_config](#update_config) - обновление конфига контракта  
+### Brief method description:
+- [mint](#mint) - EAST issuing, vault opening
+- [transfer](#transfer) - EAST transferring
+- [close_init](#close_init) - request to close a vault
+- [close](#close) - vault closing
+- [reissue](#reissue) - EAST reissuing
+- [supply](#supply) - vault resupplying with WEST
+- [claim_overpay_init](#claim_overpay_init) - request to claim WEST in case of overcollateralization
+- [claim_overpay](#claim_overpay) - withdrawing WEST from a vault
+- [liquidate](#liquidate) - vault liquidation
+- [update_config](#update_config) - updating the smart contract configuration
 
-### Создание контракта:
-Контракт создаётся с параметром вида:
+### Smart contract creating:
+The smart contract is created with the following parameters:
 ```js
 {
   type: 'string',
@@ -35,178 +35,176 @@
 }
 ```
 
-Где:
-- oracleContractId - id контракта ораклов, с обязательными стримами 000010_latest (курс RWA - USDap в данном случае) и 000003_latest (курс WEST)
-- oracleTimestampMaxDiff - максимальная разница во времени между текущим моментом и последними данными ораклов, при большей разнице сделка не производится. в миллисекундах
-- rwaPart - какую часть позиции занимает RWA(real world asset) обеспечение, остальная часть обеспечена WEST токенами
-- westCollateral - во сколько раз переобеспечена часть позиции WEST токенами
-- liquidationCollateral - границе обеспечения WEST токенами после которой возможна ликвидация позици (продажа WEST токенов и переход к 100% обеспечению RWA)
-- minHoldTime - минимальное время удержания позиции до возможности её закрытия пользователем
-- rwaTokenId - пользовательский токен, аналог RWA в блокчейне WE. Decimals = 8
-- isContractEnabled - если стоит false, то все операции с контрактом будут заблокированы.
-- txTimestampMaxDiff - **опциональный параметр**, по  умолчанию равен `1000 * 60 * 5` мс (5 минут). Максимальное различие времени DockerCall транзакции от текущего времени ноды.
-- decimals - кол-во знаков после запятой в токене EAST
+Where:
+- oracleContractId - id of the data oracle contract with mandatory steams 000010_latest (RWA-USDap rate here) and 000003_latest (WEST rate)
+- oracleTimestampMaxDiff - maximal time lag acceptable since the latest oracle data was received (in milliseconds). If exceeding this value, the transaction is not allowed.
+- rwaPart - the share of RWA (real-world assets) in the collateral, the rest is backed with WEST.
+- westCollateral - WEST overcollateralization ratio.
+- liquidationCollateral - the lowest WEST collateralization ratio acceptable before a vault is subject to liquidation (when the WEST collateral is sold and the vault becomes 100% RWA-collateralized).
+- minHoldTime - minimal lifetime of a vault before it can be closed by the user.
+- rwaTokenId - a user token working as an RWA counterpart within Waves Enterprise blockchain. It has 8 decimals.
+- isContractEnabled - smart contract operation blocker, in case the value is `false`.
+- txTimestampMaxDiff - **optional**, `1000 * 60 * 5` ms (5 minutes) by default. Maximal time lag between the DockerCall time of a transaction and the current node time.
+- decimals - a number of decimal places in EAST token.
 
-### Методы контракта:
-Метод = ключ параметра вызова контракта.  
+### Methods of the smart contract
+Here a method is a parameter key to call the smart contract.
 
 #### mint
-<b> Описание: </b>
-Создаёт Vault пользователя, переводит перечисленные WEST токены из трансфера в RWA и часть оставляет для обспечения, добавляет на баланс пользователя EAST токенов. Перевод осуществляется по курсу из данных ораклов. Если vault для пользователя уже существует то вызов отменяется.  
-<b> Как вызвать: </b>
-Рекомендуемый вариант - сделать атомик транзакцию, с трансфером и вызовом контракта.
-Получатель трансфера должен быть создатель данного контракта.    
-Трансфер должен идти раньше самого вызова. Отправитель трансфера и отправитель вызова контракта должен быть один и тот же адрес.  
-<b> Доступ к методу: </b>
-Любой пользователь  
-<b>Тело метода: </b>
+<b>Description:</b>
+Creates a user vault, converts a part of his WEST tokens to RWA, leaving the rest as the collateral, and adds EAST tokens to the user's balance. The conversion rate is provided by data oracles. If the user's vault already exists, the call is canceled.
+<b>How to call:</b>
+Creating an atomic transaction with transfer and contract call is recommended.
+The transfer recipient is to be the one who creates the contract.
+The transfer is to precede the call. Both transfer and contract call are to be sent from the same address.
+<b>Method permission:</b>
+Any user  
+
+<b>Method body:</b>
 ```js
-  transferId: string // id трансфера
+  transferId: string // transfer id
 ```  
-<b>Результат выполнения: </b>
-- добавляет ключ `vault_${address}` хранит в себе информацию о vault пользователя c указанным адресом, vault id = address
-- добавляет ключ `balance_${address}` хранит в себе колличество EAST токенов для адреса
-- обновляет значение ключа `total_supply`  
-- добавляет ключ `exchange_${transferId}`  
+<b>Results of execution:</b>
+- `vault_${address}` key is created to store information about the user's vault with the specified address (vault id = address)
+- `balance_${address}` key is created to store an amount of EAST tokens for the address
+- `total_supply` key value is updated
+- `exchange_${transferId}` key value is added
 
 #### transfer
-<b> Описание: </b>
-Перевод указанного количества EAST на указанный адрес  
-<b> Доступ к методу: </b>
-Только владелец EAST токенов  
-<b>Тело метода: </b>
+<b>Description:</b>
+Transfers an amount of EAST to a specified address
+
+<b>Method permission:</b>
+An EAST token owner only
+<b>Method body:</b>
 ```js
-  to: string, // получатель
+  to: string, // recipient
   amount: number
 ```  
-<b>Результат выполнения: </b>
-- обновляет значения ключей балансов `balance_${address}` для отправителя и получателя  
+<b>Results of execution:</b>
+- the values of `balance_${address}` balance keys are updated for the sender and the recipient
 
 #### close_init
-<b> Описание: </b>
-Запрос пользователя на закрытие vault и возврат токенов находящихся в обеспечении  
-<b> Доступ к методу: </b>
-Владелец позиции(vault). Необходимо условие - transaction.sender = vault.address  
-<b>Тело метода: </b>
-пустое тело  
-<b>Результат выполнения: </b>
-без результата  
+<b>Description:</b>
+Creates a user request to close the vault and withdraw its WEST collateral  
+<b>Method permission:</b>
+A vault owner. Mandatory condition: transaction.sender = vault.address  
+<b>Method body:</b>
+empty body  
+<b>Results of execution:</b>
+no results
 
 #### close
-<b> Описание: </b>
-Закрывает vault пользователя, сжигает EAST токены, сервис автоматизации возвращает пользователю WEST и RWA трансфером. Сервис автоматизации отправляет атомик транзакцию с двумя трансферами и вызовом контракта, контракт проверяет трансферы, сумму в трансферах - должна  быть эквивалента сумме из vault (за вычетом комиссии 0.3 WEST за транзакции), так же проверяет получателя и отправителя.  
-<b> Доступ к методу: </b>
-Владелец контракта  
-<b>Триггеры: </b>
-Пользователь вызывает контракт с методом burn_init, после его выполения - сервис автоматизации отправляет атомик транзакцию с трансферами WEST и RWA с колличеством из vault пользователя, и данный вызов контракта.  
-<b>Тело метода: </b>
+<b>Description:</b>
+Closes the user's vault and burns its EAST tokens. The automation service transfers the WEST and RWA collateral to the user. The automation service sends an atomic transaction that includes two transfers and the smart contract call. The contract checks if the sum of the transfers is equal to the sum in the vault (excluding 0.3 WEST as a commission). Also, the contract checks the sender and the recipient.
+<b>Method permission:</b>
+The smart contract owner  
+<b>Triggers:</b>
+A user calls the smart contract with `burn_init` method. After the execution the automation service sends an atomic transaction with EAST and RWA transfer, along with this contract call.
+<b>Method body:</b>
 ```js
   address: string, // vault id
   westTransferId?: string, // optional
   rwaTransferId?: string // optional
 ```  
-<b>Результат выполнения: </b>
-- обновляет значениe ключа `balance_${address}`, если баланса EAST меньше чем vault.eastAmount то операция не выполняется 
-- обновляет значение ключа `total_supply`
-- удаляет ключ `vault_${address}` хранившего в себе информацию о vault  
+<b>Results of execution:</b>
+- `balance_${address}` key value is updated; if the EAST balance is smaller than `vault.eastAmount`, the operation is not executed
+- `total_supply` key value is updated
+- `vault_${address}` key with the vault info is deleted
 
 #### reissue
-<b> Описание: </b>
-Изменяет колличество токенов в обеспечении и количество EAST токенов пользователя в соответствии с текущим курсом взятом из ораклов. Изменение всегда происходит в сторону увеличения, если курс WEST токенов упал то метод не выполняется  
-<b> Доступ к методу: </b>
-Владелец vault  
-<b>Тело метода: </b>
+<b>Description:</b>
+Changes the amount of tokens in the collateral and the amount of a user's EAST tokens, according to the actual conversion rate from the data oracles. The method is not executed if the WEST rate decreases.
+<b>Method permission:</b>
+A vault owner
+<b>Method body:</b>
 ```js
-  maxWestToExchange: number // vault id
+  maxWestToExchange: number
 ```  
-maxWestToExchange - максимальное колличество west для обменя на east, меньше этого значения может быть, больше - нет  
-<b>Результат выполнения: </b>
-- обновляет ключ `vault_${vault.id}` хранит в себе информацию о vault
-- обновляет ключ `balance_${address}` если есть разница между старым и новым значением eastAmount
-- обновляет значение ключа `total_supply` если есть разница между старым и новым значением eastAmount  
+`maxWestToExchange` - maximal amount of WEST to be exchanged to EAST.  
+<b>Results of execution:</b>
+- `vault_${vault.id}` key with a vault information is updated
+- `balance_${address}` key is updated, if the new and the old value of `eastAmount` are different
+- `total_supply` is updated, if the new and the old value of `eastAmount` are different
 
 #### supply
-<b> Описание: </b>
-Для избежания ликвидации позиции в случае падения курса WEST, пользователь дообеспечивает позицию. Контракт переводит перечисленные WEST токены из трансфера в vault пользователя.  
-<b> Как вызвать: </b>
-Рекомендуемый вариант - сделать атомик транзакцию, с трансфером и вызовом контракта.
-Получатель трансфера должен быть создатель данного контракта.    
-Трансфер должен идти раньше самого вызова. Отправитель трансфера и отправитель вызова контракта должен быть один и тот же адрес.  
-<b> Доступ к методу: </b>
-Владелец vault  
-<b>Тело метода: </b>
+<b>Description:</b>
+In case of WEST rate drops, a user provides extra collateral to avoid liquidation of his vault. The smart contract transfers the added WEST tokens to the user's vault.  
+<b>How to call:</b>
+Creating an atomic transaction with a transfer and a contract call is recommended.
+The transfer recipient is to be the owner of the smart contract.   
+The transfer is to precede the call. Both transfer and contract calls are to be sent from the same address.  
+<b>Method permission:</b>
+A vault owner  
+<b>Method body:</b>
 ```js
-  transferId: string // id трансфера
+  transferId: string // transfer tx id
 ```  
-<b>Результат выполнения: </b>
-- обновляет ключ `vault_${address}` хранящего в себе информацию о vault пользователя
+<b>Results of execution:</b>
+- `vault_${address}` key with the information about the user's vault is updated
 
 #### claim_overpay_init
-<b> Описание: </b>
-Запрос пользователя на вывод лишних WEST токенов из vault (при росте курс WEST)  
-<b> Доступ к методу: </b>
-Владелец позиции(vault)  
-<b>Тело метода: </b>
+<b>Description:</b>
+A user request to withdraw his WEST overcollateral from the vault, in case of WEST rate growth
+<b>Method permission:</b>
+The vault owner  
+<b>Method body:</b>
 ```js
-  amount: number // не обязательный параметр, сумма вывода 
+  amount: number // optional, amount to withdraw
 ```  
-<b>Результат выполнения: </b>
-без результата  
+<b>Results of execution:</b>
+no result
 
 #### claim_overpay
-<b> Описание: </b>
-Вывывает владелец контракта после вызова claim_overpay_init, переводит на адрес владельца WEST токены, контракт же списывает с vault пользователя переведённые токены, уменьшая значение westAmount на сумму перевода и комиссию транзакций равную 0.2 WEST.  
-<b> Доступ к методу: </b>
-Владелец контракта  
-<b>Триггеры: </b>
-Пользователь вызывает контракт с методом claim_overpay_init, после его выполения - в случае переобеспечения vault сервис автоматизации считает количество токенов которые необходимо вернуть пользователю и отправляет атомик транзакцию с трансфером WEST и данный вызов контракта. В случае если vault не переобеспечен, вызов claim_overpay_init игнорируется.  
-<b>Тело метода: </b>
+<b>Description:</b>
+The smart contract owner calls it after calling `claim_overpay_init`, transfers WEST tokens to the smart contract owner. The contract writes off the transferred tokens from the user's vault, decreases the westAmount value accordingly and writes off extra 0.2 WEST as a commission.
+<b>Method permission:</b>
+The smart contract owner  
+<b>Triggers:</b>
+A user calls the contract with `claim_overpay_init` method. In case of overcollateralization, the automation service calculates how many tokens are to be returned to the user. Then the service sends an atomic transaction with WEST transfer and the contract call. If the vault is not overcollateralized, `claim_overpay_init` call is ignored.
+<b>Method body:</b>
 ```js
   address: string, // vault id
   transferId: string,
   requestId: string // claim_overpay_init call id
 ```  
-<b>Результат выполнения: </b>
-- добавляет ключ `exchange_${transferId}`  
-- обновляет ключ `vault_${address}`  
-
+<b>Results of execution:</b>
+- `exchange_${transferId}` key is added
+- `vault_${address}` key is updated
 
 #### liquidate
-<b> Описание: </b>
-Если в случае падение курса WEST обеспечение WEST падает менее значения liquidationCollateral из конфига контракта, то любой пользователь может выкупить WEST, хранящиеся в волте. Для этого ему нужно создать атомик с трансфером RWA токена в количестве, равному количестве EAST токенов в волте, на адрес контракта и CallContract с методом liquidate с указанием `transferId` и `address`. Контракт проверяет по последним данным ораклов действительно ли обеспечение упало ниже liquidationCollateral и записывает в vault значения rwaAmount = eastAmount, westAmount = 0, liquidatedWestAmount = vaultWestAmount. После этого пользователь больше не может закрыть позицию. В случае если обеспечение WEST больше liquidationCollateral то вызов метода не производится.  
-<b> Доступ к методу: </b>
-Владелец контракта (сервис автоматизации)  
-<b>Тело метода: </b>
+<b>Description:</b>
+If EAST collateralization with WEST falls below `liquidationCollateral` value from the smart contract configuration as a result of WEST rate drop, then any user can buy out the WEST from the vault. To do it, he needs to create an atomic transaction with RWA token transfer to the smart contract address, along with `CallContract` with `liquidate` method containing `transferId` and `address` values. The amount of RWA tokens transferred is to be the same as the amount of EAST in the vault. The contract checks the latest data oracle information to verify that the actual collateralization rate is lower than `liquidationCollateral`. If yes, the contract writes the following values to the vault: `rwaAmount = eastAmount`, `westAmount = 0`, `liquidatedWestAmount = vaultWestAmount`. Then the user can no longer close the vault. If WEST collateralization is above `liquidationCollateral`, the method is not called.
+<b>Method permission:</b>
+The smart contract owner (the automation service)  
+<b>Method body:</b>
 ```js
   address: string // vault address
   transferId: string // id of RWA transfer transaction
 ```  
-<b>Результат выполнения: </b>
-- обновляет значение ключа `vault_${address}` в пустую строку
-- создает ключ `liquidated_vault_${address}_<tx_timestamp>` с данными ликвидированного волта
-
-
+<b>Results of execution:</b>
+- `vault_${address}` key value is updated as an empty string
+- `liquidated_vault_${address}_<tx_timestamp>` key with the data about the luquidated vault is created
 
 #### write_liquidation_west_transfer
-<b> Описание: </b>
-Метод, который записывает в стейт ключ с информацией об отправленной трансфер-транзакции с WEST'ами в ответ на ликвидацию волта.
-По этому ключу сервис автоматизации может понять была ли осуществлена отправка WEST'ов на адрес ликвидатора или нет.  
-<b> Доступ к методу: </b>
-Владелец контракта (сервис автоматизации)  
-<b>Тело метода: </b>  
+<b>Description:</b>
+This method writes the key with the information about the sent transfer transaction into the state, as a response to a vault liquidation. This key tells the automation service whether the WEST tokens were sent to the liquidator's address or not.
+<b>Method permission:</b>
+The smart contract owner (the automation service)  
+<b>Method body:</b>
 ```js
   address: string,
   timestamp: number,
 ```  
-<b>Результат выполнения: </b>
-- добавляет ключ `liquidation_exchange_${address}_${timestamp}`.
+<b>Results of execution:</b>
+- `liquidation_exchange_${address}_${timestamp}` key is added
 
 #### update_config
-<b> Описание: </b>
-Метод для обновления конфига. Описания параметров в разделе "Создание контракта"  
-<b> Доступ к методу: </b>
-Владелец контракта (сервис автоматизации)  
-<b>Тело метода: </b>
+<b>Description:</b>
+This method updates the configuration. The parameters are described is the "Smart contract creating" section above.
+<b>Method permission:</b>
+The smart contract owner (the Automation Service)  
+<b>Method body:</b>
 ```js
   oracleContractId: string,
   oracleTimestampMaxDiff: number,
@@ -218,14 +216,14 @@ maxWestToExchange - максимальное колличество west для 
   isContractEnabled: boolean,
   decimals: number
 ```  
-<b>Результат выполнения: </b>
-- обновляет ключ `config` хранящего в себе информацию о параметрах контракта
+<b>Results of execution:</b>
+- `config` key of the contract that stores parameters is updated
 
-### Run tests
+### Smart contract testing
 Requirements: Docker, NodeJs
 
-1) Install nodes sandbox to <sandbox_dir>: https://docs.wavesenterprise.com/ru/latest/how-to-setup/sandbox.html
-2) Update nodes config section `docker-engine` at <sandbox_dir>/config/nodes/node-*/node.conf:
+1) Install the node sandbox to <sandbox_dir>: https://docs.wavesenterprise.com/ru/latest/how-to-setup/sandbox.html
+2) Update the `docker-engine` section of the node config, that is to be found in `<sandbox_dir>/config/nodes/node-*/node.conf`, as follows:
     ```
     docker-engine {
       enable = "yes"
@@ -256,12 +254,12 @@ Requirements: Docker, NodeJs
       140 = 0
     }
     ```
-3) Restart compose
-4) Issue permissions to 3NdqnzceY42SdwC9rYA1HgdkDkRc6DnWug6U to publish contracts.
-5) Transfer west to 3NdqnzceY42SdwC9rYA1HgdDkRc6DnWug6U
-6) Run logger: `npm run logger`
-7) Build test contract image and watch logger output:
-`npm run test`
+3) Restart the node via the Docker-compose
+4) Issue permissions for the `3NdqnzceY42SdwC9rYA1HgdkDkRc6DnWug6U` address to publish contracts
+5) Transfer WEST tokens to the `3NdqnzceY42SdwC9rYA1HgdDkRc6DnWug6U` address
+6) Run the logger: `npm run logger`
+7) Build the test contract image and watch logger the output:
+   `npm run test`
 
 ### Create docker image and push it to registry
 ```
@@ -281,9 +279,9 @@ docker build --build-arg HOST_NETWORK=192.168.1.3 -t vostok-sc/east-contract:0.8
 `docker inspect east-contract:0.1` -> "Id"
 
 
-### Автотесты
+### Autotests
 
-#### создать файл east.config.json
+#### Create file east.config.json
 ```json
 {
   "oracleTimestampMaxDiff": 1000000000,
@@ -297,9 +295,9 @@ docker build --build-arg HOST_NETWORK=192.168.1.3 -t vostok-sc/east-contract:0.8
 
 ```
 
-#### env variables: 
+#### env variables:
 
-Файл с переменными окружения должен находится в корне проекти и называться ".env.test"
+The file with the environment variables is to be located in the project root folder and called `.env.test`.
 
 ```
 IS_TESTING_ENV="true"
@@ -311,7 +309,7 @@ AUTH_SERVICE_ADDRESS="http://localhost/authServiceAddress"
 AUTH_USERNAME="mtokarev@web3tech.ru"
 AUTH_PASSWORD="9m&A;nC{=bwe'+5YcHREL$oie=9u0R-N&CqaQm"
 
-SEED_PHRASE="examples seed phrase" # сид фраза владельца контракта
+SEED_PHRASE="examples seed phrase" # the contract owner seed phrase
 
 IMAGE_NAME="vostok-sc/east-contract:0.8"
 IMAGE_HASH="f6786c5735f3cfa19f744ac4511f9091c52a40b1748f37b1d284cedd7c4b28e6"
@@ -328,24 +326,23 @@ PATH_TO_USER_SEEDS="./user-seeds.json" # DEPRECATED
 EAST_SERVICE_ADDRESS="http://localhost:3000"
 ```
 
-#### Подготовка к запуску тестов.
+#### Preparing autotests to start
 
-1. Запустить логгер командой npm run logger.
-2. Затем узнать свой ip командой ipconfig getifaddr en0.
-3. Затем сбилдить докер образ командой docker build --build-arg HOST_NETWORK=<тут_ваш_ip_адрес> -t <НАЗВАНИЕ_КОТОРОЕ_ВЫ_ВПИШЕТЕ_В_ПЕРЕМЕННУЮ_IMAGE_NAME> .
-4. Затем скопировать hash из вывода предыдущей команды
+1. Run the logger: `npm run logger`
+2. Copy your IP address: `ipconfig getifaddr en0`
+3. Build the Docker image: `docker build --build-arg HOST_NETWORK=<your_IP_address> -t <IMAGE_NAME_VARIABLE> .`
+4. Copy the hash from the output of the previous command
 ```
  => => writing image sha256:f6786c5735f3cfa19f744ac4511f9091c52a40b1748f37b1d284cedd7c4b28e6
                             ================================================================
                             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^                                                   
 ```
-5. Вписать IMAGE_NAME и IMAGE_HASH в переменные окружения.
-6. Запустить команду npm run cc
-7. Из вывода предыдущей команды скопировать txId и вписать в переменную  CONTRACT_ID в ист контракте.
-В ист сервисе вписать в переменную EAST_CONTRACT_ID скопированный txId.
-8. Запустить ист сервис.
-                                                        
-#### Команды для запуска тестов:
+5. Paste the `IMAGE_NAME` and `IMAGE_HASH` values into the environment variables.
+6. Run the command `npm run cc`
+7. Copy the `txId` from the output of the previous command and paste it to the `CONTRACT_ID` variable in the EAST contract. Paste the copied `txId` into the `EAST_CONTRACT_ID` variable of the EAST service.
+8. Run the EAST service.
+
+#### Commands for running the tests
 - npx ts-node src/tests/liquidate.ts
 - npx ts-node src/tests/close.ts
 - npx ts-node src/tests/status-polling.ts
@@ -354,9 +351,9 @@ EAST_SERVICE_ADDRESS="http://localhost:3000"
 - npx ts-node src/tests/disble-enable-contract.ts
 - npx ts-node src/tests/supply-reissue.ts
 
-#### Куда смотреть.
+#### Testing procedure
 
-Запускаем одну из команд выше. И смотрим логи.
-Сообщения вида "1631793116957: {"error":605,"message":"Contract execution result is not found for transaction with txId = 'GHyusW1ShHRftcSEh8oYenU1P8GSgSnz7rSq3yUSTCMC'"}" в логах означают, что идет поллинг статуса транзакции, если сообщение висит дольше
-пары минут, то тест необходимо прервать и посмотреть лог докер контейнера, скорее всего транзакция не майнится из-за ошибки в
-контракте. Также полезно через бч клиент смотреть все транзы и изменяющийся в процессе тестов стейт.
+Run one of the commands above and monitor the logs.
+
+The messages like `"1631793116957: {"error":605,"message":"Contract execution result is not found for transaction with txId = 'GHyusW1ShHRftcSEh8oYenU1P8GSgSnz7rSq3yUSTCMC'"}"`
+in the logs mean the transaction status is polled. If the message hangs for more than a couple of minutes, stop the test and open the Docker container log. Most likely, the transaction cannot be mined due to a contract error. To prevent problems, you can also monitor the transactions via the blockchain client and the corresponding changes of the state.
