@@ -570,7 +570,7 @@ export class RPCService {
     const stateKeys: DataEntryRequest[] = [
       {
         key: StateKeys.totalSupply,
-        string_value: balance.toString()
+        string_value: totalSupply.toString()
       },
       {
         key: StateKeys.totalRwa,
