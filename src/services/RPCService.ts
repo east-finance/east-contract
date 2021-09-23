@@ -483,13 +483,14 @@ export class RPCService {
 
     const { eastAmount, rwaAmount, westAmount } = await this.stateService.getVault(address);
 
+    // rwaPart >=0 && rwaPart < 1
     if (rwaPart.isGreaterThanOrEqualTo(0) && rwaPart.isLessThan(1)) {
-      if (westTransferId === undefined) {
+      if (!westTransferId) {
         throw new Error('westTransferId is missing')
       }
-      const isTransferUsedForClose = await this.stateService.isTransferUsedForClose(westTransferId);
+      const isTransferUsedForClose = await this.stateService.isTransferWestUsedForClose(westTransferId);
       if (isTransferUsedForClose) {
-        throw new Error(`Transfer ${westTransferId} is already used for close`);
+        throw new Error(`Transfer WEST '${westTransferId}' is already used for close`);
       }
       const {
         sender_public_key: westSenderPubKey,
@@ -518,9 +519,14 @@ export class RPCService {
       }
     }
 
+    // rwaPart > 0 && rwaPart <= 1
     if (rwaPart.isGreaterThan(0) && rwaPart.isLessThanOrEqualTo(1)) {
-      if (rwaTransferId === undefined) {
+      if (!rwaTransferId) {
         throw new Error('rwaTransferId is missing')
+      }
+      const isTransferUsedForClose = await this.stateService.isTransferRwaUsedForClose(rwaTransferId);
+      if (isTransferUsedForClose) {
+        throw new Error(`Transfer RWA '${rwaTransferId}' is already used for close`);
       }
       const {
         sender_public_key: rwaSenderPubKey,
@@ -560,10 +566,11 @@ export class RPCService {
     balance = subtract(balance, eastAmount.multipliedBy(MULTIPLIER));
     totalSupply = subtract(totalSupply, eastAmount.multipliedBy(MULTIPLIER));
     totalRwa = subtract(totalRwa, rwaAmount.multipliedBy(MULTIPLIER));
-    return [
+
+    const stateKeys: DataEntryRequest[] = [
       {
         key: StateKeys.totalSupply,
-        string_value: BigNumber.maximum(totalSupply, '0').toString()
+        string_value: balance.toString()
       },
       {
         key: StateKeys.totalRwa,
@@ -571,17 +578,29 @@ export class RPCService {
       },
       {
         key: `${StateKeys.balance}_${address}`,
-        string_value: BigNumber.maximum(balance, 0).toString()
+        string_value: balance.toString()
       },
       {
         key: `${StateKeys.vault}_${address}`,
         string_value: ''
-      },
-      {
-        key: `${StateKeys.usedCloseWestTransfer}_${westTransferId}`,
-        bool_value: true
       }
     ];
+
+    if (westTransferId) {
+      stateKeys.push({
+        key: `${StateKeys.usedCloseWestTransfer}_${westTransferId}`,
+        bool_value: true
+      })
+    }
+
+    if (rwaTransferId) {
+      stateKeys.push({
+        key: `${StateKeys.usedCloseRwaTransfer}_${rwaTransferId}`,
+        bool_value: true
+      })
+    }
+
+    return stateKeys
   }
 
   async transfer(tx: Transaction, value: TransferParam): Promise<DataEntryRequest[]> {
@@ -838,7 +857,14 @@ export class RPCService {
       if (Object.keys(Operations).filter(operationName => operationName !== Operations.update_config).includes(param.key)) {
         await this.checkIsContractEnabled();
       }
-      if ([Operations.transfer, Operations.reissue, Operations.close_init, Operations.claim_overpay_init, Operations.supply].includes(param.key as Operations)) {
+      if ([
+        Operations.transfer,
+        Operations.reissue,
+        Operations.close_init,
+        Operations.claim_overpay_init,
+        Operations.supply,
+        Operations.liquidate
+      ].includes(param.key as Operations)) {
         await this.checkVaultBlock(tx.sender);
       }
       const value = JSON.parse(param.string_value || '{}');

@@ -174,9 +174,18 @@ export class StateService {
     }
   }
 
-  async isTransferUsedForClose(transferId: string) {
+  async isTransferWestUsedForClose(transferId: string) {
     try {
       const value = await this.getContractKeyValue(`${StateKeys.usedCloseWestTransfer}_${transferId}`);
+      return !!value
+    } catch (e) {
+      return false
+    }
+  }
+
+  async isTransferRwaUsedForClose(transferId: string) {
+    try {
+      const value = await this.getContractKeyValue(`${StateKeys.usedCloseRwaTransfer}_${transferId}`);
       return !!value
     } catch (e) {
       return false
