@@ -203,107 +203,110 @@ Promise.resolve().then(async () => {
    * Transfer from User1 to User2
    */
 
-  const user2Seed = Waves.Seed.fromExistingPhrase('examples seed phrase another two');
-
-  const transferCall = Waves.API.Transactions.CallContract.V4({
-    contractId,
-    contractVersion: 1,
-    timestamp: Date.now(),
-    params: [{
-      type: 'string',
-      key: 'transfer',
-      value: JSON.stringify({
-        to: user2Seed.address,
-        amount: 2
-      })
-    }]
-  })
-
-  await transferCall.broadcast(user1Seed.keyPair);
-
-  console.log(`transfer call: ${JSON.stringify(transferCall.getBody())}`);
-  console.log('Waiting 15 seconds...');
-  await sleep(15);
+  // const user2Seed = Waves.Seed.fromExistingPhrase('examples seed phrase another two');
+  //
+  // const transferCall = Waves.API.Transactions.CallContract.V4({
+  //   contractId,
+  //   contractVersion: 1,
+  //   timestamp: Date.now(),
+  //   params: [{
+  //     type: 'string',
+  //     key: 'transfer',
+  //     value: JSON.stringify({
+  //       to: user2Seed.address,
+  //       amount: 2
+  //     })
+  //   }]
+  // })
+  //
+  // await transferCall.broadcast(user1Seed.keyPair);
+  //
+  // console.log(`transfer call: ${JSON.stringify(transferCall.getBody())}`);
+  // console.log('Waiting 15 seconds...');
+  // await sleep(15);
 
   /*
   * Close init
   * */
 
-  const closeInitCall = await Waves.API.Transactions.CallContract.V4({
-    contractId,
-    contractVersion: 1,
-    timestamp: Date.now(),
-    params: [{
-      type: 'string',
-      key: 'close_init',
-      value: ''
-    }]
-  })
-
-  await closeInitCall.broadcast(user1Seed.keyPair);
-
-  const id = await closeInitCall.getId(user1Seed.keyPair.publicKey)
-  console.log('closeInitCall id', id)
-  console.log('Waiting 15 seconds...');
-  await sleep(15);
+  // const closeInitCall = await Waves.API.Transactions.CallContract.V4({
+  //   contractId,
+  //   contractVersion: 1,
+  //   timestamp: Date.now(),
+  //   params: [{
+  //     type: 'string',
+  //     key: 'close_init',
+  //     value: ''
+  //   }]
+  // })
+  //
+  // await closeInitCall.broadcast(user1Seed.keyPair);
+  //
+  // const id = await closeInitCall.getId(user1Seed.keyPair.publicKey)
+  // console.log('closeInitCall id', id)
+  // console.log('Waiting 15 seconds...');
+  // await sleep(15);
 
   /**
    *  User1 supply vault
    */
 
-  // const supplyTransfer = Waves.API.Transactions.Transfer.V3({
-  //   recipient: ownerSeed.address,
-  //   assetId: '',
-  //   amount: 2 * 100000000,
-  //   timestamp: Date.now(),
-  //   attachment: '',
-  //   fee: minimumFee[4],
-  //   senderPublicKey: user1Seed.keyPair.publicKey,
-  //   atomicBadge: {
-  //     trustedSender: user1Seed.address
-  //   }
-  // });
-  //
-  // const supplyCall = Waves.API.Transactions.CallContract.V4({
-  //   contractId,
-  //   contractVersion: 1,
-  //   fee: minimumFee[104],
-  //   senderPublicKey: user1Seed.keyPair.publicKey,
-  //   timestamp: Date.now(),
-  //   params: [{
-  //     type: 'string',
-  //     key: 'supply',
-  //     value: JSON.stringify({
-  //       transferId: await supplyTransfer.getId()
-  //     })
-  //   }],
-  //   atomicBadge: {
-  //     trustedSender: user1Seed.address
-  //   }
-  // });
+  const supplyTransfer = Waves.API.Transactions.Transfer.V3({
+    recipient: ownerSeed.address,
+    assetId: '',
+    amount: 2 * 100000000,
+    timestamp: Date.now(),
+    attachment: '',
+    fee: minimumFee[4],
+    senderPublicKey: user1Seed.keyPair.publicKey,
+    atomicBadge: {
+      trustedSender: user1Seed.address
+    }
+  });
 
-  // const reissueCall = Waves.API.Transactions.CallContract.V4({
-  //   contractId,
-  //   contractVersion: 1,
-  //   timestamp: Date.now(),
-  //   params: [{
-  //     type: 'string',
-  //     key: 'reissue',
-  //     value: '' // JSON.stringify({ maxWestToExchange: 10 })
-  //   }],
-  //   atomicBadge: {
-  //     trustedSender: user1Seed.address
-  //   }
-  // })
+  const supplyCall = Waves.API.Transactions.CallContract.V4({
+    contractId,
+    contractVersion: 1,
+    fee: minimumFee[104],
+    senderPublicKey: user1Seed.keyPair.publicKey,
+    timestamp: Date.now(),
+    params: [{
+      type: 'string',
+      key: 'supply',
+      value: JSON.stringify({
+        transferId: await supplyTransfer.getId()
+      })
+    }],
+    atomicBadge: {
+      trustedSender: user1Seed.address
+    }
+  });
 
-  // const supplyAtomic = await Waves.API.Transactions.broadcastAtomic(
-  //   Waves.API.Transactions.Atomic.V1({transactions: [supplyTransfer, supplyCall]}),
-  //   user1Seed.keyPair
-  // );
-  //
-  // console.log(`Atomic supply call: ${JSON.stringify(supplyAtomic)}`);
-  // console.log('Waiting 15 seconds...');
-  // await sleep(15);
+  const reissueCall = Waves.API.Transactions.CallContract.V4({
+    contractId,
+    contractVersion: 1,
+    timestamp: Date.now(),
+    params: [{
+      type: 'string',
+      key: 'reissue',
+      value: JSON.stringify({ maxWestToExchange: 10 })
+    }],
+    atomicBadge: {
+      trustedSender: user1Seed.address
+    }
+  })
+
+  const supplyAtomic = await Waves.API.Transactions.broadcastAtomic(
+    Waves.API.Transactions.Atomic.V1({transactions: [supplyTransfer, supplyCall, reissueCall]}),
+    user1Seed.keyPair
+  );
+
+  const reissueId = await reissueCall.getId(user1Seed.keyPair.publicKey)
+
+  console.log(`Atomic supply call: ${JSON.stringify(supplyAtomic)}`);
+  console.log(`reissueId: ${reissueId}`);
+  console.log('Waiting 15 seconds...');
+  await sleep(15);
   //
   // const oracleRatesDumpCall = Waves.API.Transactions.CallContract.V4({
   //   contractId: oracleContractId,
