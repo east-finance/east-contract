@@ -41,7 +41,7 @@ import { BigNumber } from 'bignumber.js';
 import { add, divide, multiply, subtract } from './math';
 import { stringifyVault } from '../utils/transform-vault';
 import { Base58 } from '../utils/base58';
-import { getAddressFromPublicKey } from '../utils/converters';
+import { getAddressFromPublicKey, getNetworkByteFromAddress } from '../utils/converters';
 
 
 const logger = createLogger('GRPC service');
@@ -92,6 +92,7 @@ export class RPCService {
   private readonly contractUtilService: any;
   private stateService: StateService;
   private txTimestamp!: number;
+  private networkByte!: number;
 
   constructor() {
     logger.info(`
@@ -126,10 +127,9 @@ export class RPCService {
     }
   }
 
-  isAddressValid (targetAddress: string, validAddress: string) {
-    const [, networkByte] = Base58.decode(validAddress)
-    const targetAddressBytes = Base58.decode(targetAddress)
-    return targetAddressBytes && targetAddressBytes.length === 26 && targetAddressBytes[1] === networkByte
+  isAddressValid (address: string) {
+    const addressBytes = Base58.decode(address)
+    return addressBytes && addressBytes.length === 26 && addressBytes[1] === this.networkByte
   }
 
   validateConfig(config: ConfigDto) {
@@ -147,7 +147,7 @@ export class RPCService {
     await this.validateConfig(config)
     config.adminAddress = tx.sender;
     config.adminPublicKey = tx.sender_public_key;
-    config.serviceAddress = getAddressFromPublicKey(config.servicePublicKey)
+    config.serviceAddress = getAddressFromPublicKey(this.networkByte, config.servicePublicKey)
     await this.stateService.commitSuccess(tx.id, [
       {
         key: StateKeys.config,
@@ -619,8 +619,8 @@ export class RPCService {
     await this.validate(TransferDto, value)
     const { to, amount: _amount } = value
 
-    if(!this.isAddressValid(to, tx.sender)) {
-      throw new Error(`Invalid transfer target address: ${to}`);
+    if(!this.isAddressValid(to)) {
+      throw new Error(`Invalid transfer target address: '${to}'`);
     }
 
     const from = tx.sender
@@ -628,7 +628,7 @@ export class RPCService {
 
     let fromBalance = await this.stateService.getBalance(from);
     if (fromBalance.isLessThan(amount)) {
-      throw new Error(`Insufficient funds to transfer from "${from}": balance "${fromBalance.toString()}", amount "${amount}"`);
+      throw new Error(`Insufficient funds to transfer from '${from}': balance '${fromBalance.toString()}', amount '${amount}'`);
     }
     let toBalance = await this.stateService.getBalance(to);
 
@@ -818,7 +818,7 @@ export class RPCService {
     } as ConfigDto
 
     if (newConfig.servicePublicKey) {
-      newConfig.serviceAddress = getAddressFromPublicKey(newConfig.servicePublicKey)
+      newConfig.serviceAddress = getAddressFromPublicKey(this.networkByte, newConfig.servicePublicKey)
     }
 
     let config = {
@@ -931,6 +931,10 @@ export class RPCService {
 
     const auth = new Metadata();
     auth.set('authorization', auth_token);
+
+    if(!this.networkByte) {
+      this.networkByte = getNetworkByteFromAddress(tx.sender)
+    }
 
     this.stateService.setAuthData(auth, tx.contract_id);
 
