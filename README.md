@@ -30,7 +30,8 @@ The smart contract is created with the following parameters:
     rwaTokenId: 'Rwa token id',
     isContractEnabled: true,
     txTimestampMaxDiff: 1000 * 60 * 5,
-    decimals: 8
+    decimals: 8,
+    servicePublicKey: 'eastServicePublicKey'
   })
 }
 ```
@@ -46,6 +47,7 @@ Where:
 - isContractEnabled - smart contract operation blocker, in case the value is `false`.
 - txTimestampMaxDiff - **optional**, `1000 * 60 * 5` ms (5 minutes) by default. Maximal time lag between the DockerCall time of a transaction and the current node time.
 - decimals - a number of decimal places in EAST token.
+- servicePublicKey - EAST service blockchain account public key
 
 ### Methods of the smart contract
 Here a method is a parameter key to call the smart contract.
@@ -214,7 +216,8 @@ The smart contract owner (the Automation Service)
   minHoldTime: number,
   rwaTokenId: string,
   isContractEnabled: boolean,
-  decimals: number
+  decimals: number,
+  servicePublicKey: string
 ```  
 <b>Results of execution:</b>
 - `config` key of the contract that stores parameters is updated

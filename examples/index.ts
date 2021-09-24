@@ -112,7 +112,8 @@ Promise.resolve().then(async () => {
           minHoldTime: 1000,
           rwaTokenId,
           issueEnabled: true,
-          decimals: 8
+          decimals: 8,
+          servicePublicKey: '6V5hnWRxumRZdRtXhtyhuUWysqyT5TuA5Hs4qmfN323D'
         })
       }
     ],
