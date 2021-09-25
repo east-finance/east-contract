@@ -70,6 +70,8 @@ Promise.resolve().then(async () => {
 
   const oracleContractId = 'EiuvA4yzBokBXScE3qDzxexj3xqQ4zG9K7Jr6Y6bc7is';
   const rwaTokenId = '5Y4oMP6yvoi1gd64zGymGT93HLUgAxmARL3DHkgKZWAc';
+  const servicePublicKey = '6V5hnWRxumRZdRtXhtyhuUWysqyT5TuA5Hs4qmfN323D'
+  const serviceAddress = '3NsUWeYmfpyRtb41R7GTm4XgfxLGAVuqJbg'
 
   const oracleRatesInitialCall = Waves.API.Transactions.CallContract.V4({
     contractId: oracleContractId,
@@ -113,7 +115,7 @@ Promise.resolve().then(async () => {
           rwaTokenId,
           issueEnabled: true,
           decimals: 8,
-          servicePublicKey: '6V5hnWRxumRZdRtXhtyhuUWysqyT5TuA5Hs4qmfN323D'
+          servicePublicKey
         })
       }
     ],
@@ -159,7 +161,7 @@ Promise.resolve().then(async () => {
    */
 
   const mintTransfer = Waves.API.Transactions.Transfer.V3({
-    recipient: ownerSeed.address,
+    recipient: serviceAddress,
     assetId: '',
     amount: 5 * 100000000,
     timestamp: Date.now(),
@@ -253,7 +255,7 @@ Promise.resolve().then(async () => {
    */
 
   const supplyTransfer = Waves.API.Transactions.Transfer.V3({
-    recipient: ownerSeed.address,
+    recipient: serviceAddress,
     assetId: '',
     amount: 2 * 100000000,
     timestamp: Date.now(),

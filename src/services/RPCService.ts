@@ -113,10 +113,12 @@ export class RPCService {
 
   async checkServiceBalance(rwaAmount: BigNumber, totalRwa: BigNumber) {
     const { serviceAddress, rwaTokenId } = await this.stateService.getConfig()
-    const amount = await this.stateService.getAssetBalance(serviceAddress, rwaTokenId)
-    const diff = add(subtract(amount, rwaAmount), totalRwa)
-    if (diff.isLessThan(0)) {
-      throw new Error('Insufficient RWA balance in protocol to mint new EAST. Please try again later or contact technical support.')
+    if(rwaAmount.isGreaterThan(0)) {
+      const amount = await this.stateService.getAssetBalance(serviceAddress, rwaTokenId)
+      const diff = add(subtract(amount, rwaAmount), totalRwa)
+      if (diff.isLessThan(0)) {
+        throw new Error('Insufficient RWA balance in protocol to mint new EAST. Please try again later or contact technical support.')
+      }
     }
   }
 
