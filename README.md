@@ -21,17 +21,17 @@ The smart contract is created with the following parameters:
   type: 'string',
   key: 'config',
   value: JSON.stringify({
-    oracleContractId: 'oracleContractId',
-    oracleTimestampMaxDiff: 1000 * 10,
-    rwaPart:  0.5,
+    oracleContractId: 'Oracle ContractId',
+    oracleTimestampMaxDiff: 10 * 60 * 1000,
+    rwaPart:  0,
     westCollateral: 2.5,
     liquidationCollateral: 1.3,
-    minHoldTime: 1000 * 60 * 60,
-    rwaTokenId: 'Rwa token id',
+    minHoldTime: 60 * 1000,
+    rwaTokenId: 'RWA TokenId',
     isContractEnabled: true,
-    txTimestampMaxDiff: 1000 * 60 * 5,
+    txTimestampMaxDiff: 5 * 60 * 1000,
     decimals: 8,
-    servicePublicKey: 'eastServicePublicKey'
+    servicePublicKey: 'East Service Public Key'
   })
 }
 ```
