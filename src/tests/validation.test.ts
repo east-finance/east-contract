@@ -121,7 +121,7 @@ test('Supply DTO validation', async () => {
 test('ClaimOverpayInit DTO validation', async () => {
   const { rpcService } = globals
   const invalidData: ClaimOverpayInitDto = {
-    amount: -1, // invalid
+    amount: '-1', // invalid
   }
   try {
     await rpcService.handleDockerCall(createTx(104, Operations.claim_overpay_init, invalidData))

@@ -207,6 +207,8 @@ export class StateService {
       rwaTokenId,
       txTimestampMaxDiff,
       decimals,
+      servicePublicKey,
+      serviceAddress
     } = JSON.parse(value as string)
     if (
       oracleContractId === undefined ||
@@ -215,7 +217,9 @@ export class StateService {
       westCollateral === undefined ||
       liquidationCollateral === undefined ||
       decimals === undefined ||
-      txTimestampMaxDiff === undefined
+      txTimestampMaxDiff === undefined ||
+      servicePublicKey === undefined ||
+      serviceAddress === undefined
     ) {
       throw new Error('Wrong config contract param')
     }
@@ -231,7 +235,9 @@ export class StateService {
       isContractEnabled,
       rwaTokenId,
       txTimestampMaxDiff,
-      decimals
+      decimals,
+      servicePublicKey,
+      serviceAddress
     }
   }
 

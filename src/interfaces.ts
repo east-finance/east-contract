@@ -183,6 +183,8 @@ export interface ConfigParam {
   adminPublicKey: string,
   txTimestampMaxDiff: number,
   decimals: number,
+  servicePublicKey: string,
+  serviceAddress: string
 }
 
 export type TransferTx = {

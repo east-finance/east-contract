@@ -41,6 +41,7 @@ import { BigNumber } from 'bignumber.js';
 import { add, divide, multiply, subtract } from './math';
 import { stringifyVault } from '../utils/transform-vault';
 import { Base58 } from '../utils/base58';
+import { getAddressFromPublicKey, getNetworkByteFromAddress } from '../utils/converters';
 
 
 const logger = createLogger('GRPC service');
@@ -91,6 +92,7 @@ export class RPCService {
   private readonly contractUtilService: any;
   private stateService: StateService;
   private txTimestamp!: number;
+  private networkByte!: number;
 
   constructor() {
     logger.info(`
@@ -109,12 +111,14 @@ export class RPCService {
     this.stateService = new StateService(this.client, this.txClient, this.addressService, this.contractUtilService);
   }
 
-  async checkAdminBalance(rwaAmount: BigNumber, totalRwa: BigNumber) {
-    const { adminAddress, rwaTokenId } = await this.stateService.getConfig()
-    const amount = await this.stateService.getAssetBalance(adminAddress, rwaTokenId)
-    const diff = add(subtract(amount, rwaAmount), totalRwa)
-    if (diff.isLessThan(0)) {
-      throw new Error('Insufficient RWA balance in protocol to mint new EAST. Please try again later or contact technical support.')
+  async checkServiceBalance(rwaAmount: BigNumber, totalRwa: BigNumber) {
+    const { serviceAddress, rwaTokenId } = await this.stateService.getConfig()
+    if(rwaAmount.isGreaterThan(0)) {
+      const amount = await this.stateService.getAssetBalance(serviceAddress, rwaTokenId)
+      const diff = add(subtract(amount, rwaAmount), totalRwa)
+      if (diff.isLessThan(0)) {
+        throw new Error('Insufficient RWA balance in protocol to mint new EAST. Please try again later or contact technical support.')
+      }
     }
   }
 
@@ -125,10 +129,9 @@ export class RPCService {
     }
   }
 
-  isAddressValid (targetAddress: string, validAddress: string) {
-    const [, networkByte] = Base58.decode(validAddress)
-    const targetAddressBytes = Base58.decode(targetAddress)
-    return targetAddressBytes && targetAddressBytes.length === 26 && targetAddressBytes[1] === networkByte
+  isAddressValid (address: string) {
+    const addressBytes = Base58.decode(address)
+    return addressBytes && addressBytes.length === 26 && addressBytes[1] === this.networkByte
   }
 
   validateConfig(config: ConfigDto) {
@@ -146,6 +149,7 @@ export class RPCService {
     await this.validateConfig(config)
     config.adminAddress = tx.sender;
     config.adminPublicKey = tx.sender_public_key;
+    config.serviceAddress = getAddressFromPublicKey(this.networkByte, config.servicePublicKey)
     await this.stateService.commitSuccess(tx.id, [
       {
         key: StateKeys.config,
@@ -171,7 +175,17 @@ export class RPCService {
       throw new Error('Admin public key is missing in state');
     }
     if (adminPublicKey !== tx.sender_public_key) {
-      throw new Error(`Creator public key ${adminPublicKey} doesn't match tx sender public key ${tx.sender_public_key}`);
+      throw new Error(`Admin public key '${adminPublicKey}' doesn't match tx sender public key '${tx.sender_public_key}'`);
+    }
+  }
+
+  async checkServicePermissions(tx: Transaction): Promise<void> {
+    const { servicePublicKey } = await this.stateService.getConfig();
+    if (!servicePublicKey) {
+      throw new Error('Service public key is missing in state');
+    }
+    if (servicePublicKey !== tx.sender_public_key) {
+      throw new Error(`Service public key '${servicePublicKey}' doesn't match tx sender public key '${tx.sender_public_key}'`);
     }
   }
 
@@ -301,13 +315,13 @@ export class RPCService {
       }
     }
 
-    const { adminAddress } = await this.stateService.getConfig();
-    if (!adminAddress) {
-      throw new Error('Admin public key is missing in state');
+    const { serviceAddress } = await this.stateService.getConfig();
+    if (!serviceAddress) {
+      throw new Error('Service address is missing in state');
     }
 
-    if (adminAddress !== recipient) {
-      throw new Error('Transfer recipient are not admin');
+    if (serviceAddress !== recipient) {
+      throw new Error('Transfer recipient are not east service');
     }
 
     if (tx.sender_public_key !== senderPubKey) {
@@ -338,7 +352,7 @@ export class RPCService {
     vault.isBlocked = false;
     let totalSupply = await this.stateService.getTotalSupply();
     let totalRwa = await this.stateService.getTotalRwa();
-    await this.checkAdminBalance(vault.rwaAmount, totalRwa.dividedBy(MULTIPLIER));
+    await this.checkServiceBalance(vault.rwaAmount, totalRwa.dividedBy(MULTIPLIER));
     let balance = await this.stateService.getBalance(tx.sender);
     balance = add(balance, vault.eastAmount.multipliedBy(MULTIPLIER))
     totalSupply = add(totalSupply, vault.eastAmount.multipliedBy(MULTIPLIER));
@@ -418,7 +432,7 @@ export class RPCService {
 
     let totalRwa = await this.stateService.getTotalRwa();
 
-    await this.checkAdminBalance(subtract(newVault.rwaAmount, oldVault.rwaAmount), totalRwa.dividedBy(MULTIPLIER));
+    await this.checkServiceBalance(subtract(newVault.rwaAmount, oldVault.rwaAmount), totalRwa.dividedBy(MULTIPLIER));
     let balance = await this.stateService.getBalance(tx.sender);
     const diff = subtract(newVault.eastAmount, oldVault.eastAmount).multipliedBy(MULTIPLIER);
 
@@ -478,7 +492,7 @@ export class RPCService {
     await this.validate(CloseDto, param)
     // only contract creator allowed
     const { address, rwaTransferId, westTransferId } = param
-    await this.checkAdminPermissions(tx);
+    await this.checkServicePermissions(tx);
     const { rwaTokenId, rwaPart } = await this.stateService.getConfig();
 
     const { eastAmount, rwaAmount, westAmount } = await this.stateService.getVault(address);
@@ -607,8 +621,8 @@ export class RPCService {
     await this.validate(TransferDto, value)
     const { to, amount: _amount } = value
 
-    if(!this.isAddressValid(to, tx.sender)) {
-      throw new Error(`Invalid transfer target address: ${to}`);
+    if(!this.isAddressValid(to)) {
+      throw new Error(`Invalid transfer target address: '${to}'`);
     }
 
     const from = tx.sender
@@ -616,7 +630,7 @@ export class RPCService {
 
     let fromBalance = await this.stateService.getBalance(from);
     if (fromBalance.isLessThan(amount)) {
-      throw new Error(`Insufficient funds to transfer from "${from}": balance "${fromBalance.toString()}", amount "${amount}"`);
+      throw new Error(`Insufficient funds to transfer from '${from}': balance '${fromBalance.toString()}', amount '${amount}'`);
     }
     let toBalance = await this.stateService.getBalance(to);
 
@@ -728,7 +742,7 @@ export class RPCService {
 
   async claimOverpay(tx: Transaction, param: ClaimOverpayParam) {
     await this.validate(ClaimOverpayDto, param)
-    await this.checkAdminPermissions(tx);
+    await this.checkServicePermissions(tx);
 
     const { address, transferId, requestId } = param
     const vault = await this.stateService.getVault(address);
@@ -805,7 +819,11 @@ export class RPCService {
       liquidationCollateral: parseFloat(oldConfig.liquidationCollateral.toString()),
     } as ConfigDto
 
-    const config = {
+    if (newConfig.servicePublicKey) {
+      newConfig.serviceAddress = getAddressFromPublicKey(this.networkByte, newConfig.servicePublicKey)
+    }
+
+    let config = {
       ...oldConfigJson,
       ...newConfig
     } as ConfigDto
@@ -820,7 +838,7 @@ export class RPCService {
   }
 
   async writeLiquidationWestTransfer(tx: Transaction, param: WriteLiquidationWestTransferParam) {
-    await this.checkAdminPermissions(tx);
+    await this.checkServicePermissions(tx);
     const { address, timestamp } = param;
     return [
       {
@@ -915,6 +933,10 @@ export class RPCService {
 
     const auth = new Metadata();
     auth.set('authorization', auth_token);
+
+    if(!this.networkByte) {
+      this.networkByte = getNetworkByteFromAddress(tx.sender)
+    }
 
     this.stateService.setAuthData(auth, tx.contract_id);
 
