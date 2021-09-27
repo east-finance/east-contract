@@ -137,24 +137,24 @@ Promise.resolve().then(async () => {
 
   // Claim overpay init
 
-  const claimOverpayInit = await Waves.API.Transactions.CallContract.V4({
-    contractId,
-    contractVersion: 1,
-    timestamp: Date.now(),
-    params: [{
-      type: 'string',
-      key: 'claim_overpay_init',
-      value: '' // JSON.stringify({ maxWestToExchange: 10 })
-    }]
-  })
-
-  await claimOverpayInit.broadcast(user1Seed.keyPair);
-
-  const claimOverpayId = await claimOverpayInit.getId(user1Seed.keyPair.publicKey)
-  console.log('claimOverpayInit id', claimOverpayId)
-  console.log(`claimOverpayInit call: ${JSON.stringify(claimOverpayInit.getBody())}`);
-  console.log('Waiting 15 seconds...');
-  await sleep(15);
+  // const claimOverpayInit = await Waves.API.Transactions.CallContract.V4({
+  //   contractId,
+  //   contractVersion: 1,
+  //   timestamp: Date.now(),
+  //   params: [{
+  //     type: 'string',
+  //     key: 'claim_overpay_init',
+  //     value: '' // JSON.stringify({ maxWestToExchange: 10 })
+  //   }]
+  // })
+  //
+  // await claimOverpayInit.broadcast(user1Seed.keyPair);
+  //
+  // const claimOverpayId = await claimOverpayInit.getId(user1Seed.keyPair.publicKey)
+  // console.log('claimOverpayInit id', claimOverpayId)
+  // console.log(`claimOverpayInit call: ${JSON.stringify(claimOverpayInit.getBody())}`);
+  // console.log('Waiting 15 seconds...');
+  // await sleep(15);
 
   /**
    * User1 - Mint (buy EAST)
@@ -206,27 +206,53 @@ Promise.resolve().then(async () => {
    * Transfer from User1 to User2
    */
 
-  // const user2Seed = Waves.Seed.fromExistingPhrase('examples seed phrase another two');
-  //
-  // const transferCall = Waves.API.Transactions.CallContract.V4({
-  //   contractId,
-  //   contractVersion: 1,
-  //   timestamp: Date.now(),
-  //   params: [{
-  //     type: 'string',
-  //     key: 'transfer',
-  //     value: JSON.stringify({
-  //       to: user2Seed.address,
-  //       amount: 2
-  //     })
-  //   }]
-  // })
-  //
-  // await transferCall.broadcast(user1Seed.keyPair);
-  //
-  // console.log(`transfer call: ${JSON.stringify(transferCall.getBody())}`);
-  // console.log('Waiting 15 seconds...');
-  // await sleep(15);
+  const user2Seed = Waves.Seed.fromExistingPhrase('examples seed phrase another two');
+
+  const transferCall = Waves.API.Transactions.CallContract.V4({
+    contractId,
+    contractVersion: 1,
+    timestamp: Date.now(),
+    params: [{
+      type: 'string',
+      key: 'transfer',
+      value: JSON.stringify({
+        to: user2Seed.address,
+        amount: 2
+      })
+    }]
+  })
+
+  await transferCall.broadcast(user1Seed.keyPair);
+
+  const txId = await transferCall.getId(user1Seed.keyPair.publicKey)
+  console.log(`transfer call id: ${txId}`);
+  console.log('Waiting 15 seconds...');
+  await sleep(15);
+
+  /**
+   * Transfer back from User2 to User1
+   */
+
+  const transferCall2 = Waves.API.Transactions.CallContract.V4({
+    contractId,
+    contractVersion: 1,
+    timestamp: Date.now(),
+    params: [{
+      type: 'string',
+      key: 'transfer',
+      value: JSON.stringify({
+        to: user1Seed.address,
+        amount: 2
+      })
+    }]
+  })
+
+  await transferCall2.broadcast(user2Seed.keyPair);
+
+  const transferId2 = await transferCall2.getId(user2Seed.keyPair.publicKey)
+  console.log(`Transfer back call id: ${transferId2}`);
+  console.log('Waiting 15 seconds...');
+  await sleep(15);
 
   /*
   * Close init
