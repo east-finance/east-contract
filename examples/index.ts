@@ -92,8 +92,7 @@ Promise.resolve().then(async () => {
 
   await oracleRatesInitialCall.broadcast(ownerSeed.keyPair);
 
-  console.log(`Oracle initial call: ${JSON.stringify(oracleRatesInitialCall.getBody())}`);
-  console.log('Waiting 15 seconds...');
+  console.log(`Oracle initial call: ${await oracleRatesInitialCall.getId(ownerSeed.keyPair.publicKey)}`);
   await sleep(15);
 
   const txBody: Parameters<typeof Waves.API.Transactions.CreateContract.V4>[0] = {
@@ -128,9 +127,9 @@ Promise.resolve().then(async () => {
   const tx = Waves.API.Transactions.CreateContract.V3(txBody);
   await tx.broadcast(ownerSeed.keyPair);
 
-  console.log('Tx 103: ', tx.getBody());
-  console.log('Waiting 60 seconds...');
-  await sleep(60);
+  console.log('Create EAST contract id ', await tx.getId(ownerSeed.keyPair.publicKey));
+  console.log('Waiting 40 seconds...');
+  await sleep(40);
 
   const contractId = await tx.getId();
   const user1Seed = Waves.Seed.fromExistingPhrase('examples seed phrase another one');
@@ -198,8 +197,7 @@ Promise.resolve().then(async () => {
     user1Seed.keyPair
   );
 
-  console.log(`Atomic mint call: ${JSON.stringify(mint1Atomic)}`);
-  console.log('Waiting 15 seconds...');
+  console.log(`Atomic (Transfer + Mint), mint txId: ${await mintCall.getId(user1Seed.keyPair.publicKey)}`);
   await sleep(15);
 
   /**
@@ -217,16 +215,13 @@ Promise.resolve().then(async () => {
       key: 'transfer',
       value: JSON.stringify({
         to: user2Seed.address,
-        amount: 2
+        amount: 1
       })
     }]
   })
 
   await transferCall.broadcast(user1Seed.keyPair);
-
-  const txId = await transferCall.getId(user1Seed.keyPair.publicKey)
-  console.log(`transfer call id: ${txId}`);
-  console.log('Waiting 15 seconds...');
+  console.log(`Transfer user1 to user2 call id: ${await transferCall.getId(user1Seed.keyPair.publicKey)}`);
   await sleep(15);
 
   /**
@@ -242,16 +237,13 @@ Promise.resolve().then(async () => {
       key: 'transfer',
       value: JSON.stringify({
         to: user1Seed.address,
-        amount: 2
+        amount: 1
       })
     }]
   })
 
   await transferCall2.broadcast(user2Seed.keyPair);
-
-  const transferId2 = await transferCall2.getId(user2Seed.keyPair.publicKey)
-  console.log(`Transfer back call id: ${transferId2}`);
-  console.log('Waiting 15 seconds...');
+  console.log(`Transfer user2 to user1 call id:: ${await transferCall2.getId(user2Seed.keyPair.publicKey)}`);
   await sleep(15);
 
   /*
@@ -330,11 +322,7 @@ Promise.resolve().then(async () => {
     user1Seed.keyPair
   );
 
-  const reissueId = await reissueCall.getId(user1Seed.keyPair.publicKey)
-
-  console.log(`Atomic supply call: ${JSON.stringify(supplyAtomic)}`);
-  console.log(`reissueId: ${reissueId}`);
-  console.log('Waiting 15 seconds...');
+  console.log(`Atomic supply call, reissue txId: ${await reissueCall.getId(user1Seed.keyPair.publicKey)}`);
   await sleep(15);
   //
   // const oracleRatesDumpCall = Waves.API.Transactions.CallContract.V4({
