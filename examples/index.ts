@@ -39,12 +39,10 @@ Promise.resolve().then(async () => {
   // const imageHash = 'e8569229b08f9b78f61914d86c423515cf8f1133a665afa0ae443a1a75b5f871'
   console.log(`Building docker image ${imageName}, HOST_NETWORK=${hostIp}`);
   await execute(`docker build --build-arg HOST_NETWORK=${hostIp} -t ${imageName} .`);
-  console.log('Build image done');
-
   const inspectResult = await execute(`docker inspect ${imageName}`);
   const inspectData = JSON.parse(inspectResult)[0];
   const imageHash = inspectData.Id.replace('sha256:', '');
-  console.log('imageHash', imageHash);
+  console.log('Build image done, image hash: ', imageHash);
 
   // @ts-ignore
   const { chainId, minimumFee } = await (await fetch(`${nodeAddress}/node/config`)).json();
@@ -275,7 +273,7 @@ Promise.resolve().then(async () => {
   const supplyTransfer = Waves.API.Transactions.Transfer.V3({
     recipient: serviceAddress,
     assetId: '',
-    amount: 2 * 100000000,
+    amount: 2 * Math.pow(10, 8),
     timestamp: Date.now(),
     attachment: '',
     fee: minimumFee[4],
@@ -310,7 +308,7 @@ Promise.resolve().then(async () => {
     params: [{
       type: 'string',
       key: 'reissue',
-      value: JSON.stringify({ maxWestToExchange: 10 })
+      value: JSON.stringify({ maxWestToExchange: 100 * Math.pow(10, 8) })
     }],
     atomicBadge: {
       trustedSender: user1Seed.address

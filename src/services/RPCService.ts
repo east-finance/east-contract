@@ -409,7 +409,7 @@ export class RPCService {
     if (param.maxWestToExchange !== undefined) {
       maxWestToExchange = new BigNumber(param.maxWestToExchange.toString()).dividedBy(MULTIPLIER);
       if (maxWestToExchange.isGreaterThan(limit)) {
-        throw new Error(`"maxWestToExchange" must be less than or equal ${limit.toString()}`)
+        maxWestToExchange = limit
       }
     } else {
       maxWestToExchange = limit
