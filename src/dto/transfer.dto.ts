@@ -9,10 +9,10 @@ export class TransferDto implements TransferParam {
     {
       allowInfinity: false,
       allowNaN: false,
-      maxDecimalPlaces: 8,
+      maxDecimalPlaces: 0,
     },
     {
-      message: '$property must be a number (decimal) with no more than 8 decimal places'
+      message: '$property must be a positive integer number'
     }
   )
   @IsPositive()

@@ -78,10 +78,11 @@ Transfers an amount of EAST to a specified address
 
 <b>Method permission:</b>
 An EAST token owner only
+
 <b>Method body:</b>
 ```js
   to: string, // recipient
-  amount: number
+  amount: number // integer positive number
 ```  
 <b>Results of execution:</b>
 - the values of `balance_${address}` balance keys are updated for the sender and the recipient
