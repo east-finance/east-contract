@@ -478,6 +478,10 @@ export class RPCService {
       throw new Error(`Insufficient funds on address '${tx.sender}' to close vault. Required EAST balance: '${eastLockedInVault.toString()}', on balance: '${eastBalance.toString()}'`);
     }
 
+    if (vault.westAmount.isLessThan(new BigNumber(CLOSE_COMISSION))) {
+      throw new Error(`Vault westAmount should be more or equal than close serviceFee, got: '${vault.westAmount.toString()}'`)
+    }
+
     vault.isBlocked = true;
 
     return [
