@@ -867,12 +867,13 @@ export class RPCService {
   }
 
   async checkVaultBlock(vaultId: string) {
-    const vault = await this.stateService.getVault(vaultId);
-    if (!vault) {
-      throw new Error(`Cannot perform operation: vault '${vaultId}' doesn't exists.`)
-    }
-    if (vault.isBlocked) {
-      throw new Error(`Cannot perform operation: vault '${vaultId}' is blocked.`)
+    try {
+      const vault = await this.stateService.getVault(vaultId);
+      if (vault.isBlocked) {
+        throw new Error(`Cannot perform operation: vault '${vaultId}' is blocked.`)
+      }
+    } catch (e) {
+      throw new Error(`Cannot perform operation: vault '${vaultId}' doesn't exist.`)
     }
   }
 
