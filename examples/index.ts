@@ -89,7 +89,6 @@ Promise.resolve().then(async () => {
   });
 
   await oracleRatesInitialCall.broadcast(ownerSeed.keyPair);
-
   console.log(`Oracle initial call: ${await oracleRatesInitialCall.getId(ownerSeed.keyPair.publicKey)}`);
   await sleep(15);
 
@@ -126,8 +125,8 @@ Promise.resolve().then(async () => {
   await tx.broadcast(ownerSeed.keyPair);
 
   console.log('Create EAST contract id ', await tx.getId(ownerSeed.keyPair.publicKey));
-  console.log('Waiting 40 seconds...');
-  await sleep(40);
+  console.log('Waiting 30 seconds...');
+  await sleep(30);
 
   const contractId = await tx.getId();
   const user1Seed = Waves.Seed.fromExistingPhrase('examples seed phrase another one');
@@ -244,28 +243,6 @@ Promise.resolve().then(async () => {
   console.log(`Transfer user2 to user1 call id:: ${await transferCall2.getId(user2Seed.keyPair.publicKey)}`);
   await sleep(15);
 
-  /*
-  * Close init
-  * */
-
-  // const closeInitCall = await Waves.API.Transactions.CallContract.V4({
-  //   contractId,
-  //   contractVersion: 1,
-  //   timestamp: Date.now(),
-  //   params: [{
-  //     type: 'string',
-  //     key: 'close_init',
-  //     value: ''
-  //   }]
-  // })
-  //
-  // await closeInitCall.broadcast(user1Seed.keyPair);
-  //
-  // const id = await closeInitCall.getId(user1Seed.keyPair.publicKey)
-  // console.log('closeInitCall id', id)
-  // console.log('Waiting 15 seconds...');
-  // await sleep(15);
-
   /**
    *  User1 supply vault
    */
@@ -308,7 +285,7 @@ Promise.resolve().then(async () => {
     params: [{
       type: 'string',
       key: 'reissue',
-      value: JSON.stringify({ maxWestToExchange: 100 * Math.pow(10, 8) })
+      value: JSON.stringify({ maxWestToExchange: 0.01 * Math.pow(10, 8) })
     }],
     atomicBadge: {
       trustedSender: user1Seed.address
@@ -321,6 +298,43 @@ Promise.resolve().then(async () => {
   );
 
   console.log(`Atomic supply call, reissue txId: ${await reissueCall.getId(user1Seed.keyPair.publicKey)}`);
+  await sleep(15);
+
+  // Claim overpay init
+  const claimOverpayInit = await Waves.API.Transactions.CallContract.V4({
+    contractId,
+    contractVersion: 1,
+    timestamp: Date.now(),
+    params: [{
+      type: 'string',
+      key: 'claim_overpay_init',
+      value: '' // JSON.stringify({ amount: 10 })
+    }]
+  })
+
+  await claimOverpayInit.broadcast(user1Seed.keyPair);
+
+  console.log(`claimOverpayInit call id: ${await claimOverpayInit.getId(user1Seed.keyPair.publicKey)}`);
+  // console.log('Waiting 15 seconds...');
+  await sleep(1);
+
+  /*
+  * Close init
+  * */
+  const closeInitCall = await Waves.API.Transactions.CallContract.V4({
+    contractId,
+    contractVersion: 1,
+    timestamp: Date.now(),
+    params: [{
+      type: 'string',
+      key: 'close_init',
+      value: ''
+    }]
+  })
+
+  await closeInitCall.broadcast(user1Seed.keyPair);
+  console.log(`closeInitCall txId: ${await closeInitCall.getId(user1Seed.keyPair.publicKey)}`)
+  console.log('Waiting 15 seconds...');
   await sleep(15);
   //
   // const oracleRatesDumpCall = Waves.API.Transactions.CallContract.V4({
