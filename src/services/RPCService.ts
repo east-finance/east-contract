@@ -741,7 +741,13 @@ export class RPCService {
       throw new Error(`Vault for user ${tx.sender} closed or doens't exists`);
     }
 
-    return []
+    const vault = await this.stateService.getVault(tx.sender);
+    vault.isBlocked = true;
+
+    return [      {
+      key: `${StateKeys.vault}_${tx.sender}`,
+      string_value: stringifyVault(vault)
+    },]
   }
 
   async claimOverpay(tx: Transaction, param: ClaimOverpayParam) {
@@ -800,6 +806,7 @@ export class RPCService {
     }
 
     vault.westAmount = newWestAmount;
+    vault.isBlocked = false;
 
     return [
       {
@@ -860,13 +867,12 @@ export class RPCService {
   }
 
   async checkVaultBlock(vaultId: string) {
-    try {
-      const vault = await this.stateService.getVault(vaultId);
-      if (vault.isBlocked) {
-        throw new Error(`Cannot perform operation: vault '${vaultId}' is blocked.`)
-      }
-    } catch (e) {
-      throw new Error(`Cannot perform operation: vault '${vaultId}' doesn't exist.`)
+    const vault = await this.stateService.getVault(vaultId);
+    if (!vault) {
+      throw new Error(`Cannot perform operation: vault '${vaultId}' doesn't exists.`)
+    }
+    if (vault.isBlocked) {
+      throw new Error(`Cannot perform operation: vault '${vaultId}' is blocked.`)
     }
   }
 
