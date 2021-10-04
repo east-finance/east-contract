@@ -878,7 +878,7 @@ export class RPCService {
         throw new Error(`Cannot perform operation: vault '${vaultId}' is blocked.`)
       }
     } catch (e) {
-      throw new Error(`Cannot perform operation: vault '${vaultId}' doesn't exist.`)
+      throw new Error(`Cannot perform operation: vault '${vaultId}' is blocked or doesn't exist.`)
     }
   }
 
