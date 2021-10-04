@@ -625,6 +625,11 @@ export class RPCService {
     await this.validate(TransferDto, value)
     const { to, amount: _amount } = value
 
+    const vaultExists = await this.stateService.isVaultExists(tx.sender);
+    if (vaultExists) {
+      await this.checkVaultBlock(tx.sender)
+    }
+
     if(!this.isAddressValid(to)) {
       throw new Error(`Invalid transfer target address: '${to}'`);
     }
@@ -873,7 +878,7 @@ export class RPCService {
         throw new Error(`Cannot perform operation: vault '${vaultId}' is blocked.`)
       }
     } catch (e) {
-      throw new Error(`Cannot perform operation: vault '${vaultId}' doesn't exist.`)
+      throw new Error(`Cannot perform operation: vault '${vaultId}' is blocked or doesn't exist.`)
     }
   }
 
@@ -887,7 +892,6 @@ export class RPCService {
         await this.checkIsContractEnabled();
       }
       if ([
-        Operations.transfer,
         Operations.reissue,
         Operations.close_init,
         Operations.claim_overpay_init,
