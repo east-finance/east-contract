@@ -887,6 +887,7 @@ export class RPCService {
         await this.checkIsContractEnabled();
       }
       if ([
+        Operations.transfer,
         Operations.reissue,
         Operations.close_init,
         Operations.claim_overpay_init,
