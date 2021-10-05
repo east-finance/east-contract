@@ -81,7 +81,7 @@ const WEST_ORACLE_STREAM = '000003_latest'
 const RWA_ORACLE_STREAM = '000010_latest'
 const MINIMUM_EAST_AMOUNT_TO_BUY = 1
 const CLAIM_OVERPAY_COMISSION = 0.2
-const CLOSE_COMISSION = 0.3
+const CLOSE_COMISSION = 0.2
 const CLAIM_OVERPAY_INACCURACY = 1.05
 
 export class RPCService {
@@ -409,7 +409,7 @@ export class RPCService {
     if (param.maxWestToExchange !== undefined) {
       maxWestToExchange = new BigNumber(param.maxWestToExchange.toString()).dividedBy(MULTIPLIER);
       if (maxWestToExchange.isGreaterThan(limit)) {
-        throw new Error(`"maxWestToExchange" must be less than or equal ${limit.toString()}`)
+        maxWestToExchange = limit
       }
     } else {
       maxWestToExchange = limit
@@ -476,6 +476,10 @@ export class RPCService {
     const eastLockedInVault = vault.eastAmount.multipliedBy(MULTIPLIER);
     if (eastBalance.isLessThan(eastLockedInVault)) {
       throw new Error(`Insufficient funds on address '${tx.sender}' to close vault. Required EAST balance: '${eastLockedInVault.toString()}', on balance: '${eastBalance.toString()}'`);
+    }
+
+    if (vault.westAmount.isLessThan(new BigNumber(CLOSE_COMISSION))) {
+      throw new Error(`Vault westAmount should be more or equal than close serviceFee, got: '${vault.westAmount.toString()}'`)
     }
 
     vault.isBlocked = true;
@@ -621,6 +625,11 @@ export class RPCService {
     await this.validate(TransferDto, value)
     const { to, amount: _amount } = value
 
+    const vaultExists = await this.stateService.isVaultExists(tx.sender);
+    if (vaultExists) {
+      await this.checkVaultBlock(tx.sender)
+    }
+
     if(!this.isAddressValid(to)) {
       throw new Error(`Invalid transfer target address: '${to}'`);
     }
@@ -737,7 +746,13 @@ export class RPCService {
       throw new Error(`Vault for user ${tx.sender} closed or doens't exists`);
     }
 
-    return []
+    const vault = await this.stateService.getVault(tx.sender);
+    vault.isBlocked = true;
+
+    return [      {
+      key: `${StateKeys.vault}_${tx.sender}`,
+      string_value: stringifyVault(vault)
+    },]
   }
 
   async claimOverpay(tx: Transaction, param: ClaimOverpayParam) {
@@ -796,6 +811,7 @@ export class RPCService {
     }
 
     vault.westAmount = newWestAmount;
+    vault.isBlocked = false;
 
     return [
       {
@@ -862,7 +878,7 @@ export class RPCService {
         throw new Error(`Cannot perform operation: vault '${vaultId}' is blocked.`)
       }
     } catch (e) {
-      throw new Error(`Cannot perform operation: vault '${vaultId}' doesn't exist.`)
+      throw new Error(`Cannot perform operation: vault '${vaultId}' is blocked or doesn't exist.`)
     }
   }
 
