@@ -1,5 +1,6 @@
 import { exec } from 'child_process';
 import nodeFetch from 'node-fetch';
+import { TxStatus } from './constants';
 
 export const execute = (command: string): Promise<string> => {
   return new Promise((resolve, reject) => {
@@ -14,7 +15,7 @@ export const execute = (command: string): Promise<string> => {
 };
 
 export const sleep = (timeout: number): Promise<void>=> {
-  return new Promise(resolve=> {
+  return new Promise(resolve => {
     setTimeout(resolve, timeout * 1000);
   });
 }
@@ -36,4 +37,25 @@ export async function getTxStatus(nodeAddress: string, txId: string) {
   }
   const statuses = await data.json()
   return statuses[0]
+}
+
+export async function waitForTxStatus(nodeAddress: string, txId: string): Promise<{ status: TxStatus }> {
+  let status = null
+  for(let i = 0; i < 60; i++) {
+    try {
+      const statusData = await getTxStatus(nodeAddress, txId)
+      if (statusData) {
+        status = statusData
+        break
+      } else {
+        await sleep(0.5)
+      }
+    } catch (e) {
+      await sleep(0.5)
+    }
+  }
+  if (!status) {
+    throw new Error('Failed to get tx status')
+  }
+  return status
 }

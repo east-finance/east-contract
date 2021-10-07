@@ -10,11 +10,9 @@ import {
   createWestTransfer,
   createReissueDockerCall
 } from './transactionsFactory';
-import { execute, fetch, getTxStatus, sleep } from './utils';
+import { waitForTxStatus } from './utils';
 
 jest.setTimeout(15 * 60 * 1000)
-
-const CallTimeout = 12
 
 let imageHash = '59c1500b60e31fb3131245274ba5eff683f498aaa18e97d20962ec589dd00098'
 let wavesApi: WeSdk
@@ -41,68 +39,39 @@ describe("Create EAST contract", () => {
     eastContractId = await createEAST(wavesApi, imageHash)
     expect(typeof eastContractId).toBe('string');
     expect(eastContractId.length).toBeGreaterThan(0);
-
-    await sleep(15)
-
-    const createStatus = await getTxStatus(nodeAddress, eastContractId)
+    const createStatus = await waitForTxStatus(nodeAddress, eastContractId)
     expect(createStatus.status).toBe(TxStatus.success);
   });
 });
 
 describe("EAST mint", () => {
-  test('Mint with less than 1 EAST (should be failed)', async () => {
-    const transfer = createWestTransfer(wavesApi, { amount: 0.01 * Math.pow(10, 8), recipient: serviceSeed.address, senderSeed: user1Seed })
+  const basicMint = async (amount = 5 * Math.pow(10, 8)) => {
+    const transfer = createWestTransfer(wavesApi, { amount, recipient: serviceSeed.address, senderSeed: user1Seed })
     const transferId = await transfer.getId()
     const mint = createMintDockerCall(wavesApi, eastContractId, transferId, user1Seed)
     const mintTxId = await mint.getId()
-    const transactions = [transfer, mint]
-
-    const result = await wavesApi.API.Transactions.broadcastAtomic(
-      wavesApi.API.Transactions.Atomic.V1({transactions}),
+    await wavesApi.API.Transactions.broadcastAtomic(
+      wavesApi.API.Transactions.Atomic.V1({transactions: [transfer, mint]}),
       user1Seed.keyPair
     );
+    const mintStatus = await waitForTxStatus(nodeAddress, mintTxId)
+    return mintStatus
+  }
 
-    await sleep(CallTimeout);
-    const mintStatus = await getTxStatus(nodeAddress, mintTxId)
-    expect(typeof mintTxId).toBe('string');
+  test('Mint with less than 1 EAST (should be failed)', async () => {
+    const mintStatus = await basicMint(0.01 * Math.pow(10, 8))
     expect(mintStatus.status).toBe(TxStatus.error);
   });
 
   test('Mint', async () => {
-    const transfer = createWestTransfer(wavesApi, { amount: 5 * 100000000, recipient: serviceSeed.address, senderSeed: user1Seed })
-    const transferId = await transfer.getId()
-    const mint = createMintDockerCall(wavesApi, eastContractId, transferId, user1Seed)
-    const mintTxId = await mint.getId()
-    const transactions = [transfer, mint]
-
-    const result = await wavesApi.API.Transactions.broadcastAtomic(
-      wavesApi.API.Transactions.Atomic.V1({transactions}),
-      user1Seed.keyPair
-    );
-
-    await sleep(CallTimeout);
-    const mintStatus = await getTxStatus(nodeAddress, mintTxId)
-    expect(typeof mintTxId).toBe('string');
+    const mintStatus = await basicMint(5 * Math.pow(10, 8))
     expect(mintStatus.status).toBe(TxStatus.success);
   });
 
-  test('Mint with existed vault (should be failed)', async () => {
-    const transfer = createWestTransfer(wavesApi, { amount: 5 * 100000000, recipient: serviceSeed.address, senderSeed: user1Seed })
-    const transferId = await transfer.getId()
-    const mint = createMintDockerCall(wavesApi, eastContractId, transferId, user1Seed)
-    const mintTxId = await mint.getId()
-    const transactions = [transfer, mint]
-
-    const result = await wavesApi.API.Transactions.broadcastAtomic(
-      wavesApi.API.Transactions.Atomic.V1({transactions}),
-      user1Seed.keyPair
-    );
-
-    await sleep(CallTimeout);
-    const mintStatus = await getTxStatus(nodeAddress, mintTxId)
-    expect(typeof mintTxId).toBe('string');
-    expect(mintStatus.status).toBe(TxStatus.error);
-  });
+  // test('Mint with existed vault (should be failed)', async () => {
+  //   const mintStatus = await basicMint(5 * Math.pow(10, 8))
+  //   expect(mintStatus.status).toBe(TxStatus.error);
+  // });
 })
 
 describe("EAST supply", () => {
@@ -117,10 +86,7 @@ describe("EAST supply", () => {
       wavesApi.API.Transactions.Atomic.V1({transactions: [transfer, supply, reissue]}),
       user1Seed.keyPair
     );
-
-    await sleep(CallTimeout)
-
-    const txStatus = await getTxStatus(nodeAddress, reissueId)
+    const txStatus = await waitForTxStatus(nodeAddress, reissueId)
     expect(txStatus.status).toBe(TxStatus.success);
   });
 })
@@ -130,8 +96,7 @@ describe("EAST transfer", () => {
     const transfer = createTransferDockerCall(wavesApi, eastContractId, user2Seed.address, 1)
     const transferId = await transfer.getId(user1Seed.keyPair.publicKey)
     await transfer.broadcast(user1Seed.keyPair);
-    await sleep(CallTimeout)
-    const txStatus = await getTxStatus(nodeAddress, transferId)
+    const txStatus = await waitForTxStatus(nodeAddress, transferId)
     expect(txStatus.status).toBe(TxStatus.success);
   });
 
@@ -139,8 +104,15 @@ describe("EAST transfer", () => {
     const transfer = createTransferDockerCall(wavesApi, eastContractId, user1Seed.address, 1)
     const transferId = await transfer.getId(user2Seed.keyPair.publicKey)
     await transfer.broadcast(user2Seed.keyPair);
-    await sleep(CallTimeout)
-    const txStatus = await getTxStatus(nodeAddress, transferId)
+    const txStatus = await waitForTxStatus(nodeAddress, transferId)
     expect(txStatus.status).toBe(TxStatus.success);
+  });
+
+  test('Transfer from user2 to user1 again (should be failed)', async () => {
+    const transfer = createTransferDockerCall(wavesApi, eastContractId, user1Seed.address, 1)
+    const transferId = await transfer.getId(user2Seed.keyPair.publicKey)
+    await transfer.broadcast(user2Seed.keyPair);
+    const txStatus = await waitForTxStatus(nodeAddress, transferId)
+    expect(txStatus.status).toBe(TxStatus.error);
   });
 })
