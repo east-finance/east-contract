@@ -39,23 +39,50 @@ export async function getTxStatus(nodeAddress: string, txId: string) {
   return statuses[0]
 }
 
-export async function waitForTxStatus(nodeAddress: string, txId: string): Promise<{ status: TxStatus }> {
+export async function getContractState(nodeAddress: string, contractId: string) {
+  const data = await fetch(`${nodeAddress}/contracts/${contractId}?offset=${0}&limit=${100}`, {
+    method: 'GET',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+  });
+  if (data.status !== 200) {
+    throw new Error('Failed to fetch.')
+  }
+  return data.json()
+}
+
+export interface IContractStateValue {
+  type: string;
+  key: string;
+  value: string;
+}
+
+export async function getContractStateKeyValue(nodeAddress: string, contractId: string, key: string): Promise<IContractStateValue> {
+  const data = await fetch(`${nodeAddress}/contracts/${contractId}/${key}`, {
+    method: 'GET',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+  });
+  if (data.status !== 200) {
+    throw new Error('getContractStateKeyValue: failed to fetch')
+  }
+  return data.json()
+}
+
+export async function waitForTxStatus(nodeAddress: string, txId: string): Promise<{ status: TxStatus, message: string }> {
   let status = null
-  for(let i = 0; i < 60; i++) {
+  for(let i = 0; i < 60 * 10; i++) {
     try {
-      const statusData = await getTxStatus(nodeAddress, txId)
-      if (statusData) {
-        status = statusData
-        break
-      } else {
-        await sleep(0.5)
-      }
+      status = await getTxStatus(nodeAddress, txId)
+      break
     } catch (e) {
-      await sleep(0.5)
+      await sleep(0.1)
     }
   }
   if (!status) {
-    throw new Error('Failed to get tx status')
+    throw new Error(`Failed to get tx status '${txId}'`)
   }
   return status
 }

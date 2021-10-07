@@ -8,7 +8,7 @@ export interface IWestTransferParams {
   senderSeed: Seed
 }
 
-export const oracleDockerCall = (wavesApi: WeSdk, contractId: string, senderSeed: Seed, westRates = '1') => {
+export const createOracleRatesCall = (wavesApi: WeSdk, contractId: string, senderSeed: Seed, westRates = '1') => {
   return wavesApi.API.Transactions.CallContract.V4({
     contractId,
     contractVersion: 1,
@@ -76,8 +76,8 @@ export const createTransferDockerCall = (wavesApi: WeSdk, contractId: string, to
   });
 }
 
-export const createSupplyDockerCall = (wavesApi: WeSdk, contractId: string, transferId: string, senderSeed: Seed) => {
-  return wavesApi.API.Transactions.CallContract.V4({
+export const createSupplyDockerCall = (wavesApi: WeSdk, contractId: string, transferId: string, senderSeed: Seed, isAtomic = true) => {
+  const txBody: any = {
     contractId,
     contractVersion: 1,
     senderPublicKey: senderSeed.keyPair.publicKey,
@@ -88,15 +88,18 @@ export const createSupplyDockerCall = (wavesApi: WeSdk, contractId: string, tran
       value: JSON.stringify({
         transferId
       })
-    }],
-    atomicBadge: {
+    }]
+  }
+  if(isAtomic) {
+    txBody.atomicBadge = {
       trustedSender: senderSeed.address
     }
-  });
+  }
+  return wavesApi.API.Transactions.CallContract.V4(txBody);
 }
 
-export const createReissueDockerCall = (wavesApi: WeSdk, contractId: string, senderSeed: Seed, maxWestToExchange: number | undefined) => {
-  return wavesApi.API.Transactions.CallContract.V4({
+export const createReissueDockerCall = (wavesApi: WeSdk, contractId: string, senderSeed: Seed, maxWestToExchange: number | undefined, isAtomic = true) => {
+  const txBody: any = {
     contractId,
     contractVersion: 1,
     timestamp: Date.now(),
@@ -104,9 +107,25 @@ export const createReissueDockerCall = (wavesApi: WeSdk, contractId: string, sen
       type: 'string',
       key: 'reissue',
       value: JSON.stringify({ maxWestToExchange })
-    }],
-    atomicBadge: {
+    }]
+  }
+  if (isAtomic) {
+    txBody.atomicBadge = {
       trustedSender: senderSeed.address
     }
+  }
+  return wavesApi.API.Transactions.CallContract.V4(txBody)
+}
+
+export const createUpdateConfigDockerCall = (wavesApi: WeSdk, contractId: string, params: Record<any, string | number | boolean>) => {
+  return wavesApi.API.Transactions.CallContract.V4({
+    contractId,
+    contractVersion: 1,
+    timestamp: Date.now(),
+    params: [{
+      type: 'string',
+      key: 'update_config',
+      value: JSON.stringify(params)
+    }]
   })
 }
