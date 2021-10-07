@@ -12,7 +12,7 @@
     "start": "node build/index.js",
     "logger": "node examples/logger.js",
     "lint": "eslint '*/**/*.{ts}' --quiet --fix",
-    "test": "jest",
+    "test": "jest -i src/tests/e2e/e2e.spec.ts -t",
     "cc": "ts-node src/tests/scripts/create-contract.ts",
     "cu": "ts-node src/tests/scripts/create-users.ts",
     "rb": "ts-node src/tests/scripts/refresh-user-balnces.ts",
