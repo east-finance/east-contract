@@ -223,9 +223,12 @@ The smart contract owner (the Automation Service)
 <b>Results of execution:</b>
 - `config` key of the contract that stores parameters is updated
 
-### Smart contract testing
+## Running tests
 Requirements: Docker, NodeJs
 
+#### NOTE: Parts 1-3 must be completed only when the sandbox is first set up
+
+### Part 1. Configure sandbox
 1) Install the node sandbox to <sandbox_dir>: https://docs.wavesenterprise.com/ru/latest/how-to-setup/sandbox.html
 2) Update the `docker-engine` section of the node config, that is to be found in `<sandbox_dir>/config/nodes/node-*/node.conf`, as follows:
     ```
@@ -256,108 +259,43 @@ Requirements: Docker, NodeJs
       101 = 0
       120 = 0
       140 = 0
+      162 = 0
     }
     ```
-3) Restart the node via the Docker-compose
-4) Issue permissions for the `3NdqnzceY42SdwC9rYA1HgdkDkRc6DnWug6U` address to publish contracts
-5) Transfer WEST tokens to the `3NdqnzceY42SdwC9rYA1HgdDkRc6DnWug6U` address
-6) Run the logger: `npm run logger`
-7) Build the test contract image and watch logger the output:
-   `npm run test`
+3) Restart docker-compose
+4) Check that node is running and available: http://localhost/node-0/api-docs/index.html#/
 
-### Create docker image and push it to registry
+### Part 2. Configure permissions and balances
+1) Go to blockchain client (http://localhost/) and transfer WEST tokens to addresses created from following seed phrases:
+
+```
+admin seed phrase // 1000 WEST
+service seed phrase // 1000 WEST
+user1 seed phrase // 100 WEST
+user2 seed phrase // 100 WEST
+```
+
+Seed phrases used in tests can be modified in `src/e2e/tests/constants.ts`
+
+2) Grant `contract_developer` and `issuer` permissions to address from seed phrase `admin seed phrase`
+
+### Part 3. Create oracles contract and USDap token
+
+#### To following operations use `admin seed phrase` account:
+
+1) Create oracle docker contract using image `grpc-contract-example:v2.2`. Write id of new contract to `oracleContractId` variable in file `src/e2e/tests/constants.ts`
+2) Issue new native token named RWAToken. Write id of new token to `rwaTokenId` variable in file `src/e2e/tests/constants.ts`
+
+### Part 4. Run test suite
+```
+npm i
+npm run test
+```
+
+### Manually create docker image and push it to registry
 ```
 docker login registry.wvservices.com
 docker build -t east-contract:0.6-RC1 .
 docker tag east-contract:0.6-RC1 registry.wvservices.com/vostok-sc/east-contract:0.6-RC1 
 docker push registry.wvservices.com/vostok-sc/east-contract:0.6-RC1 
 ```
-
-
-```
-ipconfig getifaddr en0
-docker build --build-arg HOST_NETWORK=192.168.1.3 -t vostok-sc/east-contract:0.8-RC6 .
-```
-
-##### Get image hash
-`docker inspect east-contract:0.1` -> "Id"
-
-
-### Autotests
-
-#### Create file east.config.json
-```json
-{
-  "oracleTimestampMaxDiff": 1000000000,
-  "rwaPart": 0,
-  "westCollateral": 2.5,
-  "liquidationCollateral": 1.3,
-  "minHoldTime": 1000,
-  "isContractEnabled": true,
-  "decimals": 8
-}
-
-```
-
-#### env variables:
-
-The file with the environment variables is to be located in the project root folder and called `.env.test`.
-
-```
-IS_TESTING_ENV="true"
-
-NODE_ADDRESS="http://localhost/node-0"
-
-AUTH_SERVICE_ADDRESS="http://localhost/authServiceAddress"
-
-AUTH_USERNAME="mtokarev@web3tech.ru"
-AUTH_PASSWORD="9m&A;nC{=bwe'+5YcHREL$oie=9u0R-N&CqaQm"
-
-SEED_PHRASE="examples seed phrase" # the contract owner seed phrase
-
-IMAGE_NAME="vostok-sc/east-contract:0.8"
-IMAGE_HASH="f6786c5735f3cfa19f744ac4511f9091c52a40b1748f37b1d284cedd7c4b28e6"
-
-ORACLE_CONTRACT_ID="8BTtjyn1yr2zt6yCygDUtYJbeRbL1GgWSwxV8yeB9cjZ"
-
-RWA_TOKEN_ID="9v1RL1YQNpsqhKHYQAsLzmhmipkrarYumSonfkRxw5i5"
-
- # OPTIONAL
-CONTRACT_ID="2w7SWWkv4SjChL8Dr2hGg4TP9sNVzh6LXu7fKDtdhVLF"
-
-PATH_TO_USER_SEEDS="./user-seeds.json" # DEPRECATED
-
-EAST_SERVICE_ADDRESS="http://localhost:3000"
-```
-
-#### Preparing autotests to start
-
-1. Run the logger: `npm run logger`
-2. Copy your IP address: `ipconfig getifaddr en0`
-3. Build the Docker image: `docker build --build-arg HOST_NETWORK=<your_IP_address> -t <IMAGE_NAME_VARIABLE> .`
-4. Copy the hash from the output of the previous command
-```
- => => writing image sha256:f6786c5735f3cfa19f744ac4511f9091c52a40b1748f37b1d284cedd7c4b28e6
-                            ================================================================
-                            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^                                                   
-```
-5. Paste the `IMAGE_NAME` and `IMAGE_HASH` values into the environment variables.
-6. Run the command `npm run cc`
-7. Copy the `txId` from the output of the previous command and paste it to the `CONTRACT_ID` variable in the EAST contract. Paste the copied `txId` into the `EAST_CONTRACT_ID` variable of the EAST service.
-8. Run the EAST service.
-
-#### Commands for running the tests
-- npx ts-node src/tests/liquidate.ts
-- npx ts-node src/tests/close.ts
-- npx ts-node src/tests/status-polling.ts
-- npx ts-node src/tests/mint.ts
-- npx ts-node src/tests/mint-transfer.ts
-- npx ts-node src/tests/disble-enable-contract.ts
-- npx ts-node src/tests/supply-reissue.ts
-
-#### Testing procedure
-
-Run one of the commands above and monitor the logs.
-
-The messages like `"1631793116957: {"error":605,"message":"Contract execution result is not found for transaction with txId = 'GHyusW1ShHRftcSEh8oYenU1P8GSgSnz7rSq3yUSTCMC'"}"`
-in the logs mean the transaction status is polled. If the message hangs for more than a couple of minutes, stop the test and open the Docker container log. Most likely, the transaction cannot be mined due to a contract error. To prevent problems, you can also monitor the transactions via the blockchain client and the corresponding changes of the state.
