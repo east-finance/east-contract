@@ -291,11 +291,3 @@ Seed phrases used in tests can be modified in `src/e2e/tests/constants.ts`
 npm i
 npm run test
 ```
-
-### Manually create docker image and push it to registry
-```
-docker login registry.wvservices.com
-docker build -t east-contract:0.6-RC1 .
-docker tag east-contract:0.6-RC1 registry.wvservices.com/vostok-sc/east-contract:0.6-RC1 
-docker push registry.wvservices.com/vostok-sc/east-contract:0.6-RC1 
-```
