@@ -230,6 +230,12 @@ describe('Claim overpay', () => {
     expect(txStatus.message.includes('Validation error')).toBeTruthy();
   });
 
+  test('Check operation with negative amount (should be failed)', async () => {
+    const txStatus = await baseClaimOverpayInit(user1Seed, '-1')
+    expect(txStatus.status).toBe(TxStatus.error);
+    expect(txStatus.message.includes('Validation error')).toBeTruthy();
+  });
+
   test('Check operation without free WEST (should be failed)', async () => {
     const txStatus = await baseClaimOverpayInit(user1Seed, Number(2 * Math.pow(10, 8)).toString())
     expect(txStatus.status).toBe(TxStatus.error);
