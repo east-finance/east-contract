@@ -211,6 +211,25 @@ describe('Claim overpay', () => {
     );
     return waitForTxStatus(nodeAddress, claimId)
   }
+
+  test('Check serviceAddress protection (should be failed)', async () => {
+    const claimStatus = await baseClaimOverpay(user1Seed, user1Seed.address, '', 1)
+    expect(claimStatus.status).toBe(TxStatus.error)
+    expect(claimStatus.message.includes('match tx sender public key')).toBeTruthy()
+  })
+
+  test('Check operation with amount as empty string (should be failed)', async () => {
+    const txStatus = await baseClaimOverpayInit(user1Seed, '')
+    expect(txStatus.status).toBe(TxStatus.error);
+    expect(txStatus.message.includes('Validation error')).toBeTruthy();
+  });
+
+  test('Check operation with amount as alphabetic string (should be failed)', async () => {
+    const txStatus = await baseClaimOverpayInit(user1Seed, 'abc123')
+    expect(txStatus.status).toBe(TxStatus.error);
+    expect(txStatus.message.includes('Validation error')).toBeTruthy();
+  });
+
   test('Check operation without free WEST (should be failed)', async () => {
     const txStatus = await baseClaimOverpayInit(user1Seed, Number(2 * Math.pow(10, 8)).toString())
     expect(txStatus.status).toBe(TxStatus.error);
@@ -218,9 +237,9 @@ describe('Claim overpay', () => {
   });
 
   test('Check positive case', async () => {
-    const amount = 1 * Math.pow(10, 8)
+    const amount = 0.87654321 * Math.pow(10, 8)
     const supplyStatus = await baseSupply(user1Seed, serviceSeed.address, amount)
-    const claimInitStatus = await baseClaimOverpayInit(user1Seed, amount.toString())
+    const claimInitStatus = await baseClaimOverpayInit(user1Seed) // withdraw all available WEST
     const returnAmount = amount - claimOverpayServiceFee * Math.pow(10, 8)
     const claimStatus = await baseClaimOverpay(serviceSeed, user1Seed.address, '', returnAmount)
     const vault = await getContractStateKeyValue(nodeAddress, eastContractId, `vault_${user1Seed.address}`)
@@ -231,12 +250,6 @@ describe('Claim overpay', () => {
     expect(vaultParsed.eastAmount).toBe('280000000')
     expect(vaultParsed.westAmount).toBe('700000000')
   });
-
-  test('Check serviceAddress protection (should be failed)', async () => {
-    const claimStatus = await baseClaimOverpay(user1Seed, user1Seed.address, '', 1)
-    expect(claimStatus.status).toBe(TxStatus.error)
-    expect(claimStatus.message.includes('match tx sender public key')).toBeTruthy()
-  })
 })
 
 describe('Update config', () => {

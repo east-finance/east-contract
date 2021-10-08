@@ -131,6 +131,9 @@ export const createUpdateConfigDockerCall = (wavesApi: WeSdk, contractId: string
 }
 
 export const createClaimOverpayInit = (wavesApi: WeSdk, contractId: string, amount?: string) => {
+  const value = typeof amount === 'undefined'
+    ? ''
+    : JSON.stringify({ amount })
   const txBody = {
     contractId,
     contractVersion: 1,
@@ -138,7 +141,7 @@ export const createClaimOverpayInit = (wavesApi: WeSdk, contractId: string, amou
     params: [{
       type: 'string',
       key: 'claim_overpay_init',
-      value: JSON.stringify({ amount })
+      value
     }]
   }
   return wavesApi.API.Transactions.CallContract.V4(txBody)
