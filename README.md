@@ -281,7 +281,7 @@ Seed phrases used in tests can be modified in `src/e2e/tests/constants.ts`
 
 ### Part 3. Create oracles contract and USDap token
 
-#### To following operations use `admin seed phrase` account:
+#### In following operations use `admin seed phrase` account:
 
 1) Create oracle docker contract using image `grpc-contract-example:v2.2`. Write id of new contract to `oracleContractId` variable in file `src/e2e/tests/constants.ts`
 2) Issue new native token named RWAToken. Write id of new token to `rwaTokenId` variable in file `src/e2e/tests/constants.ts`
