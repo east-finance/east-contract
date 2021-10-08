@@ -39,12 +39,10 @@ Promise.resolve().then(async () => {
   // const imageHash = 'e8569229b08f9b78f61914d86c423515cf8f1133a665afa0ae443a1a75b5f871'
   console.log(`Building docker image ${imageName}, HOST_NETWORK=${hostIp}`);
   await execute(`docker build --build-arg HOST_NETWORK=${hostIp} -t ${imageName} .`);
-  console.log('Build image done');
-
   const inspectResult = await execute(`docker inspect ${imageName}`);
   const inspectData = JSON.parse(inspectResult)[0];
   const imageHash = inspectData.Id.replace('sha256:', '');
-  console.log('imageHash', imageHash);
+  console.log('Build image done, image hash: ', imageHash);
 
   // @ts-ignore
   const { chainId, minimumFee } = await (await fetch(`${nodeAddress}/node/config`)).json();
@@ -91,9 +89,7 @@ Promise.resolve().then(async () => {
   });
 
   await oracleRatesInitialCall.broadcast(ownerSeed.keyPair);
-
-  console.log(`Oracle initial call: ${JSON.stringify(oracleRatesInitialCall.getBody())}`);
-  console.log('Waiting 15 seconds...');
+  console.log(`Oracle initial call: ${await oracleRatesInitialCall.getId(ownerSeed.keyPair.publicKey)}`);
   await sleep(15);
 
   const txBody: Parameters<typeof Waves.API.Transactions.CreateContract.V4>[0] = {
@@ -128,9 +124,9 @@ Promise.resolve().then(async () => {
   const tx = Waves.API.Transactions.CreateContract.V3(txBody);
   await tx.broadcast(ownerSeed.keyPair);
 
-  console.log('Tx 103: ', tx.getBody());
-  console.log('Waiting 60 seconds...');
-  await sleep(60);
+  console.log('Create EAST contract id ', await tx.getId(ownerSeed.keyPair.publicKey));
+  console.log('Waiting 30 seconds...');
+  await sleep(30);
 
   const contractId = await tx.getId();
   const user1Seed = Waves.Seed.fromExistingPhrase('examples seed phrase another one');
@@ -198,8 +194,7 @@ Promise.resolve().then(async () => {
     user1Seed.keyPair
   );
 
-  console.log(`Atomic mint call: ${JSON.stringify(mint1Atomic)}`);
-  console.log('Waiting 15 seconds...');
+  console.log(`Atomic (Transfer + Mint), mint txId: ${await mintCall.getId(user1Seed.keyPair.publicKey)}`);
   await sleep(15);
 
   /**
@@ -217,16 +212,13 @@ Promise.resolve().then(async () => {
       key: 'transfer',
       value: JSON.stringify({
         to: user2Seed.address,
-        amount: 2
+        amount: 1
       })
     }]
   })
 
   await transferCall.broadcast(user1Seed.keyPair);
-
-  const txId = await transferCall.getId(user1Seed.keyPair.publicKey)
-  console.log(`transfer call id: ${txId}`);
-  console.log('Waiting 15 seconds...');
+  console.log(`Transfer user1 to user2 call id: ${await transferCall.getId(user1Seed.keyPair.publicKey)}`);
   await sleep(15);
 
   /**
@@ -242,39 +234,14 @@ Promise.resolve().then(async () => {
       key: 'transfer',
       value: JSON.stringify({
         to: user1Seed.address,
-        amount: 2
+        amount: 1
       })
     }]
   })
 
   await transferCall2.broadcast(user2Seed.keyPair);
-
-  const transferId2 = await transferCall2.getId(user2Seed.keyPair.publicKey)
-  console.log(`Transfer back call id: ${transferId2}`);
-  console.log('Waiting 15 seconds...');
+  console.log(`Transfer user2 to user1 call id:: ${await transferCall2.getId(user2Seed.keyPair.publicKey)}`);
   await sleep(15);
-
-  /*
-  * Close init
-  * */
-
-  // const closeInitCall = await Waves.API.Transactions.CallContract.V4({
-  //   contractId,
-  //   contractVersion: 1,
-  //   timestamp: Date.now(),
-  //   params: [{
-  //     type: 'string',
-  //     key: 'close_init',
-  //     value: ''
-  //   }]
-  // })
-  //
-  // await closeInitCall.broadcast(user1Seed.keyPair);
-  //
-  // const id = await closeInitCall.getId(user1Seed.keyPair.publicKey)
-  // console.log('closeInitCall id', id)
-  // console.log('Waiting 15 seconds...');
-  // await sleep(15);
 
   /**
    *  User1 supply vault
@@ -283,7 +250,7 @@ Promise.resolve().then(async () => {
   const supplyTransfer = Waves.API.Transactions.Transfer.V3({
     recipient: serviceAddress,
     assetId: '',
-    amount: 2 * 100000000,
+    amount: 2 * Math.pow(10, 8),
     timestamp: Date.now(),
     attachment: '',
     fee: minimumFee[4],
@@ -318,7 +285,7 @@ Promise.resolve().then(async () => {
     params: [{
       type: 'string',
       key: 'reissue',
-      value: JSON.stringify({ maxWestToExchange: 10 })
+      value: JSON.stringify({ maxWestToExchange: 0.01 * Math.pow(10, 8) })
     }],
     atomicBadge: {
       trustedSender: user1Seed.address
@@ -330,10 +297,43 @@ Promise.resolve().then(async () => {
     user1Seed.keyPair
   );
 
-  const reissueId = await reissueCall.getId(user1Seed.keyPair.publicKey)
+  console.log(`Atomic supply call, reissue txId: ${await reissueCall.getId(user1Seed.keyPair.publicKey)}`);
+  await sleep(15);
 
-  console.log(`Atomic supply call: ${JSON.stringify(supplyAtomic)}`);
-  console.log(`reissueId: ${reissueId}`);
+  // Claim overpay init
+  const claimOverpayInit = await Waves.API.Transactions.CallContract.V4({
+    contractId,
+    contractVersion: 1,
+    timestamp: Date.now(),
+    params: [{
+      type: 'string',
+      key: 'claim_overpay_init',
+      value: '' // JSON.stringify({ amount: 10 })
+    }]
+  })
+
+  await claimOverpayInit.broadcast(user1Seed.keyPair);
+
+  console.log(`claimOverpayInit call id: ${await claimOverpayInit.getId(user1Seed.keyPair.publicKey)}`);
+  // console.log('Waiting 15 seconds...');
+  await sleep(1);
+
+  /*
+  * Close init
+  * */
+  const closeInitCall = await Waves.API.Transactions.CallContract.V4({
+    contractId,
+    contractVersion: 1,
+    timestamp: Date.now(),
+    params: [{
+      type: 'string',
+      key: 'close_init',
+      value: ''
+    }]
+  })
+
+  await closeInitCall.broadcast(user1Seed.keyPair);
+  console.log(`closeInitCall txId: ${await closeInitCall.getId(user1Seed.keyPair.publicKey)}`)
   console.log('Waiting 15 seconds...');
   await sleep(15);
   //
