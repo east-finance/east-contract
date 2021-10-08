@@ -153,6 +153,23 @@ describe("Transfer", () => {
     return txStatus
   }
 
+  test('Check transfer insufficient funds (should be failed)', async () => {
+    const txStatus = await transferFromUser1toUser2(10 * Math.pow(10, 8))
+    expect(txStatus.status).toBe(TxStatus.error);
+  });
+
+  test('Check transfer negative amount (should be failed)', async () => {
+    const txStatus = await transferFromUser1toUser2(-1)
+    expect(txStatus.status).toBe(TxStatus.error);
+    expect(txStatus.message.includes('Validation error')).toBeTruthy();
+  });
+
+  test('Check transfer string amount (should be failed)', async () => {
+    const txStatus = await transferFromUser1toUser2('abc')
+    expect(txStatus.status).toBe(TxStatus.error);
+    expect(txStatus.message.includes('Validation error')).toBeTruthy();
+  });
+
   test('Check transfer from user1 to user2', async () => {
     const txStatus = await transferFromUser1toUser2(1)
     const user1Balance = await getContractStateKeyValue(nodeAddress, eastContractId, `balance_${user1Seed.address}`)
@@ -172,16 +189,6 @@ describe("Transfer", () => {
     expect(txStatus.status).toBe(TxStatus.success);
     expect(user1Balance.value).toBe('280000000')
     expect(user2Balance.value).toBe('0')
-  });
-
-  test('Check transfer insufficient funds (should be failed)', async () => {
-    const txStatus = await transferFromUser1toUser2(10 * Math.pow(10, 8))
-    expect(txStatus.status).toBe(TxStatus.error);
-  });
-
-  test('Check transfer negative amount (should be failed)', async () => {
-    const txStatus = await transferFromUser1toUser2(-1)
-    expect(txStatus.status).toBe(TxStatus.error);
   });
 })
 
@@ -212,7 +219,7 @@ describe('Claim overpay', () => {
     return waitForTxStatus(nodeAddress, claimId)
   }
 
-  test('Check serviceAddress protection (should be failed)', async () => {
+  test('Check serviceAddress protection', async () => {
     const claimStatus = await baseClaimOverpay(user1Seed, user1Seed.address, '', 1)
     expect(claimStatus.status).toBe(TxStatus.error)
     expect(claimStatus.message.includes('match tx sender public key')).toBeTruthy()
@@ -231,7 +238,7 @@ describe('Claim overpay', () => {
   });
 
   test('Check operation with negative amount (should be failed)', async () => {
-    const txStatus = await baseClaimOverpayInit(user1Seed, '-1')
+    const txStatus = await baseClaimOverpayInit(user1Seed, '-')
     expect(txStatus.status).toBe(TxStatus.error);
     expect(txStatus.message.includes('Validation error')).toBeTruthy();
   });
@@ -266,7 +273,7 @@ describe('Update config', () => {
     return waitForTxStatus(nodeAddress, txId)
   }
 
-  test('Check adminAddress protection (should be failed)', async () => {
+  test('Check adminAddress protection', async () => {
     const txStatus = await baseUpdateConfig(user1Seed, { isContractEnabled: false })
     expect(txStatus.status).toBe(TxStatus.error);
     expect(txStatus.message.includes('match tx sender public key')).toBeTruthy();
