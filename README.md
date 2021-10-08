@@ -55,10 +55,12 @@ Here a method is a parameter key to call the smart contract.
 #### mint
 <b>Description:</b>
 Creates a user vault, converts a part of his WEST tokens to RWA, leaving the rest as the collateral, and adds EAST tokens to the user's balance. The conversion rate is provided by data oracles. If the user's vault already exists, the call is canceled.
+
 <b>How to call:</b>
 Creating an atomic transaction with transfer and contract call is recommended.
 The transfer recipient is to be the one who creates the contract.
 The transfer is to precede the call. Both transfer and contract call are to be sent from the same address.
+
 <b>Method permission:</b>
 Any user  
 
@@ -90,8 +92,10 @@ An EAST token owner only
 #### close_init
 <b>Description:</b>
 Creates a user request to close the vault and withdraw its WEST collateral  
+
 <b>Method permission:</b>
 A vault owner. Mandatory condition: transaction.sender = vault.address  
+
 <b>Method body:</b>
 empty body  
 <b>Results of execution:</b>
@@ -100,8 +104,10 @@ no results
 #### close
 <b>Description:</b>
 Closes the user's vault and burns its EAST tokens. The automation service transfers the WEST and RWA collateral to the user. The automation service sends an atomic transaction that includes two transfers and the smart contract call. The contract checks if the sum of the transfers is equal to the sum in the vault (excluding 0.3 WEST as a commission). Also, the contract checks the sender and the recipient.
+
 <b>Method permission:</b>
-The smart contract owner  
+The smart contract owner (the Automation Service)
+
 <b>Triggers:</b>
 A user calls the smart contract with `burn_init` method. After the execution the automation service sends an atomic transaction with EAST and RWA transfer, along with this contract call.
 <b>Method body:</b>
@@ -118,8 +124,10 @@ A user calls the smart contract with `burn_init` method. After the execution the
 #### reissue
 <b>Description:</b>
 Changes the amount of tokens in the collateral and the amount of a user's EAST tokens, according to the actual conversion rate from the data oracles. The method is not executed if the WEST rate decreases.
+
 <b>Method permission:</b>
 A vault owner
+
 <b>Method body:</b>
 ```js
   maxWestToExchange: number
@@ -133,12 +141,15 @@ A vault owner
 #### supply
 <b>Description:</b>
 In case of WEST rate drops, a user provides extra collateral to avoid liquidation of his vault. The smart contract transfers the added WEST tokens to the user's vault.  
+
 <b>How to call:</b>
 Creating an atomic transaction with a transfer and a contract call is recommended.
 The transfer recipient is to be the owner of the smart contract.   
 The transfer is to precede the call. Both transfer and contract calls are to be sent from the same address.  
+
 <b>Method permission:</b>
 A vault owner  
+
 <b>Method body:</b>
 ```js
   transferId: string // transfer tx id
@@ -149,11 +160,13 @@ A vault owner
 #### claim_overpay_init
 <b>Description:</b>
 A user request to withdraw his WEST overcollateral from the vault, in case of WEST rate growth
+
 <b>Method permission:</b>
-The vault owner  
+The vault owner
+
 <b>Method body:</b>
 ```js
-  amount: number // optional, amount to withdraw
+  amount: string // optional, amount of WEST to withdraw from vault
 ```  
 <b>Results of execution:</b>
 no result
@@ -161,8 +174,10 @@ no result
 #### claim_overpay
 <b>Description:</b>
 The smart contract owner calls it after calling `claim_overpay_init`, transfers WEST tokens to the smart contract owner. The contract writes off the transferred tokens from the user's vault, decreases the westAmount value accordingly and writes off extra 0.2 WEST as a commission.
+
 <b>Method permission:</b>
-The smart contract owner  
+The smart contract owner (the Automation Service)
+
 <b>Triggers:</b>
 A user calls the contract with `claim_overpay_init` method. In case of overcollateralization, the automation service calculates how many tokens are to be returned to the user. Then the service sends an atomic transaction with WEST transfer and the contract call. If the vault is not overcollateralized, `claim_overpay_init` call is ignored.
 <b>Method body:</b>
@@ -178,13 +193,16 @@ A user calls the contract with `claim_overpay_init` method. In case of overcolla
 #### liquidate
 <b>Description:</b>
 If EAST collateralization with WEST falls below `liquidationCollateral` value from the smart contract configuration as a result of WEST rate drop, then any user can buy out the WEST from the vault. To do it, he needs to create an atomic transaction with RWA token transfer to the smart contract address, along with `CallContract` with `liquidate` method containing `transferId` and `address` values. The amount of RWA tokens transferred is to be the same as the amount of EAST in the vault. The contract checks the latest data oracle information to verify that the actual collateralization rate is lower than `liquidationCollateral`. If yes, the contract writes the following values to the vault: `rwaAmount = eastAmount`, `westAmount = 0`, `liquidatedWestAmount = vaultWestAmount`. Then the user can no longer close the vault. If WEST collateralization is above `liquidationCollateral`, the method is not called.
+
 <b>Method permission:</b>
-The smart contract owner (the automation service)  
+Any user
+
 <b>Method body:</b>
 ```js
   address: string // vault address
   transferId: string // id of RWA transfer transaction
-```  
+```
+
 <b>Results of execution:</b>
 - `vault_${address}` key value is updated as an empty string
 - `liquidated_vault_${address}_<tx_timestamp>` key with the data about the luquidated vault is created
@@ -192,8 +210,10 @@ The smart contract owner (the automation service)
 #### write_liquidation_west_transfer
 <b>Description:</b>
 This method writes the key with the information about the sent transfer transaction into the state, as a response to a vault liquidation. This key tells the automation service whether the WEST tokens were sent to the liquidator's address or not.
+
 <b>Method permission:</b>
 The smart contract owner (the automation service)  
+
 <b>Method body:</b>
 ```js
   address: string,
@@ -205,8 +225,10 @@ The smart contract owner (the automation service)
 #### update_config
 <b>Description:</b>
 This method updates the configuration. The parameters are described is the "Smart contract creating" section above.
+
 <b>Method permission:</b>
-The smart contract owner (the Automation Service)  
+The smart contract owner
+
 <b>Method body:</b>
 ```js
   oracleContractId: string,
