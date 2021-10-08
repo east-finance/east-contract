@@ -336,6 +336,24 @@ export class RPCService {
     return new BigNumber((transferAmount / Math.pow(10, WEST_DECIMALS)).toString());
   }
 
+  async getVaultFreeWEST (vaultAddress: string) {
+    const { westCollateral, rwaPart, oracleTimestampMaxDiff, oracleContractId } = await this.stateService.getConfig();
+    const oldVault = await this.stateService.getVault(vaultAddress);
+
+    const { westRate } = await this.getLastOracles(oracleTimestampMaxDiff, oracleContractId)
+
+    const oldVaultWestAmount = (await this.calculateVault(
+      this.calculateWestAmount({
+        eastAmount: oldVault.eastAmount,
+        rwaPart,
+        westCollateral,
+        westRate: westRate
+      })
+    )).westAmount
+
+    return subtract(oldVault.westAmount, oldVaultWestAmount)
+  }
+
   async mint(tx: Transaction, param: MintParam): Promise<DataEntryRequest[]> {
     await this.validate(MintDto, param)
     const { transferId } = param
@@ -744,6 +762,12 @@ export class RPCService {
     const vaultExists = await this.stateService.isVaultExists(tx.sender)
     if (!vaultExists) {
       throw new Error(`Vault for user ${tx.sender} closed or doens't exists`);
+    }
+
+    const vaultFreeWest = await this.getVaultFreeWEST(tx.sender);
+
+    if(vaultFreeWest.minus(new BigNumber(CLAIM_OVERPAY_COMISSION.toString())).isLessThanOrEqualTo(0)) {
+      throw new Error('No WEST for withdraw from vault');
     }
 
     const vault = await this.stateService.getVault(tx.sender);

@@ -71,7 +71,7 @@ export async function getContractStateKeyValue(nodeAddress: string, contractId: 
   return data.json()
 }
 
-export async function waitForTxStatus(nodeAddress: string, txId: string): Promise<{ status: TxStatus, message: string }> {
+export async function waitForTxStatus(nodeAddress: string, txId: string): Promise<{ status: TxStatus, message: string, txId: string }> {
   let status = null
   for(let i = 0; i < 60 * 10; i++) {
     try {

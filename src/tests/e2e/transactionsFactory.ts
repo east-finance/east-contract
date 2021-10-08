@@ -129,3 +129,41 @@ export const createUpdateConfigDockerCall = (wavesApi: WeSdk, contractId: string
     }]
   })
 }
+
+export const createClaimOverpayInit = (wavesApi: WeSdk, contractId: string, amount?: string) => {
+  const txBody = {
+    contractId,
+    contractVersion: 1,
+    timestamp: Date.now(),
+    params: [{
+      type: 'string',
+      key: 'claim_overpay_init',
+      value: JSON.stringify({ amount })
+    }]
+  }
+  return wavesApi.API.Transactions.CallContract.V4(txBody)
+}
+
+export interface ICreateClaimOverpayParams {
+  contractId: string,
+  senderSeed: Seed,
+  address: string,
+  transferId: string,
+  requestId: string
+}
+export const createClaimOverpay = (wavesApi: WeSdk, params: ICreateClaimOverpayParams) => {
+  const { contractId, senderSeed, address, transferId, requestId } = params
+  return wavesApi.API.Transactions.CallContract.V4({
+      contractId,
+      contractVersion: 1,
+      timestamp: Date.now(),
+      params: [{
+        type: 'string',
+        key: 'claim_overpay',
+        value: JSON.stringify( { address, transferId, requestId })
+      }],
+      atomicBadge: {
+        trustedSender: senderSeed.address
+      }
+  })
+}

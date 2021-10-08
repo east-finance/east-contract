@@ -11,13 +11,15 @@ import {
   createWestTransfer,
   createReissueDockerCall,
   createOracleRatesCall,
-  createUpdateConfigDockerCall
+  createUpdateConfigDockerCall,
+  createClaimOverpayInit,
+  createClaimOverpay
 } from './transactionsFactory';
 import { getContractStateKeyValue, waitForTxStatus } from './utils';
 
 jest.setTimeout(15 * 60 * 1000)
 
-let imageHash = '59c1500b60e31fb3131245274ba5eff683f498aaa18e97d20962ec589dd00098'
+let imageHash = ''
 let wavesApi: WeSdk
 let adminSeed: Seed
 let serviceSeed: Seed
@@ -25,6 +27,18 @@ let user1Seed: Seed
 let user2Seed: Seed
 
 let eastContractId = ''
+
+const baseSupply = async (senderSeed: Seed, recipientAddress: string, amount: number) => {
+  const transfer = createWestTransfer(wavesApi, { amount, recipient: recipientAddress, senderSeed })
+  const transferId = await transfer.getId(senderSeed.keyPair.publicKey)
+  const supply = createSupplyDockerCall(wavesApi, eastContractId, transferId, senderSeed)
+  const supplyId = await supply.getId(senderSeed.keyPair.publicKey)
+  await wavesApi.API.Transactions.broadcastAtomic(
+    wavesApi.API.Transactions.Atomic.V1({transactions: [transfer, supply]}),
+    senderSeed.keyPair
+  );
+  return waitForTxStatus(nodeAddress, supplyId)
+}
 
 beforeAll(async () => {
   if (!imageHash) {
@@ -74,46 +88,33 @@ describe("Mint", () => {
     return mintStatus
   }
 
-  test('Mint with less than 1 EAST (should be failed)', async () => {
+  test('Check mint with less than 1 EAST (should be failed)', async () => {
     const mintStatus = await basicMint(0.01 * Math.pow(10, 8))
     expect(mintStatus.status).toBe(TxStatus.error);
   });
 
-  test('Mint EAST', async () => {
+  test('Check positive case', async () => {
     const mintStatus = await basicMint(5 * Math.pow(10, 8))
     const user1Balance = await getContractStateKeyValue(nodeAddress, eastContractId, `balance_${user1Seed.address}`)
     expect(mintStatus.status).toBe(TxStatus.success);
     expect(user1Balance.value).toBe('200000000');
   });
 
-  test('Mint with existed vault (should be failed)', async () => {
+  test('Cehck mint with existed vault (should be failed)', async () => {
     const mintStatus = await basicMint(5 * Math.pow(10, 8))
     expect(mintStatus.status).toBe(TxStatus.error);
   });
 })
 
 describe("Supply", () => {
-  const baseSupply = async (senderSeed: Seed, recipientAddress: string, amount: number) => {
-    const transfer = createWestTransfer(wavesApi, { amount, recipient: recipientAddress, senderSeed })
-    const transferId = await transfer.getId(senderSeed.keyPair.publicKey)
-    const supply = createSupplyDockerCall(wavesApi, eastContractId, transferId, senderSeed)
-    const supplyId = await supply.getId(senderSeed.keyPair.publicKey)
-    await wavesApi.API.Transactions.broadcastAtomic(
-      wavesApi.API.Transactions.Atomic.V1({transactions: [transfer, supply]}),
-      senderSeed.keyPair
-    );
-    const txStatus = await waitForTxStatus(nodeAddress, supplyId)
-    return txStatus
-  }
-
-  test('Supply vault', async () => {
+  test('Check positive case', async () => {
     const txStatus = await baseSupply(user1Seed, serviceSeed.address, 2 * Math.pow(10, 8))
     const user1Balance = await getContractStateKeyValue(nodeAddress, eastContractId, `balance_${user1Seed.address}`)
     expect(txStatus.status).toBe(TxStatus.success);
     expect(user1Balance.value).toBe('200000000');
   });
 
-  test('Supply vault without transfer (should be failed)', async () => {
+  test('Check supply vault without transfer (should be failed)', async () => {
     const supply = createSupplyDockerCall(wavesApi, eastContractId, '', user1Seed, false)
     const supplyId = await supply.getId(user1Seed.keyPair.publicKey)
     await supply.broadcast(user1Seed.keyPair)
@@ -124,7 +125,7 @@ describe("Supply", () => {
 })
 
 describe("Reissue", () => {
-  test('Reissue all available amount', async () => {
+  test('Check positive case', async () => {
     const reissue = createReissueDockerCall(wavesApi, eastContractId, user1Seed, 9999 * Math.pow(10, 8), false)
     const reissueId = await reissue.getId(user1Seed.keyPair.publicKey)
     await reissue.broadcast(user1Seed.keyPair)
@@ -134,7 +135,7 @@ describe("Reissue", () => {
     expect(user1Balance.value).toBe('280000000');
   });
 
-  test('Reissue with non-profitable vault (should be failed)', async () => {
+  test('Check reissue with non-profitable vault (should be failed)', async () => {
     const reissue = createReissueDockerCall(wavesApi, eastContractId, user1Seed, 9999 * Math.pow(10, 8), false)
     const reissueId = await reissue.getId(user1Seed.keyPair.publicKey)
     await reissue.broadcast(user1Seed.keyPair)
@@ -152,7 +153,7 @@ describe("Transfer", () => {
     return txStatus
   }
 
-  test('Transfer from user1 to user2', async () => {
+  test('Check transfer from user1 to user2', async () => {
     const txStatus = await transferFromUser1toUser2(1)
     const user1Balance = await getContractStateKeyValue(nodeAddress, eastContractId, `balance_${user1Seed.address}`)
     const user2Balance = await getContractStateKeyValue(nodeAddress, eastContractId, `balance_${user2Seed.address}`)
@@ -161,7 +162,7 @@ describe("Transfer", () => {
     expect(user2Balance.value).toBe('1')
   });
 
-  test('Transfer back from user2 to user1', async () => {
+  test('Check transfer back from user2 to user1', async () => {
     const transfer = createTransferDockerCall(wavesApi, eastContractId, user1Seed.address, 1)
     const transferId = await transfer.getId(user2Seed.keyPair.publicKey)
     await transfer.broadcast(user2Seed.keyPair);
@@ -173,33 +174,86 @@ describe("Transfer", () => {
     expect(user2Balance.value).toBe('0')
   });
 
-  test('Transfer insufficient funds (should be failed)', async () => {
+  test('Check transfer insufficient funds (should be failed)', async () => {
     const txStatus = await transferFromUser1toUser2(10 * Math.pow(10, 8))
     expect(txStatus.status).toBe(TxStatus.error);
   });
 
-  test('Transfer negative amount (should be failed)', async () => {
+  test('Check transfer negative amount (should be failed)', async () => {
     const txStatus = await transferFromUser1toUser2(-1)
     expect(txStatus.status).toBe(TxStatus.error);
   });
 })
 
-describe('Update config', () => {
-  const baseUpdateConfig = async (senderSeed: Seed, params: Record<any, string | number | boolean>) => {
-    const updateConfig = await createUpdateConfigDockerCall(wavesApi, eastContractId, params)
-    const txId = await updateConfig.getId(senderSeed.keyPair.publicKey)
-    await updateConfig.broadcast(senderSeed.keyPair);
-    const txStatus = await waitForTxStatus(nodeAddress, txId)
-    return txStatus
+describe('Claim overpay', () => {
+  const claimOverpayServiceFee = 0.2
+  const baseClaimOverpayInit = async (senderSeed: Seed, amount?: string) => {
+    const claim = createClaimOverpayInit(wavesApi, eastContractId, amount)
+    await claim.broadcast(senderSeed.keyPair);
+    return waitForTxStatus(nodeAddress, await claim.getId(senderSeed.keyPair.publicKey))
   }
+  const baseClaimOverpay = async (senderSeed: Seed, recipientAddress: string, transferAttachment: string, amount: number) => {
+    const transfer = createWestTransfer(wavesApi, { senderSeed, recipient: recipientAddress, amount })
+    const transferId = await transfer.getId(senderSeed.keyPair.publicKey)
 
-  test('Update config from user address (should be failed)', async () => {
-    const txStatus = await baseUpdateConfig(user1Seed, { isContractEnabled: false })
+    const claim = createClaimOverpay(wavesApi, {
+      contractId: eastContractId,
+      senderSeed,
+      address: recipientAddress,
+      transferId,
+      requestId: transferAttachment
+    })
+
+    const claimId = await claim.getId(senderSeed.keyPair.publicKey)
+    await wavesApi.API.Transactions.broadcastAtomic(
+      wavesApi.API.Transactions.Atomic.V1({transactions: [transfer, claim]}),
+      senderSeed.keyPair
+    );
+    return waitForTxStatus(nodeAddress, claimId)
+  }
+  test('Check operation without free WEST (should be failed)', async () => {
+    const txStatus = await baseClaimOverpayInit(user1Seed, Number(2 * Math.pow(10, 8)).toString())
     expect(txStatus.status).toBe(TxStatus.error);
-    expect(txStatus.message.includes('doesn\'t match tx sender public key')).toBeTruthy();
+    expect(txStatus.message.includes('No WEST for withdraw from vault')).toBeTruthy();
   });
 
-  test('Update config from admin address', async () => {
+  test('Check positive case', async () => {
+    const amount = 1 * Math.pow(10, 8)
+    const supplyStatus = await baseSupply(user1Seed, serviceSeed.address, amount)
+    const claimInitStatus = await baseClaimOverpayInit(user1Seed, amount.toString())
+    const returnAmount = amount - claimOverpayServiceFee * Math.pow(10, 8)
+    const claimStatus = await baseClaimOverpay(serviceSeed, user1Seed.address, '', returnAmount)
+    const vault = await getContractStateKeyValue(nodeAddress, eastContractId, `vault_${user1Seed.address}`)
+    const vaultParsed = JSON.parse(vault.value)
+    expect(supplyStatus.status).toBe(TxStatus.success)
+    expect(claimInitStatus.status).toBe(TxStatus.success)
+    expect(claimStatus.status).toBe(TxStatus.success)
+    expect(vaultParsed.eastAmount).toBe('280000000')
+    expect(vaultParsed.westAmount).toBe('700000000')
+  });
+
+  test('Check serviceAddress protection (should be failed)', async () => {
+    const claimStatus = await baseClaimOverpay(user1Seed, user1Seed.address, '', 1)
+    expect(claimStatus.status).toBe(TxStatus.error)
+    expect(claimStatus.message.includes('match tx sender public key')).toBeTruthy()
+  })
+})
+
+describe('Update config', () => {
+  const baseUpdateConfig = async (senderSeed: Seed, params: Record<any, string | number | boolean>) => {
+    const updateConfig = createUpdateConfigDockerCall(wavesApi, eastContractId, params)
+    const txId = await updateConfig.getId(senderSeed.keyPair.publicKey)
+    await updateConfig.broadcast(senderSeed.keyPair);
+    return waitForTxStatus(nodeAddress, txId)
+  }
+
+  test('Check adminAddress protection (should be failed)', async () => {
+    const txStatus = await baseUpdateConfig(user1Seed, { isContractEnabled: false })
+    expect(txStatus.status).toBe(TxStatus.error);
+    expect(txStatus.message.includes('match tx sender public key')).toBeTruthy();
+  });
+
+  test('Check positive case', async () => {
     const oracleTimestampMaxDiff = 61 * 1000
     const txStatus = await baseUpdateConfig(adminSeed, { oracleTimestampMaxDiff })
     const config = await getContractStateKeyValue(nodeAddress, eastContractId, 'config')
