@@ -1,6 +1,5 @@
 import path from 'path';
 import { ClientReadableStream, credentials, GrpcObject, loadPackageDefinition, Metadata } from '@grpc/grpc-js';
-import { libs as jsSdkLibs } from '@wavesenterprise/js-sdk';
 import { ServiceClientConstructor } from '@grpc/grpc-js/build/src/make-client';
 import { loadSync } from '@grpc/proto-loader';
 import { createLogger } from '../utils/logger';
@@ -804,10 +803,8 @@ export class RPCService {
     if (assetId) {
       throw new Error(`Expected transfer asset to be WEST, now: ${assetId}`);
     }
-
-    const attachmentDecoded = jsSdkLibs.converters.byteArrayToString(jsSdkLibs.base58.decode(attachment));
-    if (requestId !== attachmentDecoded) {
-      throw new Error(`Expected transfer requestId: ${requestId} to be equal attachment: ${attachmentDecoded}`);
+    if (requestId !== attachment) {
+      throw new Error(`Expected transfer requestId: ${requestId} to be equal attachment: ${attachment}`);
     }
 
     const isTransferUsed = await this.stateService.isTransferUsed(transferId)

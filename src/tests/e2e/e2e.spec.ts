@@ -1,4 +1,4 @@
-import { WeSdk, Seed } from '@wavesenterprise/js-sdk';
+import { WeSdk, Seed, libs as jsSdkLibs } from '@wavesenterprise/js-sdk';
 import { adminSeedPhrase, nodeAddress, oracleContractId,
   OracleStream, serviceSeedPhrase, TxStatus, user1SeedPhrase, user2SeedPhrase } from './constants';
 import { buildDockerImage } from './buildDockerImage';
@@ -199,8 +199,8 @@ describe('Claim overpay', () => {
     await claim.broadcast(senderSeed.keyPair);
     return waitForTxStatus(nodeAddress, await claim.getId(senderSeed.keyPair.publicKey))
   }
-  const baseClaimOverpay = async (senderSeed: Seed, recipientAddress: string, transferAttachment: string, amount: number) => {
-    const transfer = createWestTransfer(wavesApi, { senderSeed, recipient: recipientAddress, amount })
+  const baseClaimOverpay = async (senderSeed: Seed, recipientAddress: string, amount: number, transferAttachment = '') => {
+    const transfer = createWestTransfer(wavesApi, { senderSeed, recipient: recipientAddress, amount, attachment: transferAttachment })
     const transferId = await transfer.getId(senderSeed.keyPair.publicKey)
 
     const claim = createClaimOverpay(wavesApi, {
@@ -220,7 +220,7 @@ describe('Claim overpay', () => {
   }
 
   test('Check serviceAddress protection', async () => {
-    const claimStatus = await baseClaimOverpay(user1Seed, user1Seed.address, '', 1)
+    const claimStatus = await baseClaimOverpay(user1Seed, user1Seed.address, 1)
     expect(claimStatus.status).toBe(TxStatus.error)
     expect(claimStatus.message.includes('match tx sender public key')).toBeTruthy()
   })
@@ -253,8 +253,9 @@ describe('Claim overpay', () => {
     const amount = 0.87654321 * Math.pow(10, 8)
     const supplyStatus = await baseSupply(user1Seed, serviceSeed.address, amount)
     const claimInitStatus = await baseClaimOverpayInit(user1Seed) // withdraw all available WEST
+    const requestId = jsSdkLibs.base58.encode(jsSdkLibs.converters.stringToByteArray(claimInitStatus.txId))
     const returnAmount = amount - claimOverpayServiceFee * Math.pow(10, 8)
-    const claimStatus = await baseClaimOverpay(serviceSeed, user1Seed.address, '', returnAmount)
+    const claimStatus = await baseClaimOverpay(serviceSeed, user1Seed.address, returnAmount, requestId)
     const vault = await getContractStateKeyValue(nodeAddress, eastContractId, `vault_${user1Seed.address}`)
     const vaultParsed = JSON.parse(vault.value)
     expect(supplyStatus.status).toBe(TxStatus.success)

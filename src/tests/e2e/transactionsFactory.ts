@@ -5,7 +5,8 @@ import { user1SeedPhrase } from './constants'
 export interface IWestTransferParams {
   amount: number,
   recipient: string,
-  senderSeed: Seed
+  senderSeed: Seed,
+  attachment?: string
 }
 
 export const createOracleRatesCall = (wavesApi: WeSdk, contractId: string, senderSeed: Seed, westRates = '1') => {
@@ -27,13 +28,13 @@ export const createOracleRatesCall = (wavesApi: WeSdk, contractId: string, sende
 }
 
 export const createWestTransfer = (wavesApi: WeSdk, params: IWestTransferParams) => {
-  const { amount, recipient, senderSeed } = params
+  const { amount, recipient, senderSeed, attachment = '' } = params
   return wavesApi.API.Transactions.Transfer.V3({
     recipient,
     assetId: '',
     amount,
     timestamp: Date.now(),
-    attachment: '',
+    attachment,
     senderPublicKey: senderSeed.keyPair.publicKey,
     atomicBadge: {
       trustedSender: senderSeed.address
