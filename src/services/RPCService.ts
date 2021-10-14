@@ -197,10 +197,10 @@ export class RPCService {
     const rwaTimeDiff = this.txTimestamp - rwaRate.timestamp;
 
     if (westTimeDiff > oracleTimestampMaxDiff) {
-      throw new Error(`WEST oracle rates is out of date, diff: ${westTimeDiff}ms, max diff: ${oracleTimestampMaxDiff}ms`)
+      throw new Error(`WEST oracle rates is out of date, timestamp diff: ${westTimeDiff}ms, max diff: ${oracleTimestampMaxDiff}ms`)
     }
     if (rwaTimeDiff > oracleTimestampMaxDiff) {
-      throw new Error(`RWA oracle rates is out of date, diff: ${westTimeDiff}ms, max diff: ${oracleTimestampMaxDiff}ms`)
+      throw new Error(`RWA oracle rates is out of date, timestamp diff: ${westTimeDiff}ms, max diff: ${oracleTimestampMaxDiff}ms`)
     }
     westRate.value = new BigNumber(westRate.value.toString())
     rwaRate.value = new BigNumber(rwaRate.value.toString())
