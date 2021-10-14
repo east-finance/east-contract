@@ -196,9 +196,11 @@ export class RPCService {
     const westTimeDiff = this.txTimestamp - westRate.timestamp;
     const rwaTimeDiff = this.txTimestamp - rwaRate.timestamp;
 
-    if (westTimeDiff > oracleTimestampMaxDiff || rwaTimeDiff > oracleTimestampMaxDiff) {
-      throw new Error(`Too big difference in milliseconds between oracle_data.timestamp and current timestamp: 
-        westRate: ${JSON.stringify(westRate)}, rwaRate: ${JSON.stringify(rwaRate)}, ${westTimeDiff}, ${rwaTimeDiff}, ${oracleTimestampMaxDiff}`)
+    if (westTimeDiff > oracleTimestampMaxDiff) {
+      throw new Error(`WEST oracle rates is out of date: stream ${WEST_ORACLE_STREAM} latest timestamp '${westRate.timestamp}'`)
+    }
+    if (rwaTimeDiff > oracleTimestampMaxDiff) {
+      throw new Error(`RWA oracle rates is out of date: stream ${RWA_ORACLE_STREAM} latest timestamp '${rwaRate.timestamp}'`)
     }
     westRate.value = new BigNumber(westRate.value.toString())
     rwaRate.value = new BigNumber(rwaRate.value.toString())

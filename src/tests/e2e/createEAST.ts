@@ -15,7 +15,7 @@ export const createEAST = async (wavesApi: WeSdk, imageHash: string) => {
         key: 'config',
         value: JSON.stringify({
           oracleContractId,
-          oracleTimestampMaxDiff: 1000 * 10000000,
+          oracleTimestampMaxDiff: 1000 * 60 * 10,
           rwaPart: 0,
           westCollateral: 2.5,
           liquidationCollateral: 1.3,
