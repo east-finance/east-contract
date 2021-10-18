@@ -16,8 +16,8 @@ module.exports = {
         "@typescript-eslint"
     ],
     "rules": {
-        "semi": ["error", "always"],
+        "semi": [2, "never"],
         "quotes": ["error", "single"]
     },
-    "ignorePatterns": ['test', 'src/compiled-protos']
+    "ignorePatterns": ['test', 'src/compiled-protos', 'spec']
 };
