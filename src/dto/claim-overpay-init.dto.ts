@@ -1,7 +1,8 @@
-import { IsString, IsOptional } from "class-validator";
+import { IsOptional, IsNumberString, NotContains } from "class-validator";
 
 export class ClaimOverpayInitDto {
   @IsOptional()
-  @IsString()
+  @IsNumberString()
+  @NotContains('-')
   amount!: string
 }

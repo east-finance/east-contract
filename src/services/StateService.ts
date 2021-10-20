@@ -49,10 +49,10 @@ export class StateService {
           if (!transactionFromRequest) {
             throw new Error('Unknown transaction')
           }
-          logger.info(`getTransactionInfoOrFail raw:`)
-          logger.info(Base58.encode(transactionFromRequest.id))
-          logger.info(JSON.stringify(transactionFiled))
-          logger.info(JSON.stringify(transactionFromRequest))
+          // logger.info(`getTransactionInfoOrFail raw:`)
+          // logger.info(Base58.encode(transactionFromRequest.id))
+          // logger.info(JSON.stringify(transactionFiled))
+          // logger.info(JSON.stringify(transactionFromRequest))
 
           const transaction = {
             ...transactionFromRequest,
